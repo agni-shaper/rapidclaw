@@ -1,0 +1,38 @@
+# Bot-instance state — never tracked, written by bot-init.sh / runtime
+.env
+.bot-setup-state.json
+.bot-config.yml
+
+# Listener dependencies
+accountability/listener/node_modules/
+
+# Linked sites (each bot links the projects it owns)
+sites/
+
+# Reminders / wishlist sqlite + runtime state
+accountability/reminders/*.db
+accountability/reminders/*.db-journal
+accountability/wishlist/*.db
+accountability/wishlist/*.db-journal
+
+# Ephemeral screenshots from browser-use scans
+accountability/engagement-screenshots/
+
+# sed -i.bak backup files
+*.bak
+
+# Claude Code session-local state
+.claude/scheduled_tasks.lock
+
+# OS / editor noise
+.DS_Store
+.vscode/
+.idea/
+Thumbs.db
+
+# Studio (if present, Next.js build artifacts)
+studio/node_modules/
+studio/.next/
+studio/.turbo/
+studio/out/
+studio/coverage/

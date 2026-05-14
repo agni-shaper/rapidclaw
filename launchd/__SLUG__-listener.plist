@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.__OWNER__.__SLUG__-listener</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>__NODE_BIN__/node</string>
+        <string>__PROJECT_DIR__/accountability/listener/listener.js</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+    <key>WorkingDirectory</key>
+    <string>__PROJECT_DIR__/accountability/listener</string>
+    <key>StandardOutPath</key>
+    <string>/tmp/__SLUG__-listener-out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/__SLUG__-listener-err.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>__NODE_BIN__:__HOME__/.browser-use-env/bin:__HOME__/.local/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>HOME</key>
+        <string>__HOME__</string>
+        <key>LANG</key>
+        <string>en_US.UTF-8</string>
+        <key>LC_ALL</key>
+        <string>en_US.UTF-8</string>
+    </dict>
+</dict>
+</plist>

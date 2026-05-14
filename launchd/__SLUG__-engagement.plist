@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.__OWNER__.__SLUG__-engagement</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>-lc</string>
+        <string>__PROJECT_DIR__/accountability/routines/run.sh engagement</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Hour</key>
+            <integer>__CRON_ENGAGEMENT_1_HOUR__</integer>
+            <key>Minute</key>
+            <integer>__CRON_ENGAGEMENT_1_MIN__</integer>
+        </dict>
+        <dict>
+            <key>Hour</key>
+            <integer>__CRON_ENGAGEMENT_2_HOUR__</integer>
+            <key>Minute</key>
+            <integer>__CRON_ENGAGEMENT_2_MIN__</integer>
+        </dict>
+        <dict>
+            <key>Hour</key>
+            <integer>__CRON_ENGAGEMENT_3_HOUR__</integer>
+            <key>Minute</key>
+            <integer>__CRON_ENGAGEMENT_3_MIN__</integer>
+        </dict>
+    </array>
+    <key>StandardOutPath</key>
+    <string>/tmp/__SLUG__-engagement-launchd-out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/__SLUG__-engagement-launchd-err.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>__NODE_BIN__:__HOME__/.browser-use-env/bin:__HOME__/.local/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>HOME</key>
+        <string>__HOME__</string>
+        <key>LANG</key>
+        <string>en_US.UTF-8</string>
+        <key>LC_ALL</key>
+        <string>en_US.UTF-8</string>
+    </dict>
+</dict>
+</plist>

@@ -1,0 +1,13 @@
+{
+  "name": "rapidclaw-listener",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Slack Socket Mode listener — spawns claude -p per owner message",
+  "main": "listener.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@slack/socket-mode": "^2.0.3"
+  }
+}
