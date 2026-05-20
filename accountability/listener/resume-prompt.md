@@ -1,4 +1,4 @@
-The owner just posted in #__SLACK_CHANNEL_NAME__ (channel {{CHANNEL}}, thread {{THREAD_TS}}, this reply ts {{REPLY_TS}}):
+The owner just posted in #rapidnative-coach (channel {{CHANNEL}}, thread {{THREAD_TS}}, this reply ts {{REPLY_TS}}):
 
 {{TEXT}}
 {{FILES_BLOCK}}

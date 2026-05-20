@@ -3,30 +3,32 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.__OWNER__.__SLUG__-noon</string>
+    <string>com.agni.rapidnative-coach-friday</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/bin/zsh</string>
+        <string>/opt/homebrew/bin/zsh</string>
         <string>-lc</string>
-        <string>__PROJECT_DIR__/accountability/routines/run.sh noon</string>
+        <string>/Users/agni/Documents/rapidclaw/accountability/routines/run.sh friday</string>
     </array>
     <key>StartCalendarInterval</key>
     <dict>
+        <key>Weekday</key>
+        <integer>5</integer>
         <key>Hour</key>
-        <integer>__CRON_NOON_HOUR__</integer>
+        <integer>17</integer>
         <key>Minute</key>
-        <integer>__CRON_NOON_MIN__</integer>
+        <integer>00</integer>
     </dict>
     <key>StandardOutPath</key>
-    <string>/tmp/__SLUG__-noon-launchd-out.log</string>
+    <string>/tmp/rapidnative-coach-friday-launchd-out.log</string>
     <key>StandardErrorPath</key>
-    <string>/tmp/__SLUG__-noon-launchd-err.log</string>
+    <string>/tmp/rapidnative-coach-friday-launchd-err.log</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>__NODE_BIN__:__HOME__/.browser-use-env/bin:__HOME__/.local/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <string>/opt/homebrew/bin:/Users/agni/.browser-use-env/bin:/Users/agni/.local/bin:/usr/local/bin:/usr/bin:/bin</string>
         <key>HOME</key>
-        <string>__HOME__</string>
+        <string>/Users/agni</string>
         <key>LANG</key>
         <string>en_US.UTF-8</string>
         <key>LC_ALL</key>

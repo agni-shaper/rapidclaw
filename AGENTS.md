@@ -1,6 +1,6 @@
 # Notes for AI tooling (Claude Code, opencode, etc.)
 
-This is a **template repo**. When you see it in this state (with `__SLUG__`, `__OWNER__`, `__PROJECT_DIR__` etc. placeholders still present in files), it has not been instantiated yet — run `./bot-init.sh` to walk through the setup wizard. Don't try to operate the bot until the wizard has run and all placeholders are substituted.
+This is a **template repo**. When you see it in this state (with `rapidnative-coach`, `agni`, `/Users/agni/Documents/rapidclaw` etc. placeholders still present in files), it has not been instantiated yet — run `./bot-init.sh` to walk through the setup wizard. Don't try to operate the bot until the wizard has run and all placeholders are substituted.
 
 After `bot-init.sh` completes:
 - The project gains a real identity (`profile.md`, `CLAUDE.md` — both populated from the wizard answers)

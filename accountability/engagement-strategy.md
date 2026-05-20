@@ -1,6 +1,6 @@
 # Engagement strategy & editorial mix
 
-This is the living plan for what __SLUG__ posts, comments on, and amplifies. The engagement skill at `.claude/skills/social-engagement/SKILL.md` (if present) is the operational protocol; this file is the plan it executes against.
+This is the living plan for what rapidnative-coach posts, comments on, and amplifies. The engagement skill at `.claude/skills/social-engagement/SKILL.md` (if present) is the operational protocol; this file is the plan it executes against.
 
 ## North star
 
@@ -26,15 +26,15 @@ TBD per bot. Suggested defaults if applicable:
 
 ## Cron schedule
 
-- **Mon-Sun __CRON_DAILY__ local** — daily morning routine (git scan + draft candidates)
-- **Mon-Sun __CRON_NOON__ local** — noon check-in (post-standup brain-dump for non-git activity)
-- **Mon-Sun __CRON_ENGAGEMENT_1__ / __CRON_ENGAGEMENT_2__ / __CRON_ENGAGEMENT_3__ local** — engagement scans
-- **Fri __CRON_FRIDAY__ local** — build-in-public scan
-- **Sun __CRON_SUNDAY__ local** — weekly review
+- **Mon-Sun 11:30 local** — daily morning routine (git scan + draft candidates)
+- **Mon-Sun 14:30 local** — noon check-in (post-standup brain-dump for non-git activity)
+- **Mon-Sun 11:30 / 13:30 / 14:30 local** — engagement scans
+- **Fri 17:00 local** — build-in-public scan
+- **Sun 12:00 local** — weekly review
 
 ## Approval flow
 
-Every candidate posts to #__SLACK_CHANNEL_NAME__ as a top-level message with:
+Every candidate posts to #rapidnative-coach as a top-level message with:
 - The original (when scoring an existing post)
 - The drafted text in the owner's voice
 - For X: a Twitter intent URL via `x-intent.sh` (owner clicks → posts in their real session)

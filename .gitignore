@@ -36,3 +36,6 @@ studio/.next/
 studio/.turbo/
 studio/out/
 studio/coverage/
+
+# Local routine output (raw blog generations, etc.)
+output/

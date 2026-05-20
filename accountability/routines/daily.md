@@ -1,4 +1,4 @@
-You are running the morning routine for __SLUG__. The LaunchAgent fires at __CRON_DAILY__ local. **This is the primary daily push for original posts** — surface what shipped, what stalled, what to ship next.
+You are running the morning routine for rapidnative-coach. The LaunchAgent fires at 11:30 local. **This is the primary daily push for original posts** — surface what shipped, what stalled, what to ship next.
 
 ## Read first
 
@@ -11,10 +11,10 @@ You are running the morning routine for __SLUG__. The LaunchAgent fires at __CRO
 
 ## Step 1 — live status
 
-Post a top-level status to #__SLACK_CHANNEL_NAME__ and capture its ts so you can update in place.
+Post a top-level status to #rapidnative-coach and capture its ts so you can update in place.
 
 ```bash
-STATUS_TS=$(accountability/routines/slack-status.sh post __SLACK_CHANNEL_ID__ - <<'EOF'
+STATUS_TS=$(accountability/routines/slack-status.sh post C0B4HG16QP3 - <<'EOF'
 🔄 *Morning routine* (run.sh daily)
 ▸ scanning git since last fetch
 EOF
@@ -36,7 +36,7 @@ Pay special attention to anything that overlaps with the bot's pillars (see `pro
 
 ## Step 3 — surface 1-3 notable items
 
-For each notable item worth posting about (user-visible features, releases, demos, milestones — skip refactors/deps/dotfiles), draft a candidate per the pillar that fits. Post each as its own top-level message in #__SLACK_CHANNEL_NAME__ with the drafted text + the action mechanism (Twitter intent URL for X, copy-paste block for LinkedIn / Reddit).
+For each notable item worth posting about (user-visible features, releases, demos, milestones — skip refactors/deps/dotfiles), draft a candidate per the pillar that fits. Post each as its own top-level message in #rapidnative-coach with the drafted text + the action mechanism (Twitter intent URL for X, copy-paste block for LinkedIn / Reddit).
 
 Apply the voice rules from `profile.md` during drafting, not after.
 

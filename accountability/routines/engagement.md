@@ -1,4 +1,4 @@
-You are running a scheduled engagement scan for __SLUG__. Fires 3x/day. **Read `profile.md` and `accountability/engagement-strategy.md` first — those define which platforms, which pillars, which Chrome profiles, what voice.**
+You are running a scheduled engagement scan for rapidnative-coach. Fires 3x/day. **Read `profile.md` and `accountability/engagement-strategy.md` first — those define which platforms, which pillars, which Chrome profiles, what voice.**
 
 If the bot has a `.claude/skills/social-engagement/SKILL.md`, load it — it's canonical for the engagement protocol on this bot.
 
@@ -7,11 +7,11 @@ If the bot has a `.claude/skills/social-engagement/SKILL.md`, load it — it's c
 **Live status:** Before any browser navigation, post a status message and update it as you work.
 
 ```bash
-STATUS_TS=$(accountability/routines/slack-status.sh post __SLACK_CHANNEL_ID__ - "🔄 *Engagement scan starting* ($(date '+%H:%M %Z'))
+STATUS_TS=$(accountability/routines/slack-status.sh post C0B4HG16QP3 - "🔄 *Engagement scan starting* ($(date '+%H:%M %Z'))
 ▸ opening primary feed via browser-use (new tab)")
 ```
 
-Update at each milestone via `slack-status.sh update __SLACK_CHANNEL_ID__ "$STATUS_TS" "<full text>"`. Suggested checkpoints:
+Update at each milestone via `slack-status.sh update C0B4HG16QP3 "$STATUS_TS" "<full text>"`. Suggested checkpoints:
 - after feed loaded: `▸ captured feed state (N posts visible)`
 - after scoring: `▸ scored, picked M candidates`
 - per candidate built: `▸ candidate K/M ready (intent URL built)`
@@ -52,7 +52,7 @@ For each enabled platform:
    ```bash
    # 1-liner top-level
    ONE_LINER="*#N <action> → @<handle>* · <age> · <likes> likes · _\"<snippet>\"_"
-   TOP_TS=$(printf '%s\n' "$ONE_LINER" | accountability/routines/slack-post.sh __SLACK_CHANNEL_ID__ | awk -F= '{print $2}')
+   TOP_TS=$(printf '%s\n' "$ONE_LINER" | accountability/routines/slack-post.sh C0B4HG16QP3 | awk -F= '{print $2}')
 
    # Full details as thread reply (screenshot + draft + intent URL + options)
    cat > /tmp/cand-N-caption.txt <<'MSG'
@@ -68,7 +68,7 @@ For each enabled platform:
 
    In thread: `improve: <direction>` · `change to rt` · `change to quote: <text>` · `like only` · `reject`
    MSG
-   accountability/routines/slack-upload.sh __SLACK_CHANNEL_ID__ /tmp/cand-N.png "" "$TOP_TS" < /tmp/cand-N-caption.txt
+   accountability/routines/slack-upload.sh C0B4HG16QP3 /tmp/cand-N.png "" "$TOP_TS" < /tmp/cand-N-caption.txt
    ```
 
 9. **For LinkedIn / Reddit:** same 1-line + thread pattern, but the thread reply has the drafted comment in a triple-backtick code block (for one-click copy) and a clickable link to open the post. The owner pastes manually in their real Chrome.

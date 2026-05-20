@@ -17,14 +17,22 @@ const { spawn } = require('child_process');
 
 // ---------- slug-aware constants (substituted by bot-init.sh) ----------
 
-const SLUG = '__SLUG__';
-const PROJECT = '__PROJECT_DIR__';
+const SLUG = 'rapidnative-coach';
+const PROJECT = '/Users/agni/Documents/rapidclaw';
 const HOME = process.env.HOME;
-const TARGET_CHANNEL = '__SLACK_CHANNEL_ID__';
-const OWNER_USER = '__SLACK_USER_ID__';
-const BOT_USER = '__BOT_USER_ID__';
-const CLAUDE_PATH = '__CLAUDE_PATH__';
-const NODE_BIN = '__NODE_BIN__';
+const TARGET_CHANNEL = 'C0B4HG16QP3';
+const OWNER_USERS = new Set([
+  'U0B4FCJ8Z1Q', // Agni (owner of this rapidclaw instance)
+  'U09DC8L7PCZ', // @sanket — Sanket Sahu (CEO, super admin)
+  'U09DC8MB4KB', // @suraj — Suraj Ahmed (CTO, super admin)
+  'U09CXCYV7D1', // @riya — Riya Sharma (Developer)
+  'U09CUJ9ATM1', // @rishav — Rishav Kumar (Developer)
+  'U09DFJJGS1X', // @russel — Russel (Video Editor)
+  'U09LL9JTDM5', // @famitha — Famitha (Designer)
+]);
+const BOT_USER = 'U0B4CBTR22H';
+const CLAUDE_PATH = '/opt/homebrew/bin/claude';
+const NODE_BIN = '/opt/homebrew/bin';
 const PATH_VAR = `${NODE_BIN}:${HOME}/.browser-use-env/bin:${HOME}/.local/bin:/usr/local/bin:/usr/bin:/bin`;
 
 // ---------- file paths (all namespaced by slug) ----------
@@ -535,13 +543,13 @@ async function backfill() {
   const candidates = [];
 
   for (const m of topLevel) {
-    if (m.user === OWNER_USER && (!m.subtype || m.subtype === 'file_share')) candidates.push(m);
+    if (OWNER_USERS.has(m.user) && (!m.subtype || m.subtype === 'file_share')) candidates.push(m);
     if (m.thread_ts && m.thread_ts === m.ts && (m.reply_count || 0) > 0) {
       try {
         const thread = await slackApi('conversations.replies', { channel: TARGET_CHANNEL, ts: m.ts, limit: 200 });
         for (const r of (thread.messages || [])) {
           if (r.ts === m.ts) continue;
-          if (r.user === OWNER_USER && (!r.subtype || r.subtype === 'file_share')) candidates.push(r);
+          if (OWNER_USERS.has(r.user) && (!r.subtype || r.subtype === 'file_share')) candidates.push(r);
         }
       } catch (e) { log(`backfill error (replies for ${m.ts}): ${e.message}`); }
     }
@@ -573,7 +581,7 @@ client.on('message', async ({ event, ack }) => {
   if (event.subtype && event.subtype !== 'file_share') return;
   if (event.bot_id) return;
   if (event.user === BOT_USER) return;
-  if (event.user !== OWNER_USER) return;
+  if (!OWNER_USERS.has(event.user)) return;
   if (event.channel !== TARGET_CHANNEL) return;
   if (processed.has(event.ts)) return;
 
@@ -637,7 +645,7 @@ recoverInflight();
 
 client.start().then(
   () => {
-    log(`listener started — watching #__SLACK_CHANNEL_NAME__ (slug=${SLUG})`);
+    log(`listener started — watching #rapidnative-coach (slug=${SLUG})`);
     if (process.env.ANTHROPIC_BASE_URL) log(`routing claude -p via ${process.env.ANTHROPIC_BASE_URL} · model=${process.env.ANTHROPIC_MODEL}`);
     else log('claude -p using default Anthropic auth (no OpenRouter routing)');
   },

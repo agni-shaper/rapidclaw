@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.__OWNER__.__SLUG__-listener</string>
+    <string>com.agni.rapidnative-coach-listener</string>
     <key>ProgramArguments</key>
     <array>
-        <string>__NODE_BIN__/node</string>
-        <string>__PROJECT_DIR__/accountability/listener/listener.js</string>
+        <string>/opt/homebrew/bin/node</string>
+        <string>/Users/agni/Documents/rapidclaw/accountability/listener/listener.js</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
@@ -16,17 +16,17 @@
     <key>ThrottleInterval</key>
     <integer>10</integer>
     <key>WorkingDirectory</key>
-    <string>__PROJECT_DIR__/accountability/listener</string>
+    <string>/Users/agni/Documents/rapidclaw/accountability/listener</string>
     <key>StandardOutPath</key>
-    <string>/tmp/__SLUG__-listener-out.log</string>
+    <string>/tmp/rapidnative-coach-listener-out.log</string>
     <key>StandardErrorPath</key>
-    <string>/tmp/__SLUG__-listener-err.log</string>
+    <string>/tmp/rapidnative-coach-listener-err.log</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>__NODE_BIN__:__HOME__/.browser-use-env/bin:__HOME__/.local/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <string>/opt/homebrew/bin:/Users/agni/.browser-use-env/bin:/Users/agni/.local/bin:/usr/local/bin:/usr/bin:/bin</string>
         <key>HOME</key>
-        <string>__HOME__</string>
+        <string>/Users/agni</string>
         <key>LANG</key>
         <string>en_US.UTF-8</string>
         <key>LC_ALL</key>

@@ -1,10 +1,10 @@
-# __SLUG__
+# rapidnative-coach
 
 This is a rapidclaw bot. **Identity, voice, goal, and pillars are in `profile.md` — read that file first when you spawn here.**
 
 ## What this is
 
-A long-running personal AI agent that lives in Slack (#__SLACK_CHANNEL_NAME__), runs on cron (daily/noon/friday/sunday/engagement), and helps the owner act on their goal.
+A long-running personal AI agent that lives in Slack (#rapidnative-coach), runs on cron (daily/noon/friday/sunday/engagement), and helps the owner act on their goal.
 
 ## How Claude should help
 
@@ -15,7 +15,7 @@ A long-running personal AI agent that lives in Slack (#__SLACK_CHANNEL_NAME__), 
 
 ## Slack interaction (the spine)
 
-The owner interacts with this bot via Slack #__SLACK_CHANNEL_NAME__:
+The owner interacts with this bot via Slack #rapidnative-coach:
 
 - A top-level message starts a new thread (the bot replies in that thread).
 - Replies in an existing thread continue that thread's claude session via `--resume` (prompt caching survives).
@@ -43,11 +43,15 @@ After scraping/screenshotting, close just the tab you opened: `browser-use tab c
 
 ## Linked projects (sites/)
 
-If the owner asks the bot to act on a linked project (publish to a website, update a doc, etc.), look under `sites/` for symlinks. Each linked site has its own git repo and conventions. Drafts flow through this bot's `drafts/` dir, then on approval the bot moves files into the linked site dir + commits/pushes its repo.
+If the owner asks the bot to act on a linked project (publish to a website, update a doc, change code, etc.), **look under `sites/` first**. Each linked project may be either:
+- a **symlink** to the project directory, or
+- a **pointer `.md` file** (e.g. `sites/rapidnative-website.md`) that gives the on-disk path, the GitHub remote, and a strict workflow (branch → edit → commit → push → `gh pr create` → post PR URL back to the same Slack thread via `slack-post.sh`).
+
+**Always read the pointer file before acting** — it defines the rules for that project (branch naming, what not to touch, who merges, etc.). Default expectation: branch + PR, **never push to `main`**. Drafts flow through this bot's `drafts/` dir for content; code changes flow as PRs.
 
 ## Reading social profiles
 
-For logged-in views, always use `browser-open.sh`. For GitHub data, prefer the `gh` CLI (already authed as `__OWNER__`).
+For logged-in views, always use `browser-open.sh`. For GitHub data, prefer the `gh` CLI (already authed as `agni`).
 
 **Stay read-only on social.** No clicks on Follow / Like / Repost / Post / Connect / DM action buttons in the owner's live session. Snapshots, scrolls, gets, screenshots only. Drafts go to files; the owner ships.
 
@@ -57,7 +61,7 @@ For logged-in views, always use `browser-open.sh`. For GitHub data, prefer the `
 2. `./launchd/install.sh` — loads listener + cron plists into ~/Library/LaunchAgents (the wizard offers to do this for you at the end).
 3. Verify: `accountability/routines/coach.sh status`
 
-Logs land at `/tmp/__SLUG__-*.log`. Slack channel: #__SLACK_CHANNEL_NAME__ in __SLACK_WORKSPACE__.
+Logs land at `/tmp/rapidnative-coach-*.log`. Slack channel: #rapidnative-coach in shaper-studio.
 
 ## What NOT to do
 

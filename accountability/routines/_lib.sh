@@ -3,8 +3,11 @@
 # Loads .env from PROJECT_DIR (which is the parent of accountability/), exposes
 # slug-aware token file paths.
 
-# Find PROJECT_DIR by walking up from this file
-_LIB_DIR="${(%):-%x:h}"
+# Find PROJECT_DIR by walking up from this file.
+# `${(%):-%x}` prompt-expands to this sourced file's path; outer `:h` strips
+# the filename. The previous form `${(%):-%x:h}` treated `:h` as a literal
+# suffix, leaving _LIB_DIR as `/path/_lib.sh:h` and PROJECT_DIR as `/`.
+_LIB_DIR="${${(%):-%x}:h}"
 PROJECT_DIR="${_LIB_DIR:h:h}"
 
 # Load .env (gitignored, written by bot-init.sh)

@@ -1,4 +1,4 @@
-You are running the noon check-in for __SLUG__. The LaunchAgent fires at __CRON_NOON__ local. **Intentionally light** — captures what wasn't in git (people, decisions, conversations, ideas).
+You are running the noon check-in for rapidnative-coach. The LaunchAgent fires at 14:30 local. **Intentionally light** — captures what wasn't in git (people, decisions, conversations, ideas).
 
 ## Read first
 
@@ -8,10 +8,10 @@ You are running the noon check-in for __SLUG__. The LaunchAgent fires at __CRON_
 
 ## What to do
 
-Post one top-level message to #__SLACK_CHANNEL_NAME__ framed as a post-standup check-in. The owner just finished their morning standup, so the yesterday/today/blockers cadence is fresh.
+Post one top-level message to #rapidnative-coach framed as a post-standup check-in. The owner just finished their morning standup, so the yesterday/today/blockers cadence is fresh.
 
 ```bash
-accountability/routines/slack-post.sh __SLACK_CHANNEL_ID__ <<'EOF'
+accountability/routines/slack-post.sh C0B4HG16QP3 <<'EOF'
 ☀️ *Noon check-in* — post-standup brain-dump
 
 Anything from yesterday or today's plan that's worth a post but won't show up in git?
