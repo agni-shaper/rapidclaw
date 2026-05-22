@@ -21,15 +21,12 @@ const SLUG = 'rapidnative-coach';
 const PROJECT = '/Users/agni/Documents/rapidclaw';
 const HOME = process.env.HOME;
 const TARGET_CHANNEL = 'C0B4HG16QP3';
-const OWNER_USERS = new Set([
-  'U0B4FCJ8Z1Q', // Agni (owner of this rapidclaw instance)
-  'U09DC8L7PCZ', // @sanket — Sanket Sahu (CEO, super admin)
-  'U09DC8MB4KB', // @suraj — Suraj Ahmed (CTO, super admin)
-  'U09CXCYV7D1', // @riya — Riya Sharma (Developer)
-  'U09CUJ9ATM1', // @rishav — Rishav Kumar (Developer)
-  'U09DFJJGS1X', // @russel — Russel (Video Editor)
-  'U09LL9JTDM5', // @famitha — Famitha (Designer)
-]);
+// TEAM_USERS, SUPERADMIN_USERS, and OWNER_USER_ID are populated after
+// loadDotEnvIntoProcess() runs. Declared as `let` so they can be assigned
+// post-dotenv-load.
+let TEAM_USERS = new Set();
+let SUPERADMIN_USERS = new Set();
+let OWNER_USER_ID = '';
 const BOT_USER = 'U0B4CBTR22H';
 const CLAUDE_PATH = '/opt/homebrew/bin/claude';
 const NODE_BIN = '/opt/homebrew/bin';
@@ -41,11 +38,36 @@ const APP_TOKEN_PATH = path.join(HOME, '.config/claude', `${SLUG}-slack-app-toke
 const BOT_TOKEN_PATH = path.join(HOME, '.config/claude', `${SLUG}-slack-bot-token`);
 const PROCESSED_LOG = path.join(HOME, '.config/claude', `${SLUG}-processed-ts.log`);
 const SESSION_STATE_PATH = path.join(HOME, '.config/claude', `${SLUG}-thread-sessions.json`);
+const WORKTREE_STATE_PATH = path.join(HOME, '.config/claude', `${SLUG}-thread-worktrees.json`);
 const INFLIGHT_PATH = path.join(HOME, '.config/claude', `${SLUG}-inflight.json`);
 const EVENTS_LOG_PATH = path.join(HOME, '.config/claude', `${SLUG}-events.jsonl`);
 const LISTENER_LOG = `/tmp/${SLUG}-listener.log`;
 const BOOTSTRAP_PROMPT_FILE = path.join(PROJECT, 'accountability/listener/bootstrap-prompt.md');
 const RESUME_PROMPT_FILE = path.join(PROJECT, 'accountability/listener/resume-prompt.md');
+
+// Per-thread git worktrees. Each Slack thread gets its own checkout at
+// ~/rapidclaw-worktrees/<safe_ts>/ on branch thread/<safe_ts>. Two teammates
+// messaging at once write to different worktrees and don't collide on
+// drafts/, sites/, the git index, etc. Memory dir is symlinked so the team
+// roster + project memories are shared across worktrees. Bot Chrome is still
+// singleton (separately serialized via shlock in browser-open.sh).
+const WORKTREE_ROOT = path.join(HOME, 'rapidclaw-worktrees');
+const SITE_WORKTREE_ROOT = path.join(HOME, 'rapidclaw-site-worktrees');
+const WORKTREE_MAX_AGE_DAYS = 14;
+
+// Mirror Claude Code's project-dir encoding so the worktree symlink lands at
+// the same name Claude Code computes from cwd. The rule: leading slash → '-',
+// then EVERY non-[a-zA-Z0-9-] character (so /, _, . are all mapped to '-').
+// We verified empirically: spawning claude with cwd=
+//   /Users/agni/rapidclaw-worktrees/1779440929_459699
+// creates a project dir named
+//   -Users-agni-rapidclaw-worktrees-1779440929-459699
+// (the underscore becomes a dash). An earlier version of this encoder only
+// handled '/' which silently broke the memory symlink for any path with '_'.
+function encodeProjectPath(p) {
+  return '-' + p.replace(/^\//, '').replace(/[^a-zA-Z0-9-]/g, '-');
+}
+const PROJECT_MEMORY_DIR_NAME = encodeProjectPath(PROJECT);
 
 // Ensure the ~/.config/claude/ dir exists for our state files
 try { fs.mkdirSync(path.dirname(APP_TOKEN_PATH), { recursive: true, mode: 0o700 }); } catch {}
@@ -68,6 +90,36 @@ function loadDotEnvIntoProcess() {
   } catch {}
 }
 loadDotEnvIntoProcess();
+
+// Populate the team allowlist from .env. Listener silently drops messages
+// from anyone not in this set. Exit early if it's empty — otherwise the bot
+// would ignore every message and look broken.
+TEAM_USERS = new Set(
+  (process.env.TEAM_USERS || '').split(',').map(s => s.trim()).filter(Boolean)
+);
+SUPERADMIN_USERS = new Set(
+  (process.env.SUPERADMIN_USERS || '').split(',').map(s => s.trim()).filter(Boolean)
+);
+OWNER_USER_ID = process.env.SLACK_USER_ID || '';
+if (TEAM_USERS.size === 0) {
+  console.error('FATAL: TEAM_USERS not set in .env — listener would reject every message. Edit .env and restart.');
+  process.exit(1);
+}
+
+// senderTier returns the permission tier of a Slack user id:
+//   'owner'      — the project owner (SLACK_USER_ID); full ship authority
+//   'superadmin' — listed in SUPERADMIN_USERS; full ship authority
+//   'teammate'   — in TEAM_USERS but no ship authority; can draft/read/research
+//   'unknown'    — not in any list; should never happen because the message
+//                  filter at the top of the handler already drops them, but
+//                  surfaced as a tier name for prompt completeness.
+function senderTier(userId) {
+  if (!userId) return 'unknown';
+  if (userId === OWNER_USER_ID) return 'owner';
+  if (SUPERADMIN_USERS.has(userId)) return 'superadmin';
+  if (TEAM_USERS.has(userId)) return 'teammate';
+  return 'unknown';
+}
 
 // Gated behind USE_OPENROUTER=1 in .env. Default off — claude CLI uses the
 // owner's Anthropic subscription. Flip the flag if Anthropic disables
@@ -241,6 +293,241 @@ function saveThreadSession(threadTs, sessionId, firstMessage) {
   catch (e) { log(`session save error: ${e.message}`); }
 }
 
+// ---------- per-thread git worktrees ----------
+
+const { execFileSync } = require('child_process');
+
+function loadWorktreeMap() {
+  try { return JSON.parse(fs.readFileSync(WORKTREE_STATE_PATH, 'utf8')); }
+  catch { return {}; }
+}
+function saveWorktreeMap(m) {
+  try { fs.writeFileSync(WORKTREE_STATE_PATH, JSON.stringify(m, null, 2)); }
+  catch (e) { log(`worktree-state save error: ${e.message}`); }
+}
+function getThreadWorktree(threadTs) {
+  const m = loadWorktreeMap();
+  const entry = m[threadTs];
+  if (!entry) return null;
+  // If the dir was manually deleted, treat as missing
+  if (!fs.existsSync(entry.path)) return null;
+  return entry.path;
+}
+function setThreadWorktree(threadTs, wtPath, branch) {
+  const m = loadWorktreeMap();
+  m[threadTs] = { path: wtPath, branch, created_at: new Date().toISOString() };
+  saveWorktreeMap(m);
+}
+function safeThreadTs(threadTs) {
+  // Slack ts is like "1779379100.123456" — git branch names allow '.' but the
+  // dir name is cleaner without it.
+  return String(threadTs).replace(/\./g, '_');
+}
+
+// Symlink one path into the worktree if its source exists. Creates parent
+// dirs. Removes any existing entry at the dst first.
+function linkInto(workdir, relPath) {
+  const src = path.join(PROJECT, relPath);
+  const dst = path.join(workdir, relPath);
+  if (!fs.existsSync(src) && !(() => { try { fs.lstatSync(src); return true; } catch { return false; } })()) return;
+  try { fs.mkdirSync(path.dirname(dst), { recursive: true }); } catch {}
+  try {
+    if (fs.existsSync(dst) || (() => { try { fs.lstatSync(dst); return true; } catch { return false; } })()) {
+      // Remove existing file/dir/symlink at dst
+      try { fs.unlinkSync(dst); } catch { try { fs.rmSync(dst, { recursive: true, force: true }); } catch {} }
+    }
+    fs.symlinkSync(src, dst);
+  } catch (e) {
+    log(`worktree symlink ${relPath} failed: ${e.message}`);
+  }
+}
+
+// Symlink the Claude Code project memory dir so each worktree shares team
+// roster + project memories with the main project. Without this, every
+// worktree thread starts cold and the bot can't identify teammates.
+function linkMemoryDir(workdir) {
+  const mainEncoded = PROJECT_MEMORY_DIR_NAME;
+  const wtEncoded = encodeProjectPath(workdir);
+  const mainMemDir = path.join(HOME, '.claude/projects', mainEncoded);
+  const wtMemDir = path.join(HOME, '.claude/projects', wtEncoded);
+  try { fs.mkdirSync(path.join(HOME, '.claude/projects'), { recursive: true }); } catch {}
+  if (!fs.existsSync(mainMemDir)) {
+    log(`memory link: main memory dir ${mainMemDir} doesn't exist yet — skipping (will appear once claude writes memory)`);
+    return;
+  }
+  try {
+    if (fs.existsSync(wtMemDir) || (() => { try { fs.lstatSync(wtMemDir); return true; } catch { return false; } })()) {
+      try { fs.unlinkSync(wtMemDir); } catch { try { fs.rmSync(wtMemDir, { recursive: true, force: true }); } catch {} }
+    }
+    fs.symlinkSync(mainMemDir, wtMemDir);
+    log(`memory link: ${wtEncoded} → ${mainEncoded}`);
+  } catch (e) {
+    log(`memory link failed: ${e.message}`);
+  }
+}
+
+function createWorktreeForThread(threadTs) {
+  try { fs.mkdirSync(WORKTREE_ROOT, { recursive: true }); } catch {}
+  const safeTs = safeThreadTs(threadTs);
+  const wtPath = path.join(WORKTREE_ROOT, safeTs);
+  const branch = `thread/${safeTs}`;
+
+  // Already exists and is a valid worktree — just return it
+  if (fs.existsSync(wtPath)) {
+    log(`worktree for ${threadTs} already exists at ${wtPath}`);
+    return { wtPath, branch };
+  }
+
+  // Try `git worktree add -b <branch> <path> HEAD`
+  try {
+    execFileSync('git', ['-C', PROJECT, 'worktree', 'add', '-b', branch, wtPath, 'HEAD'], { stdio: 'pipe' });
+    log(`worktree created: ${wtPath} on new branch ${branch}`);
+  } catch (e1) {
+    // Branch likely already exists (from a previous worktree that was deleted)
+    try {
+      execFileSync('git', ['-C', PROJECT, 'worktree', 'add', wtPath, branch], { stdio: 'pipe' });
+      log(`worktree re-attached: ${wtPath} on existing branch ${branch}`);
+    } catch (e2) {
+      log(`worktree creation failed for ${threadTs}: ${e1.message.trim()} / retry: ${e2.message.trim()}`);
+      // Clean up any partial dir
+      try { fs.rmSync(wtPath, { recursive: true, force: true }); } catch {}
+      return null;
+    }
+  }
+
+  // Symlink gitignored runtime files the bot needs
+  linkInto(wtPath, '.env');
+
+  // sites/ is special: instead of one symlink to main's sites/ (which would
+  // make two threads write to the same linked repo), create a real dir with
+  // per-site symlinks. Each entry initially points at the same real repo as
+  // main's sites/<name> (so routines that read from sites/<name> still work).
+  // sites-prepare.sh later replaces individual entries with per-thread
+  // worktrees of the underlying real repo, isolating concurrent edits.
+  populateSitesDir(wtPath);
+
+  // Symlink memory dir so team roster + auto-memory is shared
+  linkMemoryDir(wtPath);
+
+  return { wtPath, branch };
+}
+
+function populateSitesDir(wtPath) {
+  const mainSites = path.join(PROJECT, 'sites');
+  const wtSites = path.join(wtPath, 'sites');
+  if (!fs.existsSync(mainSites)) return;
+  // git worktree add already created an empty sites/ (tracked? gitignored?).
+  // Either way, ensure it's a real dir, not a symlink, and is empty.
+  try {
+    if (fs.existsSync(wtSites) || (() => { try { fs.lstatSync(wtSites); return true; } catch { return false; } })()) {
+      try { fs.unlinkSync(wtSites); } catch { try { fs.rmSync(wtSites, { recursive: true, force: true }); } catch {} }
+    }
+    fs.mkdirSync(wtSites, { recursive: true });
+  } catch (e) {
+    log(`populateSitesDir: failed to make ${wtSites}: ${e.message}`);
+    return;
+  }
+  let entries = [];
+  try { entries = fs.readdirSync(mainSites, { withFileTypes: true }); } catch { return; }
+  for (const ent of entries) {
+    const mainEntry = path.join(mainSites, ent.name);
+    const wtEntry = path.join(wtSites, ent.name);
+    try {
+      let lst;
+      try { lst = fs.lstatSync(mainEntry); } catch { continue; }
+      if (lst.isSymbolicLink()) {
+        // Mirror the symlink target. Bot uses sites-prepare.sh to swap this
+        // to a per-thread worktree later.
+        const target = fs.readlinkSync(mainEntry);
+        fs.symlinkSync(target, wtEntry);
+      } else if (lst.isFile()) {
+        // Pointer .md file (e.g., sites/foo.md). Copy it verbatim.
+        fs.copyFileSync(mainEntry, wtEntry);
+      } else {
+        // Skip unknown entry kinds
+      }
+    } catch (e) {
+      log(`populateSitesDir: failed to mirror ${ent.name}: ${e.message}`);
+    }
+  }
+}
+
+function pruneSiteWorktreesForThread(safeTs) {
+  // Remove any per-thread site worktrees under ~/rapidclaw-site-worktrees/<safeTs>/.
+  // Each entry is a worktree of a linked site's real repo, so we have to call
+  // `git worktree remove` from each real repo's perspective, then rmdir the
+  // per-thread parent dir.
+  const perThreadDir = path.join(SITE_WORKTREE_ROOT, safeTs);
+  let siteEntries = [];
+  try { siteEntries = fs.readdirSync(perThreadDir, { withFileTypes: true }); } catch { return 0; }
+  const touchedRepos = new Set();
+  let removed = 0;
+  for (const ent of siteEntries) {
+    const sitePerThreadWt = path.join(perThreadDir, ent.name);
+    // Find the real repo: walk into the worktree's .git pointer to learn.
+    // A worktree's .git is a regular file containing "gitdir: <real-repo>/.git/worktrees/<id>".
+    let realRepo = null;
+    try {
+      const gitFile = path.join(sitePerThreadWt, '.git');
+      const txt = fs.readFileSync(gitFile, 'utf8');
+      const m = txt.match(/^gitdir:\s*(.*?)\/\.git\/worktrees\//m);
+      if (m) realRepo = m[1];
+    } catch {}
+    if (realRepo) {
+      try {
+        execFileSync('git', ['-C', realRepo, 'worktree', 'remove', '--force', sitePerThreadWt], { stdio: 'pipe' });
+        touchedRepos.add(realRepo);
+      } catch {
+        try { fs.rmSync(sitePerThreadWt, { recursive: true, force: true }); } catch {}
+      }
+    } else {
+      try { fs.rmSync(sitePerThreadWt, { recursive: true, force: true }); } catch {}
+    }
+    removed++;
+  }
+  try { fs.rmdirSync(perThreadDir); } catch {}
+  for (const r of touchedRepos) {
+    try { execFileSync('git', ['-C', r, 'worktree', 'prune'], { stdio: 'pipe' }); } catch {}
+  }
+  return removed;
+}
+
+function pruneOldWorktrees(maxAgeDays = WORKTREE_MAX_AGE_DAYS) {
+  let pruned = 0;
+  let listed = [];
+  try {
+    listed = fs.readdirSync(WORKTREE_ROOT, { withFileTypes: true })
+      .filter(d => d.isDirectory())
+      .map(d => path.join(WORKTREE_ROOT, d.name));
+  } catch { return; }
+  const cutoff = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
+  const map = loadWorktreeMap();
+  let siteWtsRemoved = 0;
+  for (const wt of listed) {
+    let mtime = 0;
+    try { mtime = fs.statSync(wt).mtimeMs; } catch { continue; }
+    if (mtime >= cutoff) continue;
+    const safeTs = path.basename(wt);
+    // First clean up any per-thread site worktrees that hang off this thread
+    siteWtsRemoved += pruneSiteWorktreesForThread(safeTs);
+    try {
+      execFileSync('git', ['-C', PROJECT, 'worktree', 'remove', '--force', wt], { stdio: 'pipe' });
+    } catch (e) {
+      // Force-remove the dir anyway if git refused (e.g., locked/corrupt)
+      try { fs.rmSync(wt, { recursive: true, force: true }); } catch {}
+    }
+    // Drop matching entries from the map
+    for (const [ts, entry] of Object.entries(map)) {
+      if (entry.path === wt) delete map[ts];
+    }
+    pruned++;
+    log(`pruned old worktree: ${safeTs} (idle ≥ ${maxAgeDays}d)`);
+  }
+  if (pruned > 0) saveWorktreeMap(map);
+  try { execFileSync('git', ['-C', PROJECT, 'worktree', 'prune'], { stdio: 'pipe' }); } catch {}
+  if (pruned > 0 || listed.length > 0) log(`worktree GC: pruned=${pruned} bot-wt + ${siteWtsRemoved} site-wt, retained=${listed.length - pruned}`);
+}
+
 // ---------- queue + health metrics ----------
 
 const queue = [];
@@ -293,6 +580,11 @@ function buildBootstrapPrompt({ event, text, threadTs, files }) {
     CHANNEL: event.channel,
     REPLY_TS: event.ts,
     THREAD_TS: threadTs,
+    SENDER_USER_ID: event.user || 'unknown',
+    SENDER_TIER: senderTier(event.user),
+    OWNER_USER_ID: OWNER_USER_ID || 'unknown',
+    SUPERADMIN_PINGS: [...SUPERADMIN_USERS].map(u => `<@${u}>`).join(', ') || '(none)',
+    BOT_USER_ID: BOT_USER,
     TURN_KIND: isFirstTurn ? 'a new top-level message (start of conversation)' : 'a reply inside an existing thread (continuation)',
     FILES_BLOCK: files && files.length ? filesBlock(files) : '',
     LOAD_THREAD_HINT: isFirstTurn
@@ -308,6 +600,10 @@ function buildResumePrompt({ event, text, threadTs, files }) {
     CHANNEL: event.channel,
     REPLY_TS: event.ts,
     THREAD_TS: threadTs,
+    SENDER_USER_ID: event.user || 'unknown',
+    SENDER_TIER: senderTier(event.user),
+    OWNER_USER_ID: OWNER_USER_ID || 'unknown',
+    SUPERADMIN_PINGS: [...SUPERADMIN_USERS].map(u => `<@${u}>`).join(', ') || '(none)',
     FILES_BLOCK: files && files.length ? filesBlock(files) : '',
   });
 }
@@ -326,16 +622,31 @@ function runClaude(job) {
     const isResume = !!existingSession;
     const prompt = isResume ? buildResumePrompt(job) : buildBootstrapPrompt(job);
 
+    // Pick the working directory: per-thread worktree if available, else
+    // fall back to the main project (preserves old behavior if worktree
+    // creation fails).
+    let workdir = getThreadWorktree(job.threadTs);
+    if (!workdir) {
+      const created = createWorktreeForThread(job.threadTs);
+      if (created) {
+        workdir = created.wtPath;
+        setThreadWorktree(job.threadTs, created.wtPath, created.branch);
+      } else {
+        log(`falling back to main project dir for thread ${job.threadTs} (worktree creation failed)`);
+        workdir = PROJECT;
+      }
+    }
+
     const args = [
       '-p',
       '--dangerously-skip-permissions',
-      '--add-dir', PROJECT,
+      '--add-dir', workdir,
       '--output-format', 'stream-json',
       '--verbose',
     ];
     if (isResume) args.push('--resume', existingSession);
 
-    log(`spawning claude -p ${isResume ? `(RESUME ${existingSession.slice(0,8)}…)` : '(FRESH session)'} prompt=${prompt.length}b thread=${job.threadTs}`);
+    log(`spawning claude -p ${isResume ? `(RESUME ${existingSession.slice(0,8)}…)` : '(FRESH session)'} prompt=${prompt.length}b thread=${job.threadTs} cwd=${workdir === PROJECT ? 'PROJECT' : path.basename(workdir)}`);
     appendEvent({
       type: 'start',
       thread_ts: job.threadTs,
@@ -343,13 +654,14 @@ function runClaude(job) {
       is_resume: isResume,
       session_id: existingSession || null,
       prompt_bytes: prompt.length,
+      workdir,
       text: (job.text || '').slice(0, 200),
     });
 
     const child = spawn(CLAUDE_PATH, args, {
-      cwd: PROJECT,
+      cwd: workdir,
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, PATH: PATH_VAR, HOME, SLACK_THREAD_TS: job.threadTs, SLACK_CHANNEL: job.event.channel },
+      env: { ...process.env, PATH: PATH_VAR, HOME, SLACK_THREAD_TS: job.threadTs, SLACK_CHANNEL: job.event.channel, SLACK_SENDER_USER_ID: job.event.user || '', SLACK_SENDER_TIER: senderTier(job.event.user), SLACK_THREAD_WORKDIR: workdir },
     });
     activeChildren.add(child);
     markInflight(job, child.pid);
@@ -543,13 +855,13 @@ async function backfill() {
   const candidates = [];
 
   for (const m of topLevel) {
-    if (OWNER_USERS.has(m.user) && (!m.subtype || m.subtype === 'file_share')) candidates.push(m);
+    if (TEAM_USERS.has(m.user) && (!m.subtype || m.subtype === 'file_share')) candidates.push(m);
     if (m.thread_ts && m.thread_ts === m.ts && (m.reply_count || 0) > 0) {
       try {
         const thread = await slackApi('conversations.replies', { channel: TARGET_CHANNEL, ts: m.ts, limit: 200 });
         for (const r of (thread.messages || [])) {
           if (r.ts === m.ts) continue;
-          if (OWNER_USERS.has(r.user) && (!r.subtype || r.subtype === 'file_share')) candidates.push(r);
+          if (TEAM_USERS.has(r.user) && (!r.subtype || r.subtype === 'file_share')) candidates.push(r);
         }
       } catch (e) { log(`backfill error (replies for ${m.ts}): ${e.message}`); }
     }
@@ -581,7 +893,7 @@ client.on('message', async ({ event, ack }) => {
   if (event.subtype && event.subtype !== 'file_share') return;
   if (event.bot_id) return;
   if (event.user === BOT_USER) return;
-  if (!OWNER_USERS.has(event.user)) return;
+  if (!TEAM_USERS.has(event.user)) return;
   if (event.channel !== TARGET_CHANNEL) return;
   if (processed.has(event.ts)) return;
 
@@ -642,10 +954,11 @@ setInterval(() => {
 
 rotateEventLog();
 recoverInflight();
+pruneOldWorktrees();
 
 client.start().then(
   () => {
-    log(`listener started — watching #rapidnative-coach (slug=${SLUG})`);
+    log(`listener started — watching #rapidnative-coach (slug=${SLUG}, ${TEAM_USERS.size} team / ${SUPERADMIN_USERS.size} super-admins)`);
     if (process.env.ANTHROPIC_BASE_URL) log(`routing claude -p via ${process.env.ANTHROPIC_BASE_URL} · model=${process.env.ANTHROPIC_MODEL}`);
     else log('claude -p using default Anthropic auth (no OpenRouter routing)');
   },

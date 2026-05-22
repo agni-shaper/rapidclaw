@@ -32,9 +32,11 @@ The owner interacts with this bot via Slack #rapidnative-coach:
 
 ## Browser-use (logged-in social reads)
 
-For X / LinkedIn / Instagram / GitHub / Reddit, use the wrapper `accountability/routines/browser-open.sh <url>`. It opens a NEW tab in the owner's real Chrome (the Chrome profile mapping per platform is in `.env`: `CHROME_PROFILE_X`, `CHROME_PROFILE_LINKEDIN`, etc.).
+For X / LinkedIn / Instagram / GitHub / Reddit, use the wrapper `accountability/routines/browser-open.sh <url>`. It opens a NEW tab in a **dedicated bot Chrome** — a separate visible Chrome window with its own profile at `$BOT_CHROME_PROFILE` (default `~/.rapidclaw-chrome-profile`), attached via CDP on `$BOT_CHROME_CDP_PORT` (default `9222`). The wrapper auto-launches that Chrome if it's not running.
 
-After scraping/screenshotting, close just the tab you opened: `browser-use tab close`. **NEVER `browser-use close`** — that closes the owner's real Chrome window.
+The owner logs into each platform **once** inside the bot Chrome window — cookies then persist on disk in `$BOT_CHROME_PROFILE` indefinitely. This is **not** the owner's personal Chrome; Chrome 136+ refuses `--remote-debugging-port` on the default user-data-dir, so a separate instance is unavoidable. The legacy `CHROME_PROFILE_*` per-platform env vars are ignored by the new wrapper.
+
+After scraping/screenshotting, close just the tab you opened: `browser-use tab close`. **NEVER `browser-use close`** — that closes the bot Chrome, killing the live CDP session and forcing a slow relaunch on the next call (cookies persist, but the warm session and any extension state are lost).
 
 ## Visual toolkit (optional)
 
@@ -48,6 +50,8 @@ If the owner asks the bot to act on a linked project (publish to a website, upda
 - a **pointer `.md` file** (e.g. `sites/rapidnative-website.md`) that gives the on-disk path, the GitHub remote, and a strict workflow (branch → edit → commit → push → `gh pr create` → post PR URL back to the same Slack thread via `slack-post.sh`).
 
 **Always read the pointer file before acting** — it defines the rules for that project (branch naming, what not to touch, who merges, etc.). Default expectation: branch + PR, **never push to `main`**. Drafts flow through this bot's `drafts/` dir for content; code changes flow as PRs.
+
+**Before doing ANY work in a symlinked `sites/<X>` from inside a Slack-thread session, run `accountability/routines/sites-prepare.sh <X>` first.** This creates a per-thread git worktree of the linked repo at `~/rapidclaw-site-worktrees/<thread_ts>/<X>/` on branch `thread/<thread_ts>` and re-points this thread's `sites/<X>` symlink at that isolated worktree. Without this, two teammates editing the same linked site in parallel threads would race on the shared working tree (interleaved commits, partial file edits, conflicting checkouts). The helper is **idempotent** — call it every time you start work on a site; if a per-thread worktree already exists it just re-points the symlink and exits. Pointer `.md` files are exempt (the helper refuses with a clear error and you follow the pointer's documented workflow instead). Cron-driven routines (`blog-internal`, `blog-external`, etc.) intentionally bypass this and use the shared site directly.
 
 ## Reading social profiles
 
