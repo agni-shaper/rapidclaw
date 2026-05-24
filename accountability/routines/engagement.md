@@ -59,7 +59,8 @@ For each enabled platform:
    posted <age> · <likes> likes · <views> views
 
    > <original text first ~2 lines>
-   > <original URL>
+
+   *Original:* <<original_url>|open post>
 
    *Drafted reply (your voice):*
    > <draft text>
