@@ -16,7 +16,7 @@ THREAD_TS=""
 if [ $# -gt 0 ]; then
   LAST="${@: -1}"
   if [[ "$LAST" =~ ^[0-9]{10}\.[0-9]+$ ]]; then
-    THREAD_TS="$LAST"; set -- "${@:1:$(($#-1))}"
+    THREAD_TS="$LAST"; set -- "${@[1,-2]}"
   fi
 fi
 MESSAGE="$*"

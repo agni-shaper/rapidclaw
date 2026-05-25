@@ -854,17 +854,42 @@ async function backfill() {
   const topLevel = (history.messages || []).slice().sort((a, b) => parseFloat(a.ts) - parseFloat(b.ts));
   const candidates = [];
 
+  const scannedThreads = new Set();
   for (const m of topLevel) {
     if (TEAM_USERS.has(m.user) && (!m.subtype || m.subtype === 'file_share')) candidates.push(m);
     if (m.thread_ts && m.thread_ts === m.ts && (m.reply_count || 0) > 0) {
       try {
         const thread = await slackApi('conversations.replies', { channel: TARGET_CHANNEL, ts: m.ts, limit: 200 });
+        scannedThreads.add(m.ts);
         for (const r of (thread.messages || [])) {
           if (r.ts === m.ts) continue;
           if (TEAM_USERS.has(r.user) && (!r.subtype || r.subtype === 'file_share')) candidates.push(r);
         }
       } catch (e) { log(`backfill error (replies for ${m.ts}): ${e.message}`); }
     }
+  }
+
+  // Also revisit threads we've been active in recently but whose parent message
+  // falls outside the history window — otherwise a thread that goes quiet for
+  // 24h+ and then gets a new reply is invisible to backfill.
+  const ACTIVE_THREAD_LOOKBACK_MS = 7 * 24 * 3600 * 1000;
+  const activeCutoff = Date.now() - ACTIVE_THREAD_LOOKBACK_MS;
+  const sessions = loadThreadSessions();
+  const activeThreads = Object.entries(sessions)
+    .filter(([ts, info]) => {
+      if (scannedThreads.has(ts)) return false;
+      const lu = info && info.last_used ? Date.parse(info.last_used) : 0;
+      return lu >= activeCutoff;
+    })
+    .map(([ts]) => ts);
+  for (const threadTs of activeThreads) {
+    try {
+      const thread = await slackApi('conversations.replies', { channel: TARGET_CHANNEL, ts: threadTs, limit: 200 });
+      for (const r of (thread.messages || [])) {
+        if (r.ts === threadTs) continue;
+        if (TEAM_USERS.has(r.user) && (!r.subtype || r.subtype === 'file_share')) candidates.push(r);
+      }
+    } catch (e) { log(`backfill error (active-thread replies for ${threadTs}): ${e.message}`); }
   }
 
   candidates.sort((a, b) => parseFloat(a.ts) - parseFloat(b.ts));
