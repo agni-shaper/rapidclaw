@@ -47,15 +47,17 @@ For each enabled platform:
 
 7. **For X:** build a Twitter intent URL — `accountability/routines/x-intent.sh reply <tweet_id> "<draft>"` (or `quote`, `rt`, `like`).
 
-8. **Post candidate to Slack as 1-line top-level + thread reply with details:**
+8. **Post candidate to Slack as 1-line top-level + thread reply with details.** Caption MUST include the original link AND the drafted reply — slack-upload.sh now refuses captionless uploads, so a screenshot-only post will exit non-zero and surface in logs.
 
    ```bash
-   # 1-liner top-level
+   # 1-liner top-level — capture the ts you get back (you'll thread off it)
    ONE_LINER="*#N <action> → @<handle>* · <age> · <likes> likes · _\"<snippet>\"_"
    TOP_TS=$(printf '%s\n' "$ONE_LINER" | accountability/routines/slack-post.sh C0B4HG16QP3 | awk -F= '{print $2}')
+   [ -n "$TOP_TS" ] || { echo "ERROR: empty TOP_TS — aborting candidate"; exit 1; }
 
-   # Full details as thread reply (screenshot + draft + intent URL + options)
-   cat > /tmp/cand-N-caption.txt <<'MSG'
+   # Build the caption as a single variable. Substitute every <...> placeholder
+   # with the real value BEFORE this runs — no literal angle-bracket tokens.
+   CAPTION=$(cat <<'MSG'
    posted <age> · <likes> likes · <views> views
 
    > <original text first ~2 lines>
@@ -69,7 +71,12 @@ For each enabled platform:
 
    In thread: `improve: <direction>` · `change to rt` · `change to quote: <text>` · `like only` · `reject`
    MSG
-   accountability/routines/slack-upload.sh C0B4HG16QP3 /tmp/cand-N.png "" "$TOP_TS" < /tmp/cand-N-caption.txt
+   )
+
+   # Upload screenshot + caption + thread_ts in one call. Pass caption as the
+   # 3rd positional arg (NOT via stdin) so quoting can't drop it. Helper exits
+   # non-zero if caption is empty — don't paper over that with --allow-empty.
+   accountability/routines/slack-upload.sh C0B4HG16QP3 /tmp/cand-N.png "$CAPTION" "$TOP_TS"
    ```
 
 9. **For LinkedIn / Reddit:** same 1-line + thread pattern, but the thread reply has the drafted comment in a triple-backtick code block (for one-click copy) and a clickable link to open the post. The owner pastes manually in their real Chrome.

@@ -1,15 +1,22 @@
 #!/bin/zsh
 # slack-upload.sh — upload a file and post a message with it as initial comment.
 # Usage:
-#   slack-upload.sh <channel_id> <file_path> "<message>"
-#   slack-upload.sh <channel_id> <file_path> "<message>" <thread_ts>
-#   echo "message" | slack-upload.sh <channel_id> <file_path> [thread_ts]
+#   slack-upload.sh [--allow-empty] <channel_id> <file_path> "<message>"
+#   slack-upload.sh [--allow-empty] <channel_id> <file_path> "<message>" <thread_ts>
+#   echo "message" | slack-upload.sh [--allow-empty] <channel_id> <file_path> [thread_ts]
+#
+# A non-empty caption is REQUIRED unless --allow-empty is passed. Captionless
+# uploads silently posted screenshots without the draft/link that callers
+# (e.g. the engagement routine) intended to include — failing loud is safer.
 
 set -e
 source "${0:A:h}/_lib.sh"
 
-CHANNEL_ID="${1:?usage: slack-upload.sh <channel_id> <file_path> [message] [thread_ts]}"
-FILE_PATH="${2:?usage: slack-upload.sh <channel_id> <file_path> [message] [thread_ts]}"
+ALLOW_EMPTY=0
+if [ "${1:-}" = "--allow-empty" ]; then ALLOW_EMPTY=1; shift; fi
+
+CHANNEL_ID="${1:?usage: slack-upload.sh [--allow-empty] <channel_id> <file_path> [message] [thread_ts]}"
+FILE_PATH="${2:?usage: slack-upload.sh [--allow-empty] <channel_id> <file_path> [message] [thread_ts]}"
 shift 2
 
 THREAD_TS=""
@@ -21,6 +28,12 @@ if [ $# -gt 0 ]; then
 fi
 MESSAGE="$*"
 [ -z "$MESSAGE" ] && [ ! -t 0 ] && MESSAGE="$(cat)"
+
+if [ -z "$MESSAGE" ] && [ "$ALLOW_EMPTY" != "1" ]; then
+  echo "ERROR: slack-upload.sh refusing captionless upload (file=$FILE_PATH)" >&2
+  echo "       pass message as 3rd positional arg, pipe via stdin, or use --allow-empty" >&2
+  exit 2
+fi
 
 [ -f "$FILE_PATH" ] || { echo "ERROR: file not found: $FILE_PATH" >&2; exit 1; }
 
