@@ -14,7 +14,9 @@ One row per *distinct* issue surfaced across user testing sessions. Dedup lives 
 
 | # | issue (short) | first seen | testers hit | priority | status | task |
 |---|---|---|---|---|---|---|
-| _none yet_ | | | | | | |
+| 1 | generated Pomodoro app: timer UI renders but state machine never wired | 2026-05-26 | 1 (Gracey) | P0 | tasked | [[pomodoro-timer-state-machine-missing\|timer state machine missing]] |
+| 2 | generated apps: no back affordance on inner pages, no close on modal sheets | 2026-05-26 | 1 (Gracey) | P1 | tasked | [[generated-apps-nav-affordances-missing\|nav affordances missing]] |
+| 3 | generator infers UI from prompt but doesn't reason about time-as-state (eval gap) | 2026-05-26 | 1 (Gracey) | P1 | tasked | [[generator-eval-gap-time-as-state\|eval gap: time-as-state]] |
 
 ## Shipped
 
