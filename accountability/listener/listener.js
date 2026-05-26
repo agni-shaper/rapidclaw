@@ -20,7 +20,17 @@ const { spawn } = require('child_process');
 const SLUG = 'rapidnative-coach';
 const PROJECT = '/Users/agni/Documents/rapidclaw';
 const HOME = process.env.HOME;
-const TARGET_CHANNEL = 'C0B4HG16QP3';
+// Channels the bot is configured to respond in. Populated at startup from
+// channels/*.md files (Stage A multi-channel). CHANNELS_BY_ID is the
+// authoritative lookup keyed by Slack channel_id; CHANNELS_BY_NAME mirrors it
+// by short name for human-friendly logging and prompt substitution. A channel
+// is "live" if (a) channels/<name>.md exists with a channel_id in frontmatter
+// AND (b) the bot is actually a member of that channel per the Slack API.
+// KNOWN_CHANNELS is the intersection; the message handler filters by it.
+let CHANNELS_BY_ID = new Map();         // channel_id → { name, file, frontmatter, body }
+let CHANNELS_BY_NAME = new Map();       // name → channel_id
+let BOT_CHANNEL_MEMBERSHIPS = new Set(); // channel_ids the bot is in (per Slack)
+let KNOWN_CHANNELS = new Set();          // intersection of the two
 // TEAM_USERS, SUPERADMIN_USERS, and OWNER_USER_ID are populated after
 // loadDotEnvIntoProcess() runs. Declared as `let` so they can be assigned
 // post-dotenv-load.
@@ -28,6 +38,7 @@ let TEAM_USERS = new Set();
 let SUPERADMIN_USERS = new Set();
 let OWNER_USER_ID = '';
 const BOT_USER = 'U0B4CBTR22H';
+const CHANNEL_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const CLAUDE_PATH = '/opt/homebrew/bin/claude';
 const NODE_BIN = '/opt/homebrew/bin';
 const PATH_VAR = `${NODE_BIN}:${HOME}/.browser-use-env/bin:${HOME}/.local/bin:/usr/local/bin:/usr/bin:/bin`;
@@ -119,6 +130,218 @@ function senderTier(userId) {
   if (SUPERADMIN_USERS.has(userId)) return 'superadmin';
   if (TEAM_USERS.has(userId)) return 'teammate';
   return 'unknown';
+}
+
+// ---------- channel persona loading ----------
+
+// Minimal YAML frontmatter parser. Handles the subset we use:
+//   key: value
+//   key: [a, b, c]
+//   key: |   (we don't use block scalars; treat anything else as literal)
+// Anything fancier (nested objects, multi-line strings) falls through as a
+// string. Don't bring in a dep just for this.
+function parseFrontmatter(text) {
+  const m = text.match(/^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/);
+  if (!m) return { frontmatter: {}, body: text };
+  const fmRaw = m[1];
+  const body = m[2];
+  const fm = {};
+  for (const line of fmRaw.split('\n')) {
+    const km = line.match(/^([A-Za-z0-9_-]+)\s*:\s*(.*)$/);
+    if (!km) continue;
+    let v = km[2].trim();
+    // Strip surrounding quotes
+    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+      v = v.slice(1, -1);
+    }
+    // Array form [a, b, c]
+    if (v.startsWith('[') && v.endsWith(']')) {
+      v = v.slice(1, -1).split(',').map(s => s.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+    }
+    fm[km[1]] = v;
+  }
+  return { frontmatter: fm, body };
+}
+
+function loadChannelsFromDisk() {
+  const dir = path.join(PROJECT, 'channels');
+  const map = new Map();
+  let files;
+  try { files = fs.readdirSync(dir).filter(f => f.endsWith('.md')); }
+  catch { return map; }
+  for (const f of files) {
+    const full = path.join(dir, f);
+    let raw;
+    try { raw = fs.readFileSync(full, 'utf8'); }
+    catch (e) { log(`channels: cannot read ${f}: ${e.message}`); continue; }
+    const { frontmatter, body } = parseFrontmatter(raw);
+    const channelId = frontmatter.channel_id;
+    const name = frontmatter.name || f.replace(/\.md$/, '');
+    if (!channelId || !/^[CG][A-Z0-9]+$/.test(channelId)) {
+      log(`channels: ${f} has no valid channel_id in frontmatter — skipping`);
+      continue;
+    }
+    if (map.has(channelId)) {
+      log(`channels: duplicate channel_id ${channelId} between ${map.get(channelId).file} and ${f} — keeping first`);
+      continue;
+    }
+    map.set(channelId, { name, file: f, path: full, frontmatter, body });
+  }
+  return map;
+}
+
+async function fetchBotChannelMemberships() {
+  // users.conversations returns channels the auth user (bot) is a member of.
+  // No user_id param → uses the auth token's user. Paginate just in case.
+  //
+  // Requires bot OAuth scopes: channels:read (public) and groups:read
+  // (private). If those aren't granted on the bot's Slack app config, the
+  // call returns missing_scope and we fall back to "trust the persona file"
+  // mode in refreshKnownChannels.
+  //
+  // Returns { ok: boolean, ids: Set<string>, err?: string }.
+  if (!BOT_TOKEN) return { ok: false, ids: new Set(), err: 'no bot token' };
+  const ids = new Set();
+  let cursor = '';
+  for (let i = 0; i < 10; i++) {
+    let resp;
+    try {
+      const params = { types: 'public_channel,private_channel', limit: 200 };
+      if (cursor) params.cursor = cursor;
+      resp = await slackApi('users.conversations', params);
+    } catch (e) {
+      return { ok: false, ids, err: e.message };
+    }
+    for (const c of (resp.channels || [])) ids.add(c.id);
+    cursor = (resp.response_metadata && resp.response_metadata.next_cursor) || '';
+    if (!cursor) break;
+  }
+  return { ok: true, ids };
+}
+
+let MEMBERSHIP_CHECK_HEALTHY = false;
+
+async function refreshKnownChannels() {
+  const onDisk = loadChannelsFromDisk();
+  const memberships = await fetchBotChannelMemberships();
+  CHANNELS_BY_ID = onDisk;
+  CHANNELS_BY_NAME = new Map([...onDisk].map(([id, c]) => [c.name, id]));
+  BOT_CHANNEL_MEMBERSHIPS = memberships.ids;
+
+  if (memberships.ok) {
+    if (!MEMBERSHIP_CHECK_HEALTHY) log('channel membership check: API healthy — using strict mode (persona file AND bot membership both required)');
+    MEMBERSHIP_CHECK_HEALTHY = true;
+    const known = new Set();
+    for (const id of onDisk.keys()) {
+      if (memberships.ids.has(id)) known.add(id);
+    }
+    const fileButNotMember = [...onDisk.keys()].filter(id => !memberships.ids.has(id));
+    const memberButNoFile = [...memberships.ids].filter(id => !onDisk.has(id));
+    KNOWN_CHANNELS = known;
+    log(`channels refresh: ${known.size} live (${[...known].map(id => onDisk.get(id).name).join(', ') || 'none'})`);
+    if (fileButNotMember.length) {
+      log(`channels: persona file exists but bot is NOT a member of: ${fileButNotMember.map(id => onDisk.get(id).name + '(' + id + ')').join(', ')} — invite the bot or remove the file`);
+    }
+    if (memberButNoFile.length) {
+      log(`channels: bot is a member but no persona file for: ${memberButNoFile.join(', ')} — silently ignored; create channels/<name>.md to activate`);
+    }
+  } else {
+    // Slack API check unavailable (most often: missing OAuth scope). Fall
+    // back to trusting the persona file — if the owner wrote a channels/*.md
+    // file with a channel_id, that's an explicit declaration that the bot
+    // should respond there. We log loudly so this isn't silent.
+    if (MEMBERSHIP_CHECK_HEALTHY || MEMBERSHIP_CHECK_HEALTHY === false) {
+      log(`channel membership check: FALLBACK MODE — Slack API call failed (${memberships.err}). Trusting channels/*.md persona files as authoritative.`);
+      if (/missing_scope/i.test(memberships.err || '')) {
+        log(`channel membership check: to enable strict mode, add OAuth scopes 'channels:read' and 'groups:read' to the bot's Slack app config, then reinstall to the workspace.`);
+      }
+    }
+    MEMBERSHIP_CHECK_HEALTHY = false;
+    KNOWN_CHANNELS = new Set(onDisk.keys());
+    log(`channels refresh: ${KNOWN_CHANNELS.size} live (${[...KNOWN_CHANNELS].map(id => onDisk.get(id).name).join(', ') || 'none'}) [fallback mode]`);
+  }
+
+  // Cross-channel routines depend on CHANNELS_BY_NAME for target lookup, so
+  // refresh them every time channels are refreshed.
+  refreshCrossChannelRoutines();
+}
+
+function channelName(channelId) {
+  const e = CHANNELS_BY_ID.get(channelId);
+  return e ? e.name : channelId;
+}
+
+// ---------- cross-channel routines (Stage B) ----------
+//
+// Routines under accountability/routines/cross-channel/*.md. Each declares
+// in frontmatter: name, target_channel (channel NAME — looked up against
+// CHANNELS_BY_NAME), required_tier (owner / superadmin / teammate),
+// trigger_phrases (array). Bot reads the file body for full instructions
+// when invoking; the prompt only carries an INDEX so trigger recognition is
+// cheap and the bot doesn't have to walk dirs every turn.
+let CROSS_CHANNEL_ROUTINES = new Map(); // name → { ...frontmatter, file, target_channel_id }
+
+function loadCrossChannelRoutinesFromDisk() {
+  const dir = path.join(PROJECT, 'accountability/routines/cross-channel');
+  const map = new Map();
+  let files;
+  try { files = fs.readdirSync(dir).filter(f => f.endsWith('.md')); }
+  catch { return map; }
+  for (const f of files) {
+    const full = path.join(dir, f);
+    let raw;
+    try { raw = fs.readFileSync(full, 'utf8'); }
+    catch (e) { log(`cross-channel: cannot read ${f}: ${e.message}`); continue; }
+    const { frontmatter } = parseFrontmatter(raw);
+    const name = frontmatter.name || f.replace(/\.md$/, '');
+    const targetChannelName = frontmatter.target_channel;
+    if (!targetChannelName) {
+      log(`cross-channel: ${f} has no target_channel in frontmatter — skipping`);
+      continue;
+    }
+    const targetChannelId = CHANNELS_BY_NAME.get(targetChannelName) || null;
+    map.set(name, {
+      name,
+      file: `accountability/routines/cross-channel/${f}`,
+      target_channel: targetChannelName,
+      target_channel_id: targetChannelId,
+      required_tier: frontmatter.required_tier || 'superadmin',
+      trigger_phrases: Array.isArray(frontmatter.trigger_phrases) ? frontmatter.trigger_phrases : [],
+      description: frontmatter.description || '(no description)',
+    });
+  }
+  return map;
+}
+
+function refreshCrossChannelRoutines() {
+  // Channels must be loaded first so target_channel_id resolves.
+  CROSS_CHANNEL_ROUTINES = loadCrossChannelRoutinesFromDisk();
+  const orphaned = [...CROSS_CHANNEL_ROUTINES.values()].filter(r => !r.target_channel_id);
+  log(`cross-channel routines: ${CROSS_CHANNEL_ROUTINES.size} loaded (${[...CROSS_CHANNEL_ROUTINES.keys()].join(', ') || 'none'})`);
+  if (orphaned.length) {
+    log(`cross-channel: ${orphaned.length} routine(s) target an unknown channel: ${orphaned.map(r => r.name + '→' + r.target_channel).join(', ')} — fix target_channel or add the persona file`);
+  }
+}
+
+// Render the routine index for prompt substitution. Returns a markdown block
+// the bot can scan in O(routines) at semantic-match time.
+function renderCrossChannelRoutineIndex() {
+  if (CROSS_CHANNEL_ROUTINES.size === 0) {
+    return '_(no cross-channel routines defined)_';
+  }
+  const lines = [];
+  for (const r of CROSS_CHANNEL_ROUTINES.values()) {
+    const triggers = r.trigger_phrases.length
+      ? r.trigger_phrases.map(t => `"${t}"`).join(', ')
+      : '(no triggers — invoked only by explicit name)';
+    const targetDisplay = r.target_channel_id
+      ? `#${r.target_channel}`
+      : `#${r.target_channel} ⚠ unknown channel (orphaned)`;
+    lines.push(`- **\`${r.name}\`** → posts to ${targetDisplay} · requires tier: \`${r.required_tier}\` · triggers: ${triggers}`);
+    lines.push(`  · full instructions: \`${r.file}\``);
+    lines.push(`  · ${r.description}`);
+  }
+  return lines.join('\n');
 }
 
 // Gated behind USE_OPENROUTER=1 in .env. Default off — claude CLI uses the
@@ -281,13 +504,18 @@ function getThreadSession(threadTs) {
   const m = loadThreadSessions();
   return m[threadTs] && m[threadTs].session_id;
 }
-function saveThreadSession(threadTs, sessionId, firstMessage) {
+function saveThreadSession(threadTs, sessionId, firstMessage, channelId) {
   const m = loadThreadSessions();
   const existing = m[threadTs] || {};
   m[threadTs] = {
     session_id: sessionId,
     last_used: new Date().toISOString(),
     first_message: existing.first_message || firstMessage || null,
+    // Stage A: record which channel this thread lives in so cross-channel
+    // backfill can scan the right channel. Legacy entries without channel_id
+    // are still readable; backfill skips active-thread scan for those (they
+    // catch up via the per-channel history pass).
+    channel_id: existing.channel_id || channelId || null,
   };
   try { fs.writeFileSync(SESSION_STATE_PATH, JSON.stringify(m, null, 2)); }
   catch (e) { log(`session save error: ${e.message}`); }
@@ -572,12 +800,31 @@ function substitute(template, vars) {
   return template.replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => (vars[k] !== undefined ? String(vars[k]) : m));
 }
 
+function channelPromptVars(channelId) {
+  const entry = CHANNELS_BY_ID.get(channelId);
+  if (!entry) {
+    return {
+      CHANNEL_NAME: 'unknown',
+      CHANNEL_PERSONA_PATH: '(no persona file)',
+      CHANNEL_PURPOSE: '(unknown channel)',
+      CROSS_CHANNEL_ROUTINES_INDEX: renderCrossChannelRoutineIndex(),
+    };
+  }
+  return {
+    CHANNEL_NAME: entry.name,
+    CHANNEL_PERSONA_PATH: `channels/${entry.file}`,
+    CHANNEL_PURPOSE: entry.frontmatter.purpose || '(no purpose stated in frontmatter)',
+    CROSS_CHANNEL_ROUTINES_INDEX: renderCrossChannelRoutineIndex(),
+  };
+}
+
 function buildBootstrapPrompt({ event, text, threadTs, files }) {
   const isFirstTurn = (event.thread_ts == null) || (event.thread_ts === event.ts);
   const tmpl = fs.readFileSync(BOOTSTRAP_PROMPT_FILE, 'utf8');
   return substitute(tmpl, {
     TEXT_JSON: JSON.stringify(text),
     CHANNEL: event.channel,
+    ...channelPromptVars(event.channel),
     REPLY_TS: event.ts,
     THREAD_TS: threadTs,
     SENDER_USER_ID: event.user || 'unknown',
@@ -598,6 +845,7 @@ function buildResumePrompt({ event, text, threadTs, files }) {
   return substitute(tmpl, {
     TEXT: text || '(no text)',
     CHANNEL: event.channel,
+    ...channelPromptVars(event.channel),
     REPLY_TS: event.ts,
     THREAD_TS: threadTs,
     SENDER_USER_ID: event.user || 'unknown',
@@ -783,8 +1031,8 @@ function runClaude(job) {
       if (sessionId && sessionId !== existingSession) {
         const isParent = job.event.thread_ts == null || job.event.thread_ts === job.event.ts;
         const firstMessage = isParent ? (job.text || '').slice(0, 280) : null;
-        saveThreadSession(job.threadTs, sessionId, firstMessage);
-        log(`saved session ${sessionId.slice(0,8)}… for thread=${job.threadTs}`);
+        saveThreadSession(job.threadTs, sessionId, firstMessage, job.event.channel);
+        log(`saved session ${sessionId.slice(0,8)}… for thread=${job.threadTs} channel=${channelName(job.event.channel)}`);
       }
 
       activeChildren.delete(child);
@@ -837,73 +1085,92 @@ async function slackApi(method, params = {}) {
   return j;
 }
 
-async function backfill() {
-  if (!BOT_TOKEN) { log('backfill skipped: bot token not loaded'); return; }
+async function backfillChannel(channelId, sessions, activeCutoffMs, scannedThreadsByChannel) {
   const oldestSec = Math.floor((Date.now() - BACKFILL_WINDOW_MS) / 1000);
-  log(`backfill: scanning ${TARGET_CHANNEL} since ${new Date(oldestSec * 1000).toISOString()}`);
+  const name = channelName(channelId);
+  log(`backfill[${name}]: scanning since ${new Date(oldestSec * 1000).toISOString()}`);
 
   let history;
   try {
-    history = await slackApi('conversations.history', {
-      channel: TARGET_CHANNEL,
-      oldest: oldestSec,
-      limit: 200,
-    });
-  } catch (e) { log(`backfill error (history): ${e.message}`); return; }
+    history = await slackApi('conversations.history', { channel: channelId, oldest: oldestSec, limit: 200 });
+  } catch (e) { log(`backfill[${name}] error (history): ${e.message}`); return []; }
 
   const topLevel = (history.messages || []).slice().sort((a, b) => parseFloat(a.ts) - parseFloat(b.ts));
   const candidates = [];
-
   const scannedThreads = new Set();
+
   for (const m of topLevel) {
-    if (TEAM_USERS.has(m.user) && (!m.subtype || m.subtype === 'file_share')) candidates.push(m);
+    if (TEAM_USERS.has(m.user) && (!m.subtype || m.subtype === 'file_share')) {
+      candidates.push({ ...m, channel: channelId });
+    }
     if (m.thread_ts && m.thread_ts === m.ts && (m.reply_count || 0) > 0) {
       try {
-        const thread = await slackApi('conversations.replies', { channel: TARGET_CHANNEL, ts: m.ts, limit: 200 });
+        const thread = await slackApi('conversations.replies', { channel: channelId, ts: m.ts, limit: 200 });
         scannedThreads.add(m.ts);
         for (const r of (thread.messages || [])) {
           if (r.ts === m.ts) continue;
-          if (TEAM_USERS.has(r.user) && (!r.subtype || r.subtype === 'file_share')) candidates.push(r);
+          if (TEAM_USERS.has(r.user) && (!r.subtype || r.subtype === 'file_share')) {
+            candidates.push({ ...r, channel: channelId });
+          }
         }
-      } catch (e) { log(`backfill error (replies for ${m.ts}): ${e.message}`); }
+      } catch (e) { log(`backfill[${name}] error (replies for ${m.ts}): ${e.message}`); }
     }
   }
 
-  // Also revisit threads we've been active in recently but whose parent message
-  // falls outside the history window — otherwise a thread that goes quiet for
-  // 24h+ and then gets a new reply is invisible to backfill.
-  const ACTIVE_THREAD_LOOKBACK_MS = 7 * 24 * 3600 * 1000;
-  const activeCutoff = Date.now() - ACTIVE_THREAD_LOOKBACK_MS;
-  const sessions = loadThreadSessions();
+  // Active-thread sweep: threads recorded in session state belonging to this
+  // channel that weren't already covered by the history scan.
   const activeThreads = Object.entries(sessions)
     .filter(([ts, info]) => {
+      if (!info || info.channel_id !== channelId) return false;
       if (scannedThreads.has(ts)) return false;
-      const lu = info && info.last_used ? Date.parse(info.last_used) : 0;
-      return lu >= activeCutoff;
+      const lu = info.last_used ? Date.parse(info.last_used) : 0;
+      return lu >= activeCutoffMs;
     })
     .map(([ts]) => ts);
   for (const threadTs of activeThreads) {
     try {
-      const thread = await slackApi('conversations.replies', { channel: TARGET_CHANNEL, ts: threadTs, limit: 200 });
+      const thread = await slackApi('conversations.replies', { channel: channelId, ts: threadTs, limit: 200 });
       for (const r of (thread.messages || [])) {
         if (r.ts === threadTs) continue;
-        if (TEAM_USERS.has(r.user) && (!r.subtype || r.subtype === 'file_share')) candidates.push(r);
+        if (TEAM_USERS.has(r.user) && (!r.subtype || r.subtype === 'file_share')) {
+          candidates.push({ ...r, channel: channelId });
+        }
       }
-    } catch (e) { log(`backfill error (active-thread replies for ${threadTs}): ${e.message}`); }
+    } catch (e) { log(`backfill[${name}] error (active-thread replies for ${threadTs}): ${e.message}`); }
   }
 
-  candidates.sort((a, b) => parseFloat(a.ts) - parseFloat(b.ts));
-  const unprocessed = candidates.filter(m => !processed.has(m.ts));
-  log(`backfill: ${candidates.length} owner message(s) in window, ${unprocessed.length} unprocessed`);
+  scannedThreadsByChannel.set(channelId, scannedThreads);
+  return candidates;
+}
+
+async function backfill() {
+  if (!BOT_TOKEN) { log('backfill skipped: bot token not loaded'); return; }
+  if (KNOWN_CHANNELS.size === 0) { log('backfill skipped: no known channels'); return; }
+
+  const sessions = loadThreadSessions();
+  const activeCutoffMs = Date.now() - 7 * 24 * 3600 * 1000;
+  const scannedThreadsByChannel = new Map();
+
+  // Scan each known channel. Sequential rather than parallel to be polite to
+  // Slack's tier-3 rate limits and to keep logs in order.
+  const all = [];
+  for (const channelId of KNOWN_CHANNELS) {
+    const c = await backfillChannel(channelId, sessions, activeCutoffMs, scannedThreadsByChannel);
+    all.push(...c);
+  }
+
+  all.sort((a, b) => parseFloat(a.ts) - parseFloat(b.ts));
+  const unprocessed = all.filter(m => !processed.has(m.ts));
+  log(`backfill: ${all.length} candidate(s) across ${KNOWN_CHANNELS.size} channel(s), ${unprocessed.length} unprocessed`);
 
   for (const m of unprocessed) {
     const text = (m.text || '').trim();
     const files = Array.isArray(m.files) ? m.files : [];
     if (!text && files.length === 0) continue;
     const threadTs = m.thread_ts || m.ts;
-    log(`backfill enqueue: thread=${threadTs} reply=${m.ts} text="${text.slice(0, 80)}"`);
+    log(`backfill enqueue: channel=${channelName(m.channel)} thread=${threadTs} reply=${m.ts} text="${text.slice(0, 80)}"`);
     markProcessed(m.ts);
-    enqueue({ event: { ...m, channel: TARGET_CHANNEL }, text, threadTs, files });
+    enqueue({ event: m, text, threadTs, files });
   }
 }
 
@@ -919,7 +1186,7 @@ client.on('message', async ({ event, ack }) => {
   if (event.bot_id) return;
   if (event.user === BOT_USER) return;
   if (!TEAM_USERS.has(event.user)) return;
-  if (event.channel !== TARGET_CHANNEL) return;
+  if (!KNOWN_CHANNELS.has(event.channel)) return;
   if (processed.has(event.ts)) return;
 
   const text = (event.text || '').trim();
@@ -981,14 +1248,25 @@ rotateEventLog();
 recoverInflight();
 pruneOldWorktrees();
 
-client.start().then(
-  () => {
-    log(`listener started — watching #rapidnative-coach (slug=${SLUG}, ${TEAM_USERS.size} team / ${SUPERADMIN_USERS.size} super-admins)`);
-    if (process.env.ANTHROPIC_BASE_URL) log(`routing claude -p via ${process.env.ANTHROPIC_BASE_URL} · model=${process.env.ANTHROPIC_MODEL}`);
-    else log('claude -p using default Anthropic auth (no OpenRouter routing)');
-  },
-  err => { log(`start failed: ${err.message || err}`); process.exit(1); }
-);
+// Channel discovery has to populate KNOWN_CHANNELS before the socket's
+// `connected` event triggers the first backfill (which short-circuits when
+// the set is empty). Do the initial Slack API call here, synchronously
+// awaited, before client.start(). Then start the socket and schedule periodic
+// refreshes for newly-invited channels.
+(async () => {
+  await refreshKnownChannels();
+  setInterval(() => {
+    refreshKnownChannels().catch(e => log(`channel refresh failed: ${e.message}`));
+  }, CHANNEL_REFRESH_INTERVAL_MS);
+  client.start().then(
+    () => {
+      log(`listener started — slug=${SLUG}, ${TEAM_USERS.size} team / ${SUPERADMIN_USERS.size} super-admins, ${KNOWN_CHANNELS.size} live channel(s)`);
+      if (process.env.ANTHROPIC_BASE_URL) log(`routing claude -p via ${process.env.ANTHROPIC_BASE_URL} · model=${process.env.ANTHROPIC_MODEL}`);
+      else log('claude -p using default Anthropic auth (no OpenRouter routing)');
+    },
+    err => { log(`start failed: ${err.message || err}`); process.exit(1); }
+  );
+})().catch(err => { log(`startup failed: ${err.message || err}`); process.exit(1); });
 
 function shutdown(signal) {
   if (shuttingDown) return;
