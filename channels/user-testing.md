@@ -47,7 +47,8 @@ Sharing findings with external parties (clients, partners, public posts) is **al
 # Notes for the bot
 
 - Raw session notes / recordings should NOT live in this Slack channel long-term — they're sensitive. Drop them in `drafts/user-testing/<YYYY-MM-DD-session>/` and reference by path.
-- No routines exist yet. Potential additions:
+- The `user-testing-capture` routine (`accountability/routines/user-testing-capture.md`) fires daily and reads this channel, diffs against `accountability/user-testing/issues-log.md`, and posts proposed updates to **#rapidnative-coach** for one-line confirm. Raw session notes still live in `drafts/user-testing/<YYYY-MM-DD-session>/`; the issues-log is the dedup'd index.
+- Potential future additions:
   - `weekly-user-testing-digest` (Friday: summary of the week's findings + a list of action items, routed to `#design` and `#tasks` as appropriate)
   - `recruit-followup-nudge` (gentle ping when scheduled testers haven't confirmed)
 - If the team adopts a specific tool (Maze, Lookback, Dovetail, UserInterviews, Notion), document the access pattern here so the bot knows where to look for raw data.
