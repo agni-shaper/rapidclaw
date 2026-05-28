@@ -4,7 +4,7 @@ name: rapidnative-coach
 purpose: Personal AI agent for the rapidclaw bot owner — daily/weekly accountability, content drafting, social engagement, goal tracking. The original purpose-built channel for this bot.
 voice_source: profile.md
 publish_tier: superadmin
-allowed_routines: [daily, noon, friday, sunday, engagement, blog-internal, blog-external, user-testing-capture]
+allowed_routines: [daily, noon, friday, sunday, blog-internal, blog-external, user-testing-capture]
 ---
 
 # Purpose
@@ -13,9 +13,10 @@ This is the home channel for `rapidnative-coach`. The bot lives here primarily a
 
 - **Daily/weekly check-ins** (`accountability/routines/daily.md`, `noon.md`, `friday.md`, `sunday.md`)
 - **Content drafting** — when the owner has an idea, drafts go into `drafts/<YYYY-MM-DD-slug>/` here for iteration before publication
-- **Social engagement scans** (`engagement.md`) — read-only review of X/LinkedIn activity, candidates land in this thread for the owner to action
 - **Goal accountability** — honest reads against `accountability/goals.md` and `published/log.md`
 - **Cron-fired routine reports** — blog-internal, blog-external, the scheduled accountability routines, and `user-testing-capture` (daily diff of #user-testing against `accountability/user-testing/issues-log.md`) all post their output here
+
+Social engagement scans no longer post here — they now land in `#rn-coach-social` (see `channels/rn-coach-social.md`).
 
 # Voice
 

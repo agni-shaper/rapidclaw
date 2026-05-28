@@ -7,11 +7,11 @@ If the bot has a `.claude/skills/social-engagement/SKILL.md`, load it — it's c
 **Live status:** Before any browser navigation, post a status message and update it as you work.
 
 ```bash
-STATUS_TS=$(accountability/routines/slack-status.sh post C0B4HG16QP3 - "🔄 *Engagement scan starting* ($(date '+%H:%M %Z'))
+STATUS_TS=$(accountability/routines/slack-status.sh post C0B6Q8TUVL2 - "🔄 *Engagement scan starting* ($(date '+%H:%M %Z'))
 ▸ opening primary feed via browser-use (new tab)")
 ```
 
-Update at each milestone via `slack-status.sh update C0B4HG16QP3 "$STATUS_TS" "<full text>"`. Suggested checkpoints:
+Update at each milestone via `slack-status.sh update C0B6Q8TUVL2 "$STATUS_TS" "<full text>"`. Suggested checkpoints:
 - after feed loaded: `▸ captured feed state (N posts visible)`
 - after scoring: `▸ scored, picked M candidates`
 - per candidate built: `▸ candidate K/M ready (intent URL built)`
@@ -52,7 +52,7 @@ For each enabled platform:
    ```bash
    # 1-liner top-level — capture the ts you get back (you'll thread off it)
    ONE_LINER="*#N <action> → @<handle>* · <age> · <likes> likes · _\"<snippet>\"_"
-   TOP_TS=$(printf '%s\n' "$ONE_LINER" | accountability/routines/slack-post.sh C0B4HG16QP3 | awk -F= '{print $2}')
+   TOP_TS=$(printf '%s\n' "$ONE_LINER" | accountability/routines/slack-post.sh C0B6Q8TUVL2 | awk -F= '{print $2}')
    [ -n "$TOP_TS" ] || { echo "ERROR: empty TOP_TS — aborting candidate"; exit 1; }
 
    # Build the caption as a single variable. Substitute every <...> placeholder
@@ -76,7 +76,7 @@ For each enabled platform:
    # Upload screenshot + caption + thread_ts in one call. Pass caption as the
    # 3rd positional arg (NOT via stdin) so quoting can't drop it. Helper exits
    # non-zero if caption is empty — don't paper over that with --allow-empty.
-   accountability/routines/slack-upload.sh C0B4HG16QP3 /tmp/cand-N.png "$CAPTION" "$TOP_TS"
+   accountability/routines/slack-upload.sh C0B6Q8TUVL2 /tmp/cand-N.png "$CAPTION" "$TOP_TS"
    ```
 
 9. **For LinkedIn / Reddit:** same 1-line + thread pattern, but the thread reply has the drafted comment in a triple-backtick code block (for one-click copy) and a clickable link to open the post. The owner pastes manually in their real Chrome.
