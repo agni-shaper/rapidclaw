@@ -9,7 +9,7 @@ Default product context: **RapidNative** (first product through the playbook). P
 | id | title | effort | impact | cadence | status | owner | depends-on | notes |
 |---|---|---|---|---|---|---|---|---|
 | GH-01 | PRs to popular repos adding RapidNative to "Built with" / "Powered by" sections | M | H | one-shot | todo | | target-repo-list | high DR signal; pick 5 highest-DR repos in niche first |
-| GH-02 | Get listed in awesome-react-native | S | H | one-shot | todo | | | per memory: ~48h review cycle |
+| GH-02 | Get listed in awesome-react-native | S | H | one-shot | shipped | sanket | | PR sent W22; per memory ~48h review cycle |
 | GH-03 | Get listed in awesome-nextjs | S | H | one-shot | todo | | | |
 | GH-04 | Get listed in awesome-nodejs | S | M | one-shot | todo | | | |
 | GH-05 | Get listed in awesome-tailwindcss | S | M | one-shot | todo | | | |
@@ -181,7 +181,7 @@ Default product context: **RapidNative** (first product through the playbook). P
 
 | id | title | effort | impact | cadence | status | owner | depends-on | notes |
 |---|---|---|---|---|---|---|---|---|
-| SEO-01 | Schema.org markup (SoftwareApplication, Product) | M | H | one-shot | todo | | | foundational; do early |
+| SEO-01 | Schema.org markup (SoftwareApplication, Product) | M | H | one-shot | shipped | sanket | | JSON-LD live on rapidnative.com W22 |
 | SEO-02 | Sitemap + robots.txt sanity check | S | M | one-shot | todo | | | |
 | SEO-03 | Core Web Vitals pass on every key page | M | H | one-shot | todo | | | |
 | SEO-04 | OG images on every page | M | M | one-shot | todo | | OG-template | better social shares → more backlinks |
@@ -194,9 +194,9 @@ Default product context: **RapidNative** (first product through the playbook). P
 
 | id | title | effort | impact | cadence | status | owner | depends-on | notes |
 |---|---|---|---|---|---|---|---|---|
-| BIO-01 | Founder X bios with site backlinks (sanket, suraj, team) | S | M | one-shot | todo | | | free, recurring impressions; one of the cheapest plays |
-| BIO-02 | Founder LinkedIn bios + headlines with site backlinks | S | M | one-shot | todo | | | |
-| BIO-03 | Founder GitHub profile READMEs with site backlinks | S | M | one-shot | todo | | | |
+| BIO-01 | Founder X bios with site backlinks (sanket, suraj, team) | S | M | one-shot | shipped | sanket | | shipped W22; free, recurring impressions |
+| BIO-02 | Founder LinkedIn bios + headlines with site backlinks | S | M | one-shot | shipped | sanket | | shipped W22 |
+| BIO-03 | Founder GitHub profile READMEs with site backlinks | S | M | one-shot | shipped | sanket | | shipped W22 |
 | BIO-04 | Threads / Bluesky / Mastodon bios — same backlink kit | S | L | one-shot | todo | | | |
 | BIO-05 | LinkedIn company page polished + employee-amplified posts | M | M | recurring-weekly | todo | | company-page | cheap distribution |
 | BIO-06 | Employees' email signatures team-wide with site link | S | M | one-shot | todo | | sig-template | |
