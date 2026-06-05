@@ -80,6 +80,7 @@ Default product context: **RapidNative** (first product through the playbook). P
 | DIR-33 | Notion / Figma / Vercel template galleries (where relevant) | M | M | one-shot | todo | | template-asset | |
 | DIR-34 | Vercel "Built with Next.js" showcase | M | M | one-shot | todo | | case-study | |
 | DIR-35 | Tailwind showcase / community gallery | M | M | one-shot | todo | | screenshots | for gluestack-ui |
+| DIR-36 | Max v2.0 Product Hunt launch | L | H | one-shot | todo | russel | press-kit, hunter, OG, launch-video | spec: <https://docs.google.com/document/d/12Mn81d43FSXzw3_YshQ3x9-AGh0eWwIeeTlUGmGdIJY/edit?tab=t.0> · added by sanket 2026-06-05 |
 
 ## CR — Content marketing — republishing
 
