@@ -9,6 +9,23 @@ You are running the morning routine for rapidnative-coach. The LaunchAgent fires
 - `published/log.md` if present (last ~5 entries — what shipped recently)
 - `inbox.md` if present (raw thoughts ready to triage)
 
+## Step 0 — surface any reminders scheduled for today
+
+Before anything else, check `accountability/reminders/$(date +%F).md`. If it exists, post the contents to #rapidnative-coach as a top-level message under a *📌 Reminders for today* header (pings inside the file are already in `<@U…>` form). If the file doesn't exist, skip silently — do not post anything.
+
+```bash
+REMINDER_FILE="accountability/reminders/$(date +%F).md"
+if [ -f "$REMINDER_FILE" ]; then
+  {
+    echo "📌 *Reminders for today*"
+    echo
+    cat "$REMINDER_FILE"
+  } | accountability/routines/slack-post.sh C0B4HG16QP3 - >/dev/null
+fi
+```
+
+This step is independent of the rest of the routine — even if the morning push has nothing to surface, the reminders still go out.
+
 ## Step 1 — live status
 
 Post a top-level status to #rapidnative-coach and capture its ts so you can update in place.
