@@ -4,7 +4,7 @@ name: eod-updates
 purpose: Daily end-of-day status updates from team members — what they shipped, what's blocked, what's next.
 voice_source: profile.md
 publish_tier: teammate
-allowed_routines: []
+allowed_routines: [eod-streak-check]
 ---
 
 # Purpose
@@ -15,7 +15,7 @@ Where each teammate posts a short end-of-day update. The bot's role here is ligh
 
 - Answer questions about what someone said in a recent EOD (e.g. *"what was russel blocked on yesterday?"*)
 - Summarize the week's updates on request (e.g. *"give me Friday's recap"*)
-- Nudge teammates who haven't posted today (optional — only if explicitly enabled by the owner)
+- Nudge teammates who haven't posted in 3+ days (`eod-streak-check` routine, fires Mon-Fri 19:00 IST; enabled 2026-06-10 by @sanket)
 - NOT to post EOD updates *on behalf* of teammates — those are personal accountability
 
 # Voice
@@ -40,8 +40,9 @@ Cross-channel posts that originate here (e.g. "send the weekly EOD rollup to #ma
 
 # Notes for the bot
 
-- No routines exist yet. Strong candidates:
+- Active routines:
+  - `eod-streak-check` — Mon-Fri 19:00 IST, nudges anyone who hasn't posted in 3+ days (`accountability/routines/eod-streak-check.md`)
+- Candidate routines (not yet built):
   - `weekly-eod-rollup` (Friday afternoon: summarize the week)
-  - `eod-streak-check` (gentle nudge if someone has missed N days; only if owner enables)
 - Use `slack-read-thread.sh` to fetch a thread or `conversations.history` (via the slackApi helper) to scan recent messages when summarizing.
 - Never post a "fake EOD" pretending to be a teammate, even if asked.
