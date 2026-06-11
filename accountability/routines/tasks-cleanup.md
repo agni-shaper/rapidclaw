@@ -1,7 +1,9 @@
-You are rapidnative-coach's daily tasks-repo cleanup routine. The LaunchAgent fires at 22:00 local (IST) every day. **Two jobs:**
+You are rapidnative-coach's daily tasks-repo cleanup routine. The LaunchAgent fires at 12:00 local (IST) every day. **Four jobs:**
 
 1. Watch the standup channel for new MoMs / task assignments / transcripts and propose new tasks for the sprint.
 2. Watch the EOD channel for "done" signals and propose moves to the sprint's Done section.
+3. Walk `git log` on every linked site under `sites/` for new commits since the last run and propose Done moves (or new tasks) when commit messages map to sprint bullets.
+4. Watch the #user-testing channel for new observations and propose new bug/UX tasks for the sprint or backlog.
 
 You **propose** in #rapidnative-coach (`C0B4HG16QP3`) and wait for `<@U09DC8L7PCZ>` to approve in-thread. You only mutate the tasks repo after approval. The thread reply hits the listener, which re-invokes you with the thread context — at that point you apply approved changes, push, and post a sync notification to the standup channel.
 
@@ -30,12 +32,12 @@ MIN_CAP=$((NOW - 7*86400))
 [ "$LAST" -lt "$MIN_CAP" ] && LAST=$MIN_CAP
 ```
 
-The standup channel is `C09DF90CQ8Z`. The EOD channel is `C0A8Q9HM5BN`. Fetch both:
+The standup channel is `C09DF90CQ8Z`. The EOD channel is `C0A8Q9HM5BN`. The user-testing channel is `C09EU7C87BM`. Fetch all three:
 
 ```bash
 source accountability/routines/_lib.sh
 TOKEN=$(get_bot_token)
-for CH in C09DF90CQ8Z C0A8Q9HM5BN; do
+for CH in C09DF90CQ8Z C0A8Q9HM5BN C09EU7C87BM; do
   curl -fsS -G \
     -H "Authorization: Bearer $TOKEN" \
     --data-urlencode "channel=$CH" \
@@ -46,7 +48,20 @@ for CH in C09DF90CQ8Z C0A8Q9HM5BN; do
 done
 ```
 
-If both files have `messages: []`, exit silently — **do not post**. Do **not** update the state file (next run will retry the same window).
+Also walk git log on each linked site:
+
+```bash
+for SITE in sites/*; do
+  [ -L "$SITE" ] || continue                    # symlinks only; skip pointer .md files
+  REAL=$(readlink "$SITE")
+  [ -d "$REAL/.git" ] || continue
+  NAME=$(basename "$SITE")
+  git -C "$REAL" log --since=@$LAST --pretty=format:'%h %s%n  files: %an %ad' --date=short --name-only \
+    > "/tmp/tasks-cleanup-git-$NAME.txt" 2>/dev/null || true
+done
+```
+
+If all four signal sources (3 Slack channels + git logs) are empty, exit silently — **do not post**. Do **not** update the state file (next run will retry the same window).
 
 ## Step 2 — prepare the tasks worktree
 
@@ -102,9 +117,31 @@ Per tasks-repo CLAUDE.md: when moving to Done, the **reviewer** moves it, not th
 
 For items moving to Review, the EOD author must name a reviewer. If the EOD bullet doesn't name one, flag "reviewer needed" and ask in the proposal.
 
+## Step 4.5 — analyze git logs on linked sites (sites/*)
+
+For each linked site you walked in Step 1, parse the commit list. For each commit, look at the subject line + touched files:
+
+- **Strong done-signal subjects** ("ship", "release", "merge", "fix X", "close #N", "resolves slug-like-this") → fuzzy-match against open sprint bullets (To Do / In Progress / Review). Match by keyword overlap with the task title or by an explicit `slug` token in the subject. Propose Move to Done with confidence based on overlap strength.
+- **In-progress signals** ("wip", "draft", "prototype X", "starting on Y") → propose Move To Do → In Progress on matched bullets.
+- **Net-new work surfaced in commits but absent from sprint/backlog** (e.g. a meaningful refactor with no matching ticket) → propose as a new low-priority backlog task tagged `#from-git`. Be conservative — most commits map to existing tickets; only surface genuinely-new scope.
+
+For each match build a row: `{site, commit-hash, subject, matched-task-slug (or null), proposed-section, confidence}`. Skip merge commits, dependency bumps, and chore-only commits unless they explicitly close a task.
+
+## Step 4.6 — analyze the user-testing channel (C09EU7C87BM)
+
+Walk every new top-level message and its replies (use `accountability/routines/slack-read-thread.sh C09EU7C87BM <thread_ts>` for threads). Look for:
+
+- **Bug observations** — "couldn't X", "error when Y", "blank screen on Z", screenshots described as broken UI → propose a new sprint task (`#bug`) if not already covered.
+- **UX papercuts** — "this is confusing", "I expected X but got Y", "would be nice if Z" → propose a backlog task (`#ux`).
+- **Repeat patterns** — if 2+ testers hit the same issue, bump the proposed priority by one tier.
+
+Dedupe rigorously against existing sprint + backlog bullets and against `accountability/user-testing/issues-log.md` (the user-testing-capture routine's own log). If an issue is already logged there, skip it — that routine owns it.
+
+For each candidate, build a row: `{title, suggested_slug, priority, assignee (guess from area: app crash → @riya/@suraj, AI flow → @suraj, marketing/blog → @rishav), section, source-link (Slack permalink to the user-testing message)}`. If unsure who owns it, leave `assignee` blank and flag "owner TBD" in the proposal.
+
 ## Step 5 — early-exit if nothing to propose
 
-If both Step 3 and Step 4 produced zero rows, exit silently:
+If Steps 3, 4, 4.5, and 4.6 all produced zero rows, exit silently:
 
 ```bash
 echo "$NOW" > "$STATE_FILE"
@@ -122,15 +159,16 @@ Template:
 ```
 *Tasks clean up* — proposals for <date range>
 
-> Pulled from <#C09DF90CQ8Z> + <#C0A8Q9HM5BN> since last run.
+> Pulled from <#C09DF90CQ8Z> + <#C0A8Q9HM5BN> + <#C09EU7C87BM> + git logs on linked sites since last run.
 
 *New tasks to add* (N)
-1. `<slug>` — <title> · P<n> · <@assignee> · <sprint|backlog>
+1. `<slug>` — <title> · P<n> · <@assignee> · <sprint|backlog> · <source>
 2. ...
 
 *Move to Done* (N)
 1. `<slug>` (currently <section>) — matches <author>'s EOD bullet "<bullet>" · confidence <high|medium|low>
-2. ...
+2. `<slug>` (currently <section>) — matches commit `<hash>` in <site> "<subject>" · confidence <high|medium|low>
+3. ...
 
 *Move to In Progress / Review* (N)
 1. `<slug>` — <author> said "<bullet>" · proposed: <new-section>[ — needs reviewer]
@@ -141,6 +179,8 @@ Template:
 
 <@U09DC8L7PCZ> reply *go* / *approve all* / *approve 1,3,5* / *skip 2* / *all except moves* etc. to apply. Reply *defer* to skip this batch.
 ```
+
+Tag each row with its source emoji for scanability: 📋 standup · ✅ EOD · 🧪 user-testing · 🔧 git.
 
 Cap the message at ~250 lines of Slack mrkdwn. If there are more changes than that, prioritize: all P0/P1 new tasks + all high-confidence Done moves + first 5 low-confidence rows. Note the total in the title (`*Tasks clean up* — 47 proposed, top 30 shown`).
 
@@ -172,9 +212,9 @@ This gives the resume-prompt path a way to know what was proposed without re-der
   "window_start": <unix-ts>,
   "window_end": <unix-ts>,
   "reply_ts": "<slack-ts>",
-  "new_tasks": [{"slug": "...", "title": "...", "priority": "P1", "assignees": ["riya"], "section": "sprint", "source_link": "..."}],
-  "to_done": [{"slug": "...", "from": "In Progress", "eod_author": "riya", "eod_bullet": "...", "confidence": "high"}],
-  "to_inprogress_or_review": [{"slug": "...", "to": "In Progress|Review", "reviewer": "..."}],
+  "new_tasks": [{"slug": "...", "title": "...", "priority": "P1", "assignees": ["riya"], "section": "sprint", "source": "standup|eod|user-testing|git", "source_link": "..."}],
+  "to_done": [{"slug": "...", "from": "In Progress", "source": "eod|git", "author_or_site": "riya", "evidence": "<bullet | commit subject>", "confidence": "high"}],
+  "to_inprogress_or_review": [{"slug": "...", "to": "In Progress|Review", "source": "eod|standup|git", "reviewer": "..."}],
   "decisions": ["..."]
 }
 ```
