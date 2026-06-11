@@ -14,7 +14,7 @@ This is the home channel for `rapidnative-coach`. The bot lives here primarily a
 - **Daily/weekly check-ins** (`accountability/routines/daily.md`, `noon.md`, `friday.md`, `sunday.md`)
 - **Content drafting** — when the owner has an idea, drafts go into `drafts/<YYYY-MM-DD-slug>/` here for iteration before publication
 - **Goal accountability** — honest reads against `accountability/goals.md` and `published/log.md`
-- **Cron-fired routine reports** — blog-internal, blog-external, the scheduled accountability routines, `user-testing-capture` (daily diff of #user-testing against `accountability/user-testing/issues-log.md`), and `tasks-cleanup` (22:00 IST daily — proposes sprint-repo changes pulled from <#C09DF90CQ8Z> standup MoMs + <#C0A8Q9HM5BN> EODs, applies on `<@U09DC8L7PCZ>` approval, then notifies the standup channel) all post their output here
+- **Cron-fired routine reports** — blog-internal, blog-external, the scheduled accountability routines, `user-testing-capture` (daily diff of #user-testing against `accountability/user-testing/issues-log.md`), and `tasks-cleanup` (22:00 IST Mon–Fri — proposes sprint-repo changes pulled from <#C09DF90CQ8Z> standup MoMs + <#C0A8Q9HM5BN> EODs, applies on `<@U09DC8L7PCZ>` approval, then notifies the standup channel) all post their output here
 
 Social engagement scans no longer post here — they now land in `#rn-coach-social` (see `channels/rn-coach-social.md`).
 
