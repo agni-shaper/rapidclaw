@@ -28,6 +28,10 @@ curl -s -H "Authorization: Bearer $TOKEN" \
   > /tmp/eod-streak-history.json
 ```
 
+## Step 1.5 — drop anyone currently on leave
+
+Read `accountability/leave.md`. Parse the *Active* section: each entry looks like `<@SLACK_ID> · YYYY-MM-DD to YYYY-MM-DD · note`. If today's IST date falls between start and end inclusive for an entry, remove that Slack ID from the expected-teammates list before Step 2. Skip silently — don't post about who's on leave. If the file is missing or malformed, log to `/tmp/${BOT_SLUG}-eod-streak-check.log` and continue with the full roster.
+
 ## Step 2 — compute who's stale
 
 For each expected teammate, find the latest top-level message they posted in the channel within the window. A message counts as an EOD if it's a top-level (no `thread_ts` other than its own `ts`) post by that user — don't be picky about format, the team uses several ("EOD:", "EOD -", "*EOD Update:*", etc.).
@@ -57,4 +61,4 @@ Tone: warm, low-pressure. This is a friendly nudge, not a callout. No metrics, n
 - Post via `accountability/routines/slack-post.sh C0A8Q9HM5BN` (no thread_ts — top-level).
 - Don't nudge anyone twice in the same calendar day. Before posting, check today's history for an earlier nudge from this bot (text starts with `👋 *EOD nudge*`) and skip if found.
 - If the API call fails or returns `ok:false`, log to `/tmp/${BOT_SLUG}-eod-streak-check.log` and exit non-zero — don't post a half-broken nudge.
-- If someone is on leave, the owner can disable this routine temporarily by unloading the LaunchAgent. Don't try to detect leave from chat.
+- For leave, add the teammate to `accountability/leave.md` (Step 1.5 reads it). Don't try to detect leave from chat.
