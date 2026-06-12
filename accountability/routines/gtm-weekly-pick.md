@@ -69,14 +69,54 @@ Single Slack message in #marketing (channel `C09F377FGFK`), no thread parent (th
 
 _Alternate (swap in if a primary is blocked): <id> — <title>_
 
-<@U09DC8L7PCZ> <@U09DC8MB4KB> — reply *approve* / *swap N for ALTID* / *defer N* to ship the week.
+<@U09DC8L7PCZ> <@U09DC8MB4KB> — reply *approve with owners* (e.g. _approve: GH-07 @sanket, SEO-03 @suraj, CR-11 @rishav_) / *swap N for ALTID* / *defer N*. Approval without owner-per-pick won't ship — picks need an owner to enter the sprint.
 ```
 
 Post via `accountability/routines/slack-post.sh C09F377FGFK "" <<EOF ... EOF` (empty thread arg = top-level).
 
-## After posting
+## After posting (Monday-cron context)
 
-- Do NOT update `backlog.md` statuses yet. Statuses move to `doing` only after a superadmin approves in the thread, and they move to `shipped` only on Friday recap.
+- Do NOT update `accountability/gtm/backlog.md` statuses yet. Statuses move to `doing` only after the in-thread approval routing below succeeds.
 - Do NOT post anywhere except #marketing.
+
+## On approval (in-thread resume context)
+
+When a superadmin replies in this thread with an approval, route the approved picks into the team's tasks repo at `sites/tasks/`. The picks file is a snapshot — ownership and accountability live in `sites/tasks/planning/sprint.md`. W23 and W24 both went 0/3 because picks sat with owner=TBD; this section closes that gap.
+
+Trigger phrases (semantic match, not literal): "approve", "approved", "ship it", "lgtm", "ok ship", with owner handles attached per pick. "Swap N for ALTID" and "defer N" are partial-approval variants — re-parse and route only the changed picks.
+
+**Owner gate (hard).** Each approved pick must have an owner handle in the approval message or earlier in the thread. If any approved pick has no owner, do NOT touch `sites/tasks/`. Reply in-thread naming the picks missing an owner and stop. Don't infer or default the owner.
+
+**Routing flow:**
+
+1. Re-read `sites/tasks/CLAUDE.md` and `sites/tasks/README.md` — they're authoritative for the bullet format, the task-page scaffold, and the notifications queue.
+
+2. Run `accountability/routines/sites-prepare.sh tasks` to swap `sites/tasks` to a per-thread worktree on branch `thread/<ts>`. Idempotent.
+
+3. For each approved pick, scaffold `sites/tasks/tasks/<slug>.md` per the tasks-repo template:
+   - `slug = gtm-<lowercased-id>-<2-4-word-slug>` (e.g. `gtm-gh-07-awesome-ai-tools`). Slugs are immutable per tasks/CLAUDE.md.
+   - Frontmatter: `title`, `status: todo`, `priority: P1`, `assignee: @<handle>`, `created: <today>`, `source: gtm-picks-YYYY-WW`.
+   - Body copies the picks-file rationale + a `Source:` line with the picks-file path `accountability/gtm/picks/YYYY-WWW.md` (in the rapidnative-coach repo).
+
+4. Append the sprint bullet to `sites/tasks/planning/sprint.md` → `## To Do`, in the order picks were listed:
+   ```
+   - [[<slug>|<pick title>]] - P1 - [[@<handle>]] #gtm #gtm-w##
+   ```
+   Don't reorder anything else.
+
+5. Queue one Slack notification per pick in `sites/tasks/intake/unsent-notifications.md` per the tasks-repo notification format (`event: task-assigned`, `task: [[<slug>|<title>]]`, recipient = assignee). The next tasks-repo `/sync` drains these.
+
+6. Commit on `thread/<ts>` inside the per-thread worktree:
+   ```
+   gtm: route W## approved picks into sprint (<id1> @<h1>, <id2> @<h2>, ...)
+   ```
+
+7. FF-merge `thread/<ts>` into `main` in the shared tasks repo so the next teammate `/sync` actually picks it up (see auto-memory: _Session worktree edits don't reach cron unless merged_). Resolve the real repo via `readlink "$PROJECT_DIR/sites/tasks"`, then `git -C <real-repo> merge --ff-only thread/<ts>`. Do NOT push from this bot — pushing is `/sync`'s job from a teammate's machine.
+
+8. Back in the rapidnative-coach repo, update `accountability/gtm/backlog.md`: for each approved pick, set `status: doing`, `owner: <handle>`. Commit locally; no remote on this repo.
+
+9. Post one final reply in this #marketing thread confirming what landed. Include each pick id → owner pairing and the sprint file path (`sites/tasks/planning/sprint.md`). One line nudge at the end: _status transitions happen in tasks repo via /sync; Friday recap reads from there._
+
+**Friday recap reconciliation.** The Friday routine should treat `sites/tasks/planning/sprint.md` (and its archive on rollover) as the truth for shipped/slipped on `#gtm-w##`-tagged bullets, then fold that into `backlog.md` status updates here. (Track as a follow-up if `friday.md` doesn't already do this.)
 
 Voice: marketing channel persona (`channels/marketing.md`) — plain, opinionated, numbers when relevant, em-dashes ok. No "we're excited to" filler.
