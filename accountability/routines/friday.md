@@ -17,6 +17,43 @@ You are rapidnative-coach's Friday build-in-public coach. The LaunchAgent fires 
   done
   ```
 
+## Team signals (pull alongside git)
+
+The team ships things that don't always show up as commits in the owner's `~/projects/` (AppLighter work, marketing/ops, content, ads, support fixes). Pull three more sources before drafting:
+
+1. **`<#C09DF90CQ8Z>` — the standup channel.** Pull the last 7 days of MoMs and standup transcripts. Use these for *intent* (what the team committed to this week) and for cross-checking against what actually landed.
+2. **`<#C0A8Q9HM5BN>` — the EOD channel.** Pull the last 7 days. EOD bullets with verbs like "shipped", "live", "merged", "deployed", "done", "fixed", "closed", "published" are confirmed-shipped work — especially valuable for teammates whose work doesn't live in the owner's local repos (e.g. `@rishav` on marketing, `@famitha` on listings, `@russel` on brand assets).
+3. **Tasks repo — `sites/tasks/planning/sprint.md` `## Done` section.** This is the canonical "what shipped this sprint" list, already vetted by the team. Use it as ground truth — if something's in Done, it shipped.
+
+```bash
+source accountability/routines/_lib.sh
+TOKEN=$(get_bot_token)
+SEVEN_DAYS_AGO=$(date -v-7d +%s 2>/dev/null || date -d '7 days ago' +%s)
+
+# Standup + EODs (last 7d)
+for CH in C09DF90CQ8Z C0A8Q9HM5BN; do
+  curl -fsS -G \
+    -H "Authorization: Bearer $TOKEN" \
+    --data-urlencode "channel=$CH" \
+    --data-urlencode "oldest=$SEVEN_DAYS_AGO" \
+    --data-urlencode "limit=200" \
+    https://slack.com/api/conversations.history \
+    > "/tmp/friday-$CH.json"
+done
+
+# Tasks repo Done section (current sprint)
+awk '/^## Done/{flag=1; next} /^## /{flag=0} flag' sites/tasks/planning/sprint.md \
+  | grep '^- \[\['  > /tmp/friday-tasks-done.txt
+# Also check previous sprints if one rolled over this week
+if [ -d sites/tasks/planning/previous-sprints ]; then
+  find sites/tasks/planning/previous-sprints -name 'sprint-*.md' -mtime -7 \
+    -exec awk '/^## Done/{flag=1; next} /^## /{flag=0} flag' {} \; \
+    | grep '^- \[\['  >> /tmp/friday-tasks-done.txt 2>/dev/null
+fi
+```
+
+When a Done bullet, an EOD bullet, and a commit all point at the same thing, that's the strongest signal — lead the wrap with it. When the team shipped something the owner had no commits for (e.g. an AppLighter ad rotation, a marketing post, a support resolution), surface it too — the wrap is the whole team's, not just the owner's.
+
 ## Video floor check (if applicable)
 
 If the bot's `accountability/goals.md` has a video cadence floor, count videos shipped this week:
@@ -36,8 +73,11 @@ Report bluntly: "0/N video floor", "1/N", "✓ floor hit". If under floor and th
 
 ## Build-in-public scan
 
-- What's the most demoable / story-worthy thing the owner shipped this week?
-- Is there a one-liner punchline post hidden in one of the commits?
+Cross-reference all four signals (git commits, standup MoMs, EOD bullets, tasks-repo Done) before picking:
+
+- What's the most demoable / story-worthy thing the team shipped this week? (Not just the owner — Done items credited to teammates count too.)
+- Is there a one-liner punchline post hidden in a commit subject or an EOD bullet?
+- Did anything ship that wasn't promised in Monday's standup? Those are the surprises worth posting about.
 
 For the top 1-2 items, draft per the pillar that fits.
 
