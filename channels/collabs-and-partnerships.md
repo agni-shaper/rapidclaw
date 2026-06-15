@@ -4,7 +4,7 @@ name: collabs-and-partnerships
 purpose: Brand collaborations, strategic partnerships, co-marketing — outreach drafts, intake notes, agreement coordination.
 voice_source: profile.md
 publish_tier: superadmin
-allowed_routines: []
+allowed_routines: [collabs-tuesday-update]
 ---
 
 # Purpose
@@ -40,7 +40,10 @@ Any external communication to a potential or current partner (email, DM, joint S
 
 # Notes for the bot
 
-- No routines exist yet. Potential additions:
+- Active routines:
+  - `collabs-tuesday-update` — Tuesday 09:00 IST. Reads `accountability/collabs/tracker.md` (refreshed from this channel's last 8 days), posts a bullet-point summary of where every collab stands. Added 2026-06-15 by @sanket request.
+- Candidate routines (not yet built):
   - `partner-followup-digest` (weekly: which conversations are stale?)
   - `partner-onboarding-checklist` (when a new partnership lands)
 - Don't post identifying details of in-flight partnerships in any other channel. Keep specifics here until they're public.
+- Never include ad authorization codes, API keys, or other credentials in any post or in the tracker — strip them on ingest.
