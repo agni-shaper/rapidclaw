@@ -257,7 +257,13 @@ The thread reply will fire the listener and re-invoke claude with the resume pro
    - New tasks → append bullets to the right section in `planning/sprint.md` (or `planning/backlog.md`), scaffold task pages at `tasks/<slug>.md` with minimal frontmatter (title, slug, priority, status, assignees, created date, source = `slack:<channel>:<ts>`).
    - To Done → cut bullet from current section, paste under `## Done`. Append activity line to the task page: `- <date> — moved to Done from EOD by @<author> (approved by <approver handle from the in-thread reply>)`.
    - To In Progress / Review → cut + paste similarly; if Review, write `#review by [[@<handle>]]` from the approval reply.
-5. `cd ~/rapidclaw-site-worktrees/<thread_ts>/tasks/ && git add -A && git commit -m "<msg>" && cd ~/Documents/tasks && git pull --rebase && git merge --ff-only thread/<thread_ts> && git push`.
+4b. Queue Slack notifications per `~/Documents/tasks/CLAUDE.md` ("Slack notifications (automated task events)"). Append a strict-format entry to `intake/unsent-notifications.md` for each event:
+   - **New task with an assignee** → `event: task-assigned`, `to: @<assignee>`.
+   - **Moved to Done** → `event: moved-to-done`, `to: @<original-assignee>` (skip if original assignee == approver — the "self" rule).
+   - **Moved to Review** → `event: moved-to-review`, `to: @<reviewer>`.
+   - Skip moved-to-In-Progress (not in the trigger list).
+   Always include the title in the `message:` text (the script appends only the slug as a deep-link label). Use IST `YYYY-MM-DD HH:MM` from `date "+%Y-%m-%d %H:%M"` under `TZ=Asia/Kolkata`.
+5. `cd ~/rapidclaw-site-worktrees/<thread_ts>/tasks/ && git add -A && git commit -m "<msg>" && cd ~/Documents/tasks && git pull --rebase && git merge --ff-only thread/<thread_ts> && git push`. The auto-sync cron drains `intake/unsent-notifications.md` once it's on `main`; or run `python3 bin/send-notifications.py` from `~/Documents/tasks` to drain immediately.
 6. Post a single follow-up notification to `C09DF90CQ8Z`:
 
    ```
