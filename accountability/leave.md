@@ -9,6 +9,7 @@ Both dates inclusive. Add a line when someone goes on leave; move expired entrie
 ## Active
 
 - `<@U09LL9JTDM5>` · 2026-06-11 to 2026-06-12 · Famitha (per @sanket)
+- `<@U09DC8L7PCZ>` · 2026-06-16 to 2026-06-17 · Sanket — available for calls (self)
 
 ## Past
 

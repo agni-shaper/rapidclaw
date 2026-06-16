@@ -59,6 +59,14 @@ For logged-in views, always use `browser-open.sh`. For GitHub data, prefer the `
 
 **Stay read-only on social.** No clicks on Follow / Like / Repost / Post / Connect / DM action buttons in the owner's live session. Snapshots, scrolls, gets, screenshots only. Drafts go to files; the owner ships.
 
+## Team leave / OOO
+
+`accountability/leave.md` is the canonical people-level leave database. Each *Active* entry is `<@SLACK_ID> · YYYY-MM-DD to YYYY-MM-DD · note` (both dates inclusive, IST).
+
+**When to read it:** any time you're about to route an approval, ping a teammate, or report on team availability — check leave.md first and skip / reroute anyone whose window covers today. Routines that already do this: `eod-streak-check`, `biweekly-shoutouts`, `tasks-cleanup`, `friday`.
+
+**When to update it:** any time a teammate (or the owner / a super-admin) tells the bot they're going on leave — add a line under *Active* in the same turn. Move expired entries to *Past* when convenient; no auto-prune.
+
 ## Setup (from a fresh clone)
 
 1. `./bot-init.sh` — interactive wizard, runs once. Resumable.
