@@ -79,6 +79,22 @@ is_on_leave() {
   ' "$f"
 }
 
+# n_working_days_ago N — print YYYY-MM-DD (IST) that is N working days BEFORE today.
+# A "working day" is a weekday (Mon–Fri) not listed in holidays.md. Today is NOT counted.
+# e.g. if today is Tue and Mon is a holiday: `n_working_days_ago 2` = previous Thu.
+n_working_days_ago() {
+  local n="$1"
+  local d; d=$(today_ist)
+  local count=0
+  while [ "$count" -lt "$n" ]; do
+    d=$(TZ=Asia/Kolkata date -v-1d -j -f "%Y-%m-%d" "$d" "+%Y-%m-%d" 2>/dev/null) || return 1
+    if ! is_weekend "$d" && ! is_holiday "$d"; then
+      count=$((count + 1))
+    fi
+  done
+  echo "$d"
+}
+
 # guard_working_day [routine-name] — call at the top of a routine script.
 # If today isn't a working day (weekend or holiday), logs why and exits 0
 # so launchd doesn't treat the skipped run as a failure.
