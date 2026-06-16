@@ -5,7 +5,7 @@ You are rapidnative-coach's daily tasks-repo cleanup routine. The LaunchAgent fi
 3. Walk `git log` on every linked site under `sites/` for new commits since the last run and propose Done moves (or new tasks) when commit messages map to sprint bullets.
 4. Watch the #user-testing channel for new observations and propose new bug/UX tasks for the sprint or backlog.
 
-You **propose** in #rapidnative-coach (`C0B4HG16QP3`) and wait for `<@U09DC8L7PCZ>` to approve in-thread. You only mutate the tasks repo after approval. The thread reply hits the listener, which re-invokes you with the thread context — at that point you apply approved changes, push, and post a sync notification to the standup channel.
+You **propose** in #rapidnative-coach (`C0B4HG16QP3`) and wait for the on-call super-admin to approve in-thread — `<@U09DC8L7PCZ>` (Sanket) by default, or `<@U09DC8MB4KB>` (Suraj) when Sanket is OOO per `accountability/leave.md`. You only mutate the tasks repo after approval. The thread reply hits the listener, which re-invokes you with the thread context — at that point you apply approved changes, push, and post a sync notification to the standup channel.
 
 ## Read first (in order)
 
@@ -122,7 +122,7 @@ Confidence:
 - **medium** — bullet shares 2+ keywords with the task title and a done-signal verb.
 - **low** — partial match; flag as "needs human confirmation".
 
-Per tasks-repo CLAUDE.md: when moving to Done, the **reviewer** moves it, not the assignee. Super admins (`@sanket`, `@suraj`) can override. Surface this in the proposal (e.g. "needs reviewer-or-super-admin to approve"). Since Sanket is approving the proposal in-thread, his approval IS the super-admin override.
+Per tasks-repo CLAUDE.md: when moving to Done, the **reviewer** moves it, not the assignee. Super admins (`@sanket`, `@suraj`) can override. Surface this in the proposal (e.g. "needs reviewer-or-super-admin to approve"). Since the on-call super-admin is approving the proposal in-thread, their approval IS the super-admin override.
 
 For items moving to Review, the EOD author must name a reviewer. If the EOD bullet doesn't name one, flag "reviewer needed" and ask in the proposal.
 
@@ -161,7 +161,19 @@ exit 0
 
 ## Step 6 — post the proposal to #rapidnative-coach
 
-Single top-level message in `C0B4HG16QP3`. Title is exactly `*Tasks clean up*`. Tag `<@U09DC8L7PCZ>` and list the proposed changes grouped by type. Keep it scannable — one line per change, with the matched task slug or proposed slug. Use Slack mrkdwn (single `*`, `>` blockquote, `<url|text>` links).
+Pick the on-call super-admin to tag — Sanket by default, Suraj when Sanket is on leave:
+
+```bash
+source accountability/routines/_lib.sh
+APPROVER_ID="U09DC8L7PCZ"       # @sanket
+APPROVER_HANDLE="@sanket"
+if is_on_leave "<@U09DC8L7PCZ>"; then
+  APPROVER_ID="U09DC8MB4KB"     # @suraj
+  APPROVER_HANDLE="@suraj"
+fi
+```
+
+Single top-level message in `C0B4HG16QP3`. Title is exactly `*Tasks clean up*`. Tag `<@$APPROVER_ID>` and list the proposed changes grouped by type. Keep it scannable — one line per change, with the matched task slug or proposed slug. Use Slack mrkdwn (single `*`, `>` blockquote, `<url|text>` links).
 
 Template:
 
@@ -186,7 +198,7 @@ Template:
 *Decisions surfaced* (N) — captured as notes only, no task changes
 1. <decision summary> — <source>
 
-<@U09DC8L7PCZ> reply *go* / *approve all* / *approve 1,3,5* / *skip 2* / *all except moves* etc. to apply. Reply *defer* to skip this batch.
+<@$APPROVER_ID> reply *go* / *approve all* / *approve 1,3,5* / *skip 2* / *all except moves* etc. to apply. Reply *defer* to skip this batch.
 ```
 
 Tag each row with its source emoji for scanability: 📋 standup · ✅ EOD · 🧪 user-testing · 🔧 git.
@@ -243,7 +255,7 @@ The thread reply will fire the listener and re-invoke claude with the resume pro
 3. Run `accountability/routines/sites-prepare.sh tasks` to get a worktree.
 4. Apply the approved changes:
    - New tasks → append bullets to the right section in `planning/sprint.md` (or `planning/backlog.md`), scaffold task pages at `tasks/<slug>.md` with minimal frontmatter (title, slug, priority, status, assignees, created date, source = `slack:<channel>:<ts>`).
-   - To Done → cut bullet from current section, paste under `## Done`. Append activity line to the task page: `- <date> — moved to Done from EOD by @<author> (approved by @sanket)`.
+   - To Done → cut bullet from current section, paste under `## Done`. Append activity line to the task page: `- <date> — moved to Done from EOD by @<author> (approved by <approver handle from the in-thread reply>)`.
    - To In Progress / Review → cut + paste similarly; if Review, write `#review by [[@<handle>]]` from the approval reply.
 5. `cd ~/rapidclaw-site-worktrees/<thread_ts>/tasks/ && git add -A && git commit -m "<msg>" && cd ~/Documents/tasks && git pull --rebase && git merge --ff-only thread/<thread_ts> && git push`.
 6. Post a single follow-up notification to `C09DF90CQ8Z`:
@@ -266,6 +278,6 @@ Apply `profile.md` voice rules during drafting, not after. Defaults: concise, no
 
 - Don't mutate the tasks repo until Sanket approves in-thread.
 - Don't post twice in one run — only the proposal (or silent exit).
-- Don't ping anyone other than `<@U09DC8L7PCZ>` in the proposal (super-admin Suraj is welcome to chime in but tag only Sanket since he requested the routine).
+- Don't ping anyone other than the on-call super-admin chosen in Step 6 (Sanket by default; Suraj when Sanket is on leave per `accountability/leave.md`). The other super-admin is welcome to chime in but only tag one.
 - Don't auto-route low-confidence EOD matches as Done — flag them and let the human decide.
 - Don't update `tasks-cleanup-last-run.txt` if both channels returned zero new messages **and** the API call failed. Only advance on a successful empty read.
