@@ -59,13 +59,19 @@ For logged-in views, always use `browser-open.sh`. For GitHub data, prefer the `
 
 **Stay read-only on social.** No clicks on Follow / Like / Repost / Post / Connect / DM action buttons in the owner's live session. Snapshots, scrolls, gets, screenshots only. Drafts go to files; the owner ships.
 
-## Team leave / OOO
+## Team leave, holidays & working-day guard
 
-`accountability/leave.md` is the canonical people-level leave database. Each *Active* entry is `<@SLACK_ID> · YYYY-MM-DD to YYYY-MM-DD · note` (both dates inclusive, IST).
+Two canonical files drive team-availability decisions, both consumed via helpers in `accountability/routines/_lib.sh`:
 
-**When to read it:** any time you're about to route an approval, ping a teammate, or report on team availability — check leave.md first and skip / reroute anyone whose window covers today. Routines that already do this: `eod-streak-check`, `biweekly-shoutouts`, `tasks-cleanup`, `friday`.
+- **`accountability/leave.md`** — per-person OOO. Each *Active* entry: `<@SLACK_ID> · YYYY-MM-DD to YYYY-MM-DD · note` (IST, inclusive). Helper: `is_on_leave "<@SLACK_ID>"` returns 0 if covered today.
+- **`accountability/holidays.md`** — company/national holidays for the whole team. Each *Upcoming* entry: `- YYYY-MM-DD · short name` (IST, one date per line). Helper: `is_holiday` returns 0 if today is listed.
 
-**When to update it:** any time a teammate (or the owner / a super-admin) tells the bot they're going on leave — add a line under *Active* in the same turn. Move expired entries to *Past* when convenient; no auto-prune.
+Combined: `is_working_day` returns 0 if today is a weekday AND not a holiday. `guard_working_day <routine>` calls that helper and exits 0 (with stderr log) when today's a weekend or holiday — call it at the top of any team-facing routine.
+
+**When to read:** before routing an approval, pinging a teammate, posting a team-facing report, or running any team-availability nudge.
+**When to update:** same turn anyone goes OOO (→ `leave.md`) or a new holiday is announced (→ `holidays.md`). Move expired entries to *Past* sections when convenient; no auto-prune.
+
+Routines that already call `guard_working_day` + skip leave: `eod-streak-check`, `tasks-cleanup`, `friday`, `biweekly-shoutouts`, `collabs-tuesday-update`, `gtm-weekly-pick`. Owner-facing routines (`daily`, `noon`, `sunday`) deliberately do **not** skip on holidays — personal accountability runs regardless.
 
 ## Setup (from a fresh clone)
 

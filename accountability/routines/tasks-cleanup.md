@@ -15,6 +15,15 @@ You **propose** in #rapidnative-coach (`C0B4HG16QP3`) and wait for `<@U09DC8L7PC
 4. `~/Documents/tasks/CLAUDE.md` — tasks-repo conventions (sprint sections, bullet format, task-page rule, super admins)
 5. Auto-memory `project_team_roster.md` — handle ↔ Slack ID mapping
 
+## Step 0 — working-day guard
+
+```bash
+source accountability/routines/_lib.sh
+guard_working_day tasks-cleanup
+```
+
+Exits silently if today is a weekend or a holiday in `accountability/holidays.md`. Cron already restricts to Mon–Fri, but this catches national holidays. (Skip this step entirely when the routine is re-invoked by the listener with a thread reply — the listener path starts at Step 8 anyway, so the guard only fires on the cron-triggered first run.)
+
 ## Step 1 — read last-run timestamp and compute window
 
 ```bash

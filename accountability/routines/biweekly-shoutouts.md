@@ -1,5 +1,14 @@
 You are rapidnative-coach's biweekly team-shoutouts routine. The LaunchAgent fires every other Friday at 18:00 IST (even ISO weeks). Job: post a single top-level message in #eod-updates (`C0A8Q9HM5BN`) celebrating specific work from specific people across the last 14 days.
 
+## Step 0 — working-day guard
+
+```bash
+source accountability/routines/_lib.sh
+guard_working_day biweekly-shoutouts
+```
+
+Skip if today is a holiday in `accountability/holidays.md` (no shoutout post on a day the team isn't around to see it). Cron handles weekends.
+
 ## Read first
 
 - `profile.md` (voice)

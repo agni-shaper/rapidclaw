@@ -16,6 +16,15 @@ That currently leaves: `@sanket`, `@suraj`, `@riya`, `@rishav`, `@russel`, `@fam
 
 If the roster has changed, use whatever is in the memory file — do not hardcode names.
 
+## Step 0 — working-day guard
+
+```bash
+source accountability/routines/_lib.sh
+guard_working_day eod-streak-check
+```
+
+Exits 0 (and logs to stderr) if today is a weekend (Sat/Sun IST) or listed in `accountability/holidays.md`. Cron already restricts to Mon–Fri, but this also catches national holidays that land on a weekday — no nudges on those days.
+
 ## Step 1 — fetch recent history
 
 ```bash
@@ -30,7 +39,7 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 
 ## Step 1.5 — drop anyone currently on leave
 
-Read `accountability/leave.md`. Parse the *Active* section: each entry looks like `<@SLACK_ID> · YYYY-MM-DD to YYYY-MM-DD · note`. If today's IST date falls between start and end inclusive for an entry, remove that Slack ID from the expected-teammates list before Step 2. Skip silently — don't post about who's on leave. If the file is missing or malformed, log to `/tmp/${BOT_SLUG}-eod-streak-check.log` and continue with the full roster.
+For each expected teammate, call `is_on_leave "<@SLACK_ID>"` (defined in `_lib.sh`). It returns 0 if that ID is in `accountability/leave.md`'s *Active* section with today's IST date covered by the entry's window. Remove anyone for whom it returns 0 from the expected-teammates list before Step 2. Skip silently — don't post about who's on leave. If `leave.md` is missing or malformed, log to `/tmp/${BOT_SLUG}-eod-streak-check.log` and continue with the full roster.
 
 ## Step 2 — compute who's stale
 

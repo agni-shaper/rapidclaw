@@ -29,3 +29,70 @@ get_bot_token() {
   [ -f "$BOT_TOKEN_FILE" ] || { echo "ERROR: token file not found at $BOT_TOKEN_FILE" >&2; return 1; }
   tr -d '[:space:]' < "$BOT_TOKEN_FILE"
 }
+
+# Today's date in IST as YYYY-MM-DD. Override via TODAY_OVERRIDE for tests.
+today_ist() {
+  [ -n "$TODAY_OVERRIDE" ] && { echo "$TODAY_OVERRIDE"; return; }
+  TZ=Asia/Kolkata date +%Y-%m-%d
+}
+
+# is_weekend [YYYY-MM-DD] — exit 0 if Sat/Sun (IST), else 1.
+is_weekend() {
+  local d="${1:-$(today_ist)}"
+  local dow
+  dow=$(TZ=Asia/Kolkata date -j -f "%Y-%m-%d" "$d" "+%u" 2>/dev/null) || return 1
+  [ "$dow" = "6" ] || [ "$dow" = "7" ]
+}
+
+# is_holiday [YYYY-MM-DD] — exit 0 if listed under any section of accountability/holidays.md, else 1.
+is_holiday() {
+  local d="${1:-$(today_ist)}"
+  local f="$PROJECT_DIR/accountability/holidays.md"
+  [ -f "$f" ] || return 1
+  grep -Eq "^- ${d} " "$f"
+}
+
+# is_working_day [YYYY-MM-DD] — exit 0 if weekday AND not a holiday, else 1.
+is_working_day() {
+  ! is_weekend "$@" && ! is_holiday "$@"
+}
+
+# is_on_leave <@SLACK_ID> [YYYY-MM-DD] — exit 0 if id is in leave.md *Active* covering the date.
+# Accepts the id with or without `<@…>` / backticks.
+is_on_leave() {
+  local sid="$1"
+  local d="${2:-$(today_ist)}"
+  local f="$PROJECT_DIR/accountability/leave.md"
+  [ -f "$f" ] || return 1
+  sid="${sid//[\`<>@]/}"
+  awk -v sid="$sid" -v today="$d" '
+    /^## Active/ {active=1; next}
+    /^## / && active {exit}
+    active && index($0, sid) > 0 {
+      if (match($0, /[0-9]{4}-[0-9]{2}-[0-9]{2} to [0-9]{4}-[0-9]{2}-[0-9]{2}/)) {
+        range = substr($0, RSTART, RLENGTH)
+        split(range, p, " to ")
+        if (today >= p[1] && today <= p[2]) { found=1; exit }
+      }
+    }
+    END { exit found ? 0 : 1 }
+  ' "$f"
+}
+
+# guard_working_day [routine-name] — call at the top of a routine script.
+# If today isn't a working day (weekend or holiday), logs why and exits 0
+# so launchd doesn't treat the skipped run as a failure.
+guard_working_day() {
+  local name="${1:-routine}"
+  local today; today=$(today_ist)
+  if is_weekend; then
+    echo "[$(date '+%H:%M:%S')] $name: skipping — $today is a weekend (IST)" >&2
+    exit 0
+  fi
+  if is_holiday; then
+    local label
+    label=$(grep -E "^- ${today} " "$PROJECT_DIR/accountability/holidays.md" | sed -E "s/^- ${today} · //")
+    echo "[$(date '+%H:%M:%S')] $name: skipping — $today is a holiday: ${label:-listed in holidays.md}" >&2
+    exit 0
+  fi
+}

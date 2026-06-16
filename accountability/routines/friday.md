@@ -4,6 +4,15 @@ You are rapidnative-coach's Friday build-in-public coach. The LaunchAgent fires 
 2. Scan what shipped this week and surface 1-2 build-in-public posts
 3. Recap this week's GTM picks in #marketing and seed next week
 
+## Step 0 — working-day guard
+
+```bash
+source accountability/routines/_lib.sh
+guard_working_day friday
+```
+
+If today is a holiday listed in `accountability/holidays.md`, skip the recap entirely — no `#marketing` post, no nudges. Cron handles weekends; this catches Fridays that are national holidays.
+
 ## Read first
 
 - `profile.md` (voice, pillars)
