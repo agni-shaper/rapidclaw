@@ -31,13 +31,13 @@ Canonical list of every active and recently-closed collab. The `collabs-tuesday-
 ### Finanzas 3.0 (Emiliano)
 - Type: creator video — Instagram reel + TikTok
 - Amount: $400 paid + ad codes provided
-- Status: **shipped 2026-06-05, paid; ads NOT yet running**
+- Status: **shipped 2026-06-05, paid; ad access resolved 2026-06-18 — ads ready to run**
 - Owner: @sanket → looped in @russel on 2026-06-14 to manage Meta ads
 - Links:
   - Reel: https://www.instagram.com/reel/DZBUw6MtpWM/
   - TikTok: https://vt.tiktok.com/ZSx7PSwdK/
 - UTM: `utm_campaign=finanzas_3_0`
-- Open issue: ads failing to go live — Emiliano asked what specific access we need; Russel now on it
+- 2026-06-18 — Sanket confirmed Finanzas access obtained; Russel can now launch Meta ads
 - Note: Emiliano flagged one-off videos rarely convert without sustained content frequency
 
 ### Ibrahim El kobai (Mr Video Editor)
@@ -56,14 +56,6 @@ Canonical list of every active and recently-closed collab. The `collabs-tuesday-
 - Owner: @sanket
 - Past clients: Beehiiv, FinChat, Incident.io, Lovable
 - Portfolio: https://halmarr.agency/
-
-### Kobra Agency (Uliana / Julia Korolova)
-- Type: TikTok organic growth (no ads), monthly pilot
-- Amount: pricing pending — will be shared on call
-- Status: **call to be scheduled**
-- Owner: @sanket
-- Pitch: organic TikTok content; reference case = Kiwi App (15M views, 55.5K followers)
-- Booking link: calendly.com/olena-kondratiewa/tiktok-organic-promotion
 
 ### Taha Anwar (BleedAI / BleedConnections)
 - Type: cold outbound campaign — funded-founder targeting; PRD-style strategy doc delivered
@@ -85,7 +77,13 @@ Canonical list of every active and recently-closed collab. The `collabs-tuesday-
 
 ## Closed / Dropped
 
-_(none yet — Shubham reel will move here once we decide whether to keep watching the tail)_
+### Kobra Agency (Uliana / Julia Korolova) — dropped 2026-06-18
+- Type: TikTok organic growth (no ads), monthly pilot
+- Pitch: organic TikTok content; reference case = Kiwi App (15M views, 55.5K followers)
+- Booking link: calendly.com/olena-kondratiewa/tiktok-organic-promotion
+- 2026-06-18 — Sanket cancelled the call
+
+_(Shubham reel still in Active for now — pending decision on whether to keep watching the tail)_
 
 ---
 
