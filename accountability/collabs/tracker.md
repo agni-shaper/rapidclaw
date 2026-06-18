@@ -57,15 +57,6 @@ Canonical list of every active and recently-closed collab. The `collabs-tuesday-
 - Past clients: Beehiiv, FinChat, Incident.io, Lovable
 - Portfolio: https://halmarr.agency/
 
-### Taha Anwar (BleedAI / BleedConnections)
-- Type: cold outbound campaign — funded-founder targeting; PRD-style strategy doc delivered
-- Amount: pricing not yet shared; "subsidized first experiment" hinted in certain industries
-- Status: **awaiting Taha's reply on engagement model; call link sent**
-- Owner: @sanket
-- Pitch: 25,850 reachable funded software founders (seed–Series A, 1–50 employees) via Prospeo, sliced into 7 sub-segments
-- Doc: https://drive.google.com/file/d/1PRTIuZaAOjgWSx1JLiH2PCup0lTTPCRi/view (shared 2026-06-15)
-- 2026-06-18 — Sanket asked engagement model (monthly retainer vs outcome-based), sent cal.com link, looped collabs@
-
 ### PilloleBar (TikTok)
 - Type: creator video — TikTok short-form / viral storytelling page
 - Amount: not yet discussed
@@ -76,6 +67,12 @@ Canonical list of every active and recently-closed collab. The `collabs-tuesday-
 - 2026-06-18 — Sanket replied: prior creator collabs didn't work, asked what's different here
 
 ## Closed / Dropped
+
+### Taha Anwar (BleedAI / BleedConnections) — dropped 2026-06-18
+- Type: cold outbound campaign — funded-founder targeting; PRD-style strategy doc delivered
+- Pitch: 25,850 reachable funded software founders (seed–Series A, 1–50 employees) via Prospeo, sliced into 7 sub-segments
+- Doc: https://drive.google.com/file/d/1PRTIuZaAOjgWSx1JLiH2PCup0lTTPCRi/view (shared 2026-06-15)
+- 2026-06-18 — Taha quoted $1.1K USD, over budget; Sanket dropping outsourced route and standing up in-house cold outbound team instead. Follow-up: [[inhouse-cold-outbound-team]] (P1, @sanket, sprint W24)
 
 ### Kobra Agency (Uliana / Julia Korolova) — dropped 2026-06-18
 - Type: TikTok organic growth (no ads), monthly pilot
