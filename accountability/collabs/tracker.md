@@ -65,6 +65,24 @@ Canonical list of every active and recently-closed collab. The `collabs-tuesday-
 - Pitch: organic TikTok content; reference case = Kiwi App (15M views, 55.5K followers)
 - Booking link: calendly.com/olena-kondratiewa/tiktok-organic-promotion
 
+### Taha Anwar (BleedAI / BleedConnections)
+- Type: cold outbound campaign — funded-founder targeting; PRD-style strategy doc delivered
+- Amount: pricing not yet shared; "subsidized first experiment" hinted in certain industries
+- Status: **awaiting Taha's reply on engagement model; call link sent**
+- Owner: @sanket
+- Pitch: 25,850 reachable funded software founders (seed–Series A, 1–50 employees) via Prospeo, sliced into 7 sub-segments
+- Doc: https://drive.google.com/file/d/1PRTIuZaAOjgWSx1JLiH2PCup0lTTPCRi/view (shared 2026-06-15)
+- 2026-06-18 — Sanket asked engagement model (monthly retainer vs outcome-based), sent cal.com link, looped collabs@
+
+### PilloleBar (TikTok)
+- Type: creator video — TikTok short-form / viral storytelling page
+- Amount: not yet discussed
+- Status: **inbound — Sanket asked qualifier, awaiting reply**
+- Owner: @sanket
+- Pitch: 7M monthly views, curiosity-based viral content
+- Source: support@rapidnative.com Partnership form, 2026-06-15
+- 2026-06-18 — Sanket replied: prior creator collabs didn't work, asked what's different here
+
 ## Closed / Dropped
 
 _(none yet — Shubham reel will move here once we decide whether to keep watching the tail)_
