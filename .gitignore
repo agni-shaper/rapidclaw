@@ -39,3 +39,6 @@ studio/coverage/
 
 # Local routine output (raw blog generations, etc.)
 output/
+
+# marketing-automation runtime state (sentinels, build artifacts, helper scripts)
+marketing/.state/
