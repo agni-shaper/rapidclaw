@@ -4,19 +4,27 @@ Each template produces **one Slack-ready bullet** in the daily AM post. The morn
 
 ## Template variables
 
-| Token | Resolves to |
-|---|---|
-| `{{person}}` | crew member handle, e.g. `@famitha` |
-| `{{platform}}` | platform name, e.g. `GeeksForGeeks` |
-| `{{nth_account}}` | the specific account number this task uses, with ordinal, e.g. `6th` |
-| `{{pool}}` | comma-separated pool from `rotation.md`, e.g. `4,5,6` |
-| `{{week_label}}` | e.g. `w3-June` |
-| `{{quota}}` | numeric quota for quota templates, e.g. `6` |
-| `{{seo_url}}` | one URL from `config.md`, round-robin per (person, platform) per day |
+| Token | Resolves to | Source |
+|---|---|---|
+| `{{person}}` | crew member handle, e.g. `@famitha` | `team.md` |
+| `{{platform}}` | platform name, e.g. `GeeksForGeeks` | template definition |
+| `{{nth_account}}` | the specific account number this task uses, with ordinal, e.g. `6th` | `accounts.md` + `rotation.md` |
+| `{{pool}}` | comma-separated pool from `rotation.md`, e.g. `4,5,6` | `rotation.md` |
+| `{{week_label}}` | e.g. `w3-June` | computed from today's date |
+| `{{quota}}` | numeric quota for quota templates, e.g. `6` | template definition |
+| `{{seo_url}}` | one URL from `config.md`, round-robin per (person, platform) per day | `config.md` |
+| `{{thread_link}}` | URL to a specific platform thread for engagement | `recon-YYYY-MM-DD.json` cache |
+| `{{thread_context}}` | one-line context for the thread (title + meta) | `recon-YYYY-MM-DD.json` cache |
+| `{{suggested_draft}}` | 2-3 sentence comment draft in profile.md voice | `recon-YYYY-MM-DD.json` cache |
+| `{{blog_url}}` | URL of today's blog to amplify | `blog-amplification-YYYY-MM-DD.md` |
+| `{{blog_title}}` | title of today's blog | `blog-amplification-YYYY-MM-DD.md` |
+| `{{blog_caption}}` | bot-drafted social caption for the blog | `blog-amplification-YYYY-MM-DD.md` |
 
 If `accounts.md` says the person owns 0 accounts on a platform, **skip** the task silently for that person.
 
 If `rotation.md`'s clamp produces a single-number "pool" because the person doesn't have enough accounts, the bullet renders as `(<that number>th account)` with no pool suffix and a `[clamped]` note.
+
+**Recon-attached tokens (`thread_link`, `thread_context`, `suggested_draft`) are optional.** The morning routine renders them as indented sub-lines under the bullet ONLY if the recon cache had a finding for that platform. When recon was empty/failed for a platform, the bullet renders plain — no sub-lines, no placeholders.
 
 ---
 
@@ -111,14 +119,25 @@ Sprint section for today lists:
 - TPL-QUORA-PERSONAL
 ```
 
-Expanded for `@famitha`:
+Expanded for `@famitha` (with recon-cache findings attached):
 
 ```
-- Submit 1 article to GeeksForGeeks (6th account) - 4,5,6 accounts for w3-June
-- Hackernews community postings (6th account) - 4,5,6 accounts for w3-June
-- Hackernews community engagement - (4,5,6 acc for w3-June)
-- Write 6 articles for Distribution
-- Quora (5,6,7 accounts) Post from Quora account (from personal accounts)
+- [ ] T01 · Submit 1 article to GeeksForGeeks (6th account) - 4,5,6 accounts for w3-June
+- [ ] T02 · Hackernews community postings (6th account) - 4,5,6 accounts for w3-June
+       🔗 https://news.ycombinator.com/item?id=12345 — "Show HN: Expo SDK 53"
+       💬 Suggested: "EAS Build's new flag for ABI-stable native modules sidesteps the issue you're hitting — only landed in SDK 53, but it cuts cold-start by ~40%."
+- [ ] T03 · Hackernews community engagement - (4,5,6 acc for w3-June)
+       🔗 Top 3 picks (see marketing/morning-tasks.md for full list)
+       💬 (engage substantively; pick 1-2 to comment on, others to upvote)
+- [ ] T04 · Write 6 articles for Distribution
+- [ ] T05 · Quora (5,6,7 accounts) Post from Quora account (from personal accounts)
+       🔗 Amplify today's blog: https://rapidnative.com/blogs/eas-build-2026 — "EAS Build in 2026: What Changed"
+       💬 Suggested caption: "Just published — the EAS build pipeline got 3 new flags in SDK 53 that materially improve cold-start. Quick breakdown:"
 ```
 
-(Note Quora's pool is `5,6,7` because `rotation.md` gives Quora an offset of +1.)
+Notes:
+- Quora's pool is `5,6,7` because `rotation.md` gives Quora an offset of +1.
+- The `🔗 / 💬` sub-lines on T02 came from the recon cache for HN.
+- T03 (community engagement, multi-account) shows a compact summary; the morning-tasks.md file has the full list.
+- T05 (Quora-personal) was replaced/augmented with the blog-amplification injection (Step 6.7 in `marketing-morning.md`).
+- T01 (article submission) and T04 (quota) have no thread link because they're not engagement tasks.

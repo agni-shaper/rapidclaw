@@ -5,24 +5,37 @@ Daily distribution-team task automation for the 4-person marketing crew (@sanket
 ## The daily cycle
 
 ```
-07:00 IST (Mon–Fri)                     19:30 IST (Mon–Fri)
-┌────────────────────────────┐         ┌─────────────────────────────┐
-│ marketing-morning routine  │         │ marketing-evening routine   │
-│                            │         │                             │
-│ • guard_working_day        │         │ • guard_working_day         │
-│ • read sprint.md (today)   │         │ • reactions.get on AM msg   │
-│ • read evening-tasks.md    │         │ • mark ✅/⬜ in evening-     │
-│   (carryover)              │         │   tasks.md                  │
-│ • skip on-leave crew       │         │ • compute carryover queue   │
-│ • expand templates per     │         │ • append row to tracker.md  │
-│   person × current w-slot  │         │ • post EOD recap in Slack   │
-│ • write morning-tasks.md   │         │                             │
-│ • post to #marketing-      │         │                             │
-│   automation, save ts      │         │                             │
-└────────────────────────────┘         └─────────────────────────────┘
+06:00 IST              07:00 IST                   19:30 IST
+┌──────────────────┐  ┌─────────────────────────┐  ┌──────────────────────────┐
+│ marketing-recon  │  │ marketing-morning       │  │ marketing-evening        │
+│                  │  │                         │  │                          │
+│ • scan platforms │  │ • read sprint + carry   │  │ • read sentinel per-crew │
+│   - HN (API)     │  │ • skip on-leave         │  │ • per-crew: read thread  │
+│   - Reddit (API) │  │ • expand templates      │  │   replies, parse "done   │
+│   - Quora (b-u)  │  │ • load recon cache      │  │   T01, T03" claims       │
+│   - LinkedIn(b-u)│  │ • distribute findings   │  │ • write evening-tasks +  │
+│   - X (b-u)      │  │   round-robin per-platf │  │   per-crew carryover     │
+│ • draft comments │  │ • inject blog amplify   │  │ • append tracker rows    │
+│ • write          │  │ • post N top-level msgs │  │ • post top-level EOD     │
+│   recon-DATE.json│  │   in #marketing-automatn│  │   recap                  │
+└──────────────────┘  └─────────────────────────┘  └──────────────────────────┘
+       │                       ▲
+       │ writes cache          │ reads cache
+       ▼                       │
+  marketing/.state/recon-YYYY-MM-DD.json
+
+External inputs:
+  marketing/.state/blog-amplification-YYYY-MM-DD.md  ← written by blog-internal
+                                                       (after auto-publish)
 ```
 
-Completion capture: each crew member **replies in the AM post's thread** as they finish tasks. The evening routine parses thread replies via `conversations.replies`. Two reply shapes work:
+**Recon (06:00 IST)** is LLM-heavy and slow (5-10 min). HN + Reddit use public APIs and always succeed. Quora/LinkedIn/X go through `browser-open.sh` + browser-use scraping — these are flaky; recon degrades gracefully if any one platform fails. Output is a JSON cache the morning routine reads.
+
+**Morning (07:00 IST)** is fast and deterministic. Reads sprint, carryover, recon cache, blog cache. Expands templates → builds per-person task lists with embedded thread links + suggested drafts (where recon found findings). Posts one **top-level message per working crew member**, each pinging that person via `<@U…>`. The lack of recon doesn't break morning — tasks just ship plain.
+
+**Evening (19:30 IST)** reads each crew member's own thread (parents are the per-person top-levels from morning) via `conversations.replies`, parses "done with T01, T03" claims, updates `evening-tasks.md` + carryover queue + `tracker.md`. Posts a top-level EOD recap.
+
+Completion capture: each crew member **replies in their own AM post's thread** as they finish tasks. The evening routine parses thread replies. Two reply shapes work:
 
 - **Specific tasks:** `done with T01, T03` / `finished T02` / `T01-T03 done` — marks those specific T-IDs done; the rest carry over.
 - **All-done shortcut:** `all done` / `done everything` / `finished all` — marks the crew member's entire list done.
@@ -44,7 +57,9 @@ Unmarked tasks per crew member roll into tomorrow's carryover queue **at the tas
 | `morning-tasks.md` | Today's per-person AM list | **Routine** (overwritten) |
 | `evening-tasks.md` | EOD snapshot + tomorrow's carryover | **Routine** (overwritten) |
 | `tracker.md` | Append-only completion history | **Routine** (appends) |
-| `.state/morning-ts-YYYY-MM-DD` | Slack `ts` of today's AM post | **Routine** |
+| `.state/morning-ts-YYYY-MM-DD` | Multi-line sentinel (`slack_id ts` per crew) | **Routine** |
+| `.state/recon-YYYY-MM-DD.json` | Recon's scrape + drafts cache | **Routine** (`marketing-recon`) |
+| `.state/blog-amplification-YYYY-MM-DD.md` | Side-channel from `blog-internal` for tomorrow's amplification task | **Routine** (`blog-internal`) |
 
 ## Common operations
 
@@ -69,9 +84,26 @@ The EOD post is a thread-reply on the AM message — short recap (N done / M car
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | 07:00 came + went, no Slack post | Holiday or weekend | Check `accountability/holidays.md`; weekends are intentional |
-| Post fires but is full of `TBD` | `accounts.md` not filled | Fill real account handles in `accounts.md` |
+| Post lands but no `🔗` / `💬` sub-lines | Recon didn't run, or ran and found nothing | Check `marketing/.state/recon-<today>.json` exists; if missing check `/tmp/rapidnative-coach-marketing-recon.log` |
+| Some platforms enriched, others not | Recon scrape failed for those platforms (likely Quora/LinkedIn/X login lapsed) | `browser-open.sh https://<platform>/` and log in once; cookies persist |
 | "Today's date not found in sprint.md" | Sprint not rolled forward | Edit `sprint.md` to add today's date heading |
-| Evening routine says "no AM post today" | `.state/morning-ts-<today>` missing | Morning routine never ran successfully — check `/tmp/rapidnative-coach-marketing-morning.log` |
+| Evening routine says "no AM sentinel today" | Morning routine never ran successfully | Check `/tmp/rapidnative-coach-marketing-morning.log` |
+| Blog amplification missing | `blog-internal` didn't write cache (either failed or hasn't run yet) | Check `marketing/.state/blog-amplification-<today>.md` exists; check `/tmp/rapidnative-coach-blog-internal.log` |
+
+## Manual rerun commands
+
+```bash
+# Recon only (regenerates cache; safe to re-run, idempotent)
+rm -f marketing/.state/recon-$(TZ=Asia/Kolkata date +%F).json
+accountability/routines/run.sh marketing-recon
+
+# Morning only (regenerates posts — DELETE existing Slack posts first if you want clean re-post)
+rm -f marketing/.state/morning-ts-$(TZ=Asia/Kolkata date +%F)
+accountability/routines/run.sh marketing-morning
+
+# Evening only (recomputes EOD from current Slack thread state)
+accountability/routines/run.sh marketing-evening
+```
 
 ## Compatibility notes
 
