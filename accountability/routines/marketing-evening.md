@@ -6,7 +6,7 @@ You are rapidnative-coach's marketing-automation evening routine. The LaunchAgen
 2. `marketing/team.md` — the 4 crew Slack IDs + active flag
 3. `marketing/morning-tasks.md` — what was sent out this morning (canonical task list for today)
 
-## Step 0 — working-day + AM-post guard
+## Step 0 — working-day + sentinel guard
 
 ```bash
 source accountability/routines/_lib.sh
@@ -14,30 +14,40 @@ guard_working_day marketing-evening
 
 TODAY=$(today_ist)
 SENTINEL="marketing/.state/morning-ts-${TODAY}"
-if [ ! -f "$SENTINEL" ]; then
-  echo "[$(date '+%H:%M:%S')] marketing-evening: no AM post today (sentinel missing) — skipping" >&2
+if [ ! -f "$SENTINEL" ] || [ ! -s "$SENTINEL" ]; then
+  echo "[$(date '+%H:%M:%S')] marketing-evening: no AM sentinel today — skipping" >&2
   exit 0
 fi
-AM_TS=$(cat "$SENTINEL")
 ```
 
-## Step 1 — fetch thread replies
+The sentinel is a multi-line map written by the morning routine. Each line: `<slack_id> <ts>` where `ts` is the **top-level post** for that crew member. Each top-level post has its own thread; that's where the crew member replies with done-claims.
+
+## Step 1 — fetch each crew member's thread
+
+For every line in `$SENTINEL`:
 
 ```bash
 TOKEN=$(get_bot_token)
-curl -fsS -H "Authorization: Bearer $TOKEN" \
-  "https://slack.com/api/conversations.replies?channel=C0BBQ7PV34N&ts=${AM_TS}&limit=200" \
-  > /tmp/marketing-evening-thread.json
+while read -r SLACK_ID TS; do
+  [ -z "$SLACK_ID" ] && continue
+  OUT="/tmp/marketing-evening-thread-${SLACK_ID}.json"
+  curl -fsS -H "Authorization: Bearer $TOKEN" \
+    "https://slack.com/api/conversations.replies?channel=C0BBQ7PV34N&ts=${TS}&limit=200" \
+    > "$OUT" \
+    || echo "[$(date '+%H:%M:%S')] marketing-evening: conversations.replies failed for $SLACK_ID — skipping" >&2
+done < "$SENTINEL"
 ```
 
-If the call fails (network / token / message deleted), log to `/tmp/${BOT_SLUG}-marketing-evening.log` and continue with no completions — write the snapshot anyway with everyone ⬜.
+If a per-crew fetch fails (network / message deleted), log + move on. That crew member shows up with `slack conversations.replies failed` in the tracker notes; their tasks all carry forward.
 
 ## Step 2 — parse completion claims per crew member
 
-For each message in the thread:
+For each `(SLACK_ID, TS)` pair in the sentinel, open `/tmp/marketing-evening-thread-${SLACK_ID}.json` and walk its `messages` list. The first message is the AM top-level post (bot-authored, ignore). Replies follow.
 
-1. **Skip the AM post itself** (`ts == AM_TS`) and any bot replies (`bot_id` field set, or `user == BOT_USER_ID`).
-2. **Skip non-crew messages.** Compare `message.user` against the Slack IDs in `team.md`. If not a crew member, skip.
+For each reply message:
+
+1. **Skip bot messages** (`bot_id` field set, or `user == BOT_USER_ID`).
+2. **Skip non-crew messages.** If `message.user != SLACK_ID` (someone other than this thread's assignee replying), skip — we only credit done-claims from the person the thread is for. (Cross-crew chatter in a teammate's thread shouldn't accidentally mark THEIR tasks done.)
 3. **Parse the text** for completion claims:
 
    **Claim heuristic.** A reply counts as a completion claim if it contains *at least one* of these tokens (case-insensitive, word-boundary aware):
@@ -124,12 +134,12 @@ For each crew member who had any tasks today, append one row above the marker `<
 - `slack conversations.replies failed (<error>)` (network/scope issue)
 - `phantom ID claimed: T99 — ignored`
 
-## Step 6 — post EOD recap in Slack
+## Step 6 — post EOD recap in Slack (one top-level summary)
 
-Threaded reply under the AM post:
+Now that mornings post N top-level messages (no parent), there's no single thread to reply under. Post the EOD recap as **its own top-level message** in `#marketing-automation` so the channel-feed view captures the day's close:
 
 ```bash
-accountability/routines/slack-post.sh C0BBQ7PV34N "$AM_TS" <<EOF
+accountability/routines/slack-post.sh C0BBQ7PV34N <<EOF
 *EOD recap — ${TODAY}*
 
 ${TOTAL_DONE}/${TOTAL_ASSIGNED} tasks done · ${CARRYOVER_COUNT} rolling forward · ${ON_LEAVE_COUNT} on leave
@@ -143,7 +153,7 @@ Carryover queue is in marketing/evening-tasks.md → tomorrow's 07:00 routine su
 EOF
 ```
 
-Use real Slack pings (`<@U…>` form) for the per-crew list. Keep it tight — no per-task callouts, no "nice job @x" filler.
+Use real Slack pings (`<@U…>` form) for the per-crew list — they're a quiet summary heads-up, not a nudge. Keep it tight — no per-task callouts, no "nice job @x" filler. If you'd rather **not** ping crew on the EOD recap (since they already got pinged in the morning), switch the `<@U…>` to `*@handle*` plain bold and skip the notification — say the word.
 
 ## Step 7 — done
 
@@ -157,14 +167,15 @@ Don't touch `morning-tasks.md` (tomorrow morning's job). Don't delete the sentin
 ## Failure modes
 
 - **No AM sentinel for today**: exit 0 silently (Step 0).
-- **`conversations.replies` fails**: log, continue with empty done set, mark tracker rows `slack conversations.replies failed`.
+- **Per-crew `conversations.replies` fails**: log + treat that crew as zero-done (everything carries forward). Tracker note: `slack conversations.replies failed`.
 - **`morning-tasks.md` is the empty scaffold** (no run today): exit 0, no snapshot.
 - **Crew member claims a phantom T-ID**: log + ignore, don't crash.
-- **Crew member replied AFTER 19:30**: their claim isn't captured today (routine snapshots at 19:30). They can add to the morning post tomorrow if they want backfill. Documented limitation, no fix.
+- **Crew member replied AFTER 19:30**: their claim isn't captured today (routine snapshots at 19:30). Documented limitation, no fix.
+- **A reply in someone else's thread that says "done"**: ignored (Step 2 filters to `message.user == SLACK_ID`). Cross-talk doesn't accidentally credit done.
 
 ## Constraints
 
 - Don't read or write outside `marketing/` + `/tmp/`.
 - Don't touch `accountability/leave.md` or `holidays.md` — read-only.
-- Single Slack reply, threaded under the AM post.
+- EOD recap is a single top-level post in #marketing-automation (no thread parent — morning routine no longer creates one).
 - The `BOT_USER_ID` for skipping bot replies is in `.env` (auto-sourced via `_lib.sh`). If not set, use `bot_id` field presence as the bot-detection signal.
