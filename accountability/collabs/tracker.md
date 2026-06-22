@@ -66,7 +66,15 @@ Canonical list of every active and recently-closed collab. The `collabs-tuesday-
 - Source: support@rapidnative.com Partnership form, 2026-06-15
 - 2026-06-18 — Sanket replied: prior creator collabs didn't work, asked what's different here
 
-## Closed / Dropped
+### Enoch Ansong (AI With Enoch)
+- Type: case-study content partnership — RapidNative as one platform in a 100-day public build challenge ("100 Practical Tools in 100 Days"); React Native / Expo angle
+- Amount: not yet discussed — asked for platform access OR build credits, early feature access, community support, co-created content, or a featured case study
+- Status: **inbound — awaiting @sanket decision**
+- Owner: @sanket
+- Pitch: daily public builds of real everyday tools (calculators, invoice/receipt, WhatsApp helpers, trackers, QR/payment, small-biz utilities) testing whether vibe-coding platforms ship usable products vs prototypes; audience = African creators/founders/students/small biz, global reach
+- Source: business@aiwithenoch.com email to support@, 2026-06-20
+- Based: Accra, Ghana
+
 
 ### Taha Anwar (BleedAI / BleedConnections) — dropped 2026-06-18
 - Type: cold outbound campaign — funded-founder targeting; PRD-style strategy doc delivered
