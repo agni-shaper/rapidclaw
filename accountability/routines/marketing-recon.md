@@ -34,7 +34,7 @@ Read today's section in `marketing/sprint.md`. Map each `TPL-*` ID to a platform
 |---|---|
 | `TPL-HN-*` | Hackernews |
 | `TPL-REDDIT-*` | Reddit |
-| `TPL-QUORA-*` | Quora |
+| `TPL-QUORA-*` (engagement AND personal) | Quora — scrape unanswered questions for BOTH engagement comments and personal-account answers. Personal-Quora needs a real question URL to answer, not generic quora.com. |
 | `TPL-LINKEDIN-*` | LinkedIn |
 | `TPL-TWITTER-*` | Twitter |
 | `TPL-FB-*` | Facebook (no recon — skip) |
@@ -192,6 +192,10 @@ Scan today's sprint slate (and Friday's carryover) for personal-account template
 - No em-dashes on Twitter (X strips them weirdly); fine on LinkedIn + Quora.
 - Brand mention only when it pays its way in the post (one line max, late in the body, not in the lead).
 
+**Quora drafts link to specific scraped questions.** Step 4.5 runs AFTER Step 3c (Quora scrape), so `findings.Quora.findings` is populated. For each crew's Quora draft, pick an unanswered question from the findings list that best matches the draft's topic angle. The draft should be styled as an *answer to that specific question*. Add a `linked_question_url` field to the draft pointing to the question.
+
+If `findings.Quora.findings` is empty (scrape failed) or has fewer questions than crew members (e.g. only 2 questions, but 4 crew), reuse questions across crew when needed (with different draft angles) and note in `original_posts.Quora.notes`.
+
 **Output structure** in the cache:
 
 ```json
@@ -229,6 +233,7 @@ Scan today's sprint slate (and Friday's carryover) for personal-account template
         "intended_for": "U09DC8L7PCZ",
         "intended_handle": "@sanket",
         "topic_angle": "How do I make React Native user authentication...",
+        "linked_question_url": "https://www.quora.com/unanswered/How-do-I-make-React-Native-user-authentication-with-Node-js-Express-and-MongoDB",
         "draft": "Cleanest pattern: short-lived JWT from your Express endpoint..."
       },
       ... 3 more

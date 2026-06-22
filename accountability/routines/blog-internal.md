@@ -1,97 +1,166 @@
-You are running the **internal blog** routine for rapidnative-coach. LaunchAgent fires at 12:00 local. Your only job: invoke the existing battle-tested orchestrator at `sites/rapidnative-website/scripts/blog-automation/generate-blog.sh --type internal` and report the outcome.
+You are running the **internal blog** routine for rapidnative-coach. LaunchAgent fires at 12:00 local. Your job: invoke the existing `generate-blog.sh` orchestrator AND surface the published blog as a clean task in `#marketing-automation` for @famitha + @russel (design + video amplification work). The blog itself still auto-publishes to rapidnative.com via Outrank.
 
-Do NOT reimplement publishing, Slack posting, or tracker updates — the script does all of that, including the live publish to rapidnative.com via the Outrank webhook.
+## What the script does (unchanged)
 
-## What the script does
-
-`generate-blog.sh --type internal`:
-1. Picks the first topic from `sites/rapidnative-website/scripts/blog-automation/blog-tracker.md` → `### Internal Queue`.
+`generate-blog.sh --type internal` (in `sites/rapidnative-website/scripts/blog-automation/`):
+1. Picks the first topic from `blog-tracker.md` → `### Internal Queue`.
 2. Runs `claude -p "/write-blog $TOPIC"` inside the site repo.
 3. Extracts SECTION 1 content + meta description + cover image.
-4. POSTs to `${NEXT_PUBLIC_BASE_URL}/api/outrank/webhook` with `Authorization: Bearer $OUTRANK_WEBHOOK_ACCESS_TOKEN` — blog goes live at `${NEXT_PUBLIC_BASE_URL}/blogs/<slug>`.
-5. Posts a parent message to `$SLACK_CONTENT_CHANNEL_ID` (#ai-blog) with the live URL, then uploads sections as threaded files. Mentions a random Slack user from `$AI_BLOG_REVIEWERS_SLACK_ID`.
+4. POSTs to `${NEXT_PUBLIC_BASE_URL}/api/outrank/webhook` → blog goes live at `${NEXT_PUBLIC_BASE_URL}/blogs/<slug>`.
+5. Posts a parent message to `$SLACK_CONTENT_CHANNEL_ID` (editorial format with file uploads + reviewer mention).
 6. Updates `blog-tracker.md`.
 
-All the env it needs is already exported by `run.sh` from `/Users/agni/Documents/rapidclaw/.env` before this prompt runs.
+**Routing change:** we override `SLACK_CONTENT_CHANNEL_ID` to point at `#marketing-automation` (`C0BBQ7PV34N`) so the script's editorial post lands there. We then post a separate **clean task** message in the same channel for the crew to act on.
 
-## What you do
+This gives `#marketing-automation` two messages per blog:
+1. The script's editorial post (parent + file uploads with full content) — useful for the team to read/share.
+2. Our clean task message — pings @famitha + @russel for design + video amplification, with thread for assets.
+
+The `#ai-blogs` channel is no longer used for internal blog automation.
+
+## Step 1 — env override + run script
 
 ```bash
 export SLACK_CONTENT_BOT_TOKEN="$(tr -d '[:space:]' < ~/.config/claude/rapidnative-coach-slack-bot-token)"
+
+# Route the script's editorial post to #marketing-automation instead of #ai-blogs.
+# The script reads SLACK_CONTENT_CHANNEL_ID from env; this overrides the .env value.
+export SLACK_CONTENT_CHANNEL_ID="C0BBQ7PV34N"
 
 cd /Users/agni/Documents/rapidclaw/sites/rapidnative-website
 ./scripts/blog-automation/generate-blog.sh --type internal
 RC=$?
 
-if [ "$RC" -eq 0 ]; then
-  echo "OK blog-internal generate-blog.sh exited 0"
-else
+if [ "$RC" -ne 0 ]; then
   echo "ERROR blog-internal generate-blog.sh exited $RC" >&2
   exit "$RC"
 fi
+echo "OK blog-internal generate-blog.sh exited 0"
 ```
 
-## Step 2 — write amplification cache for marketing-recon
+If the script exits non-zero, propagate the exit code. **Don't post a task** for a failed blog (no URL to surface).
 
-If the script succeeded, write a side-channel cache so the next morning's `marketing-recon` routine can surface this blog as an amplification task in `#marketing-automation`. Don't change anything the script did — this is purely additive.
+## Step 2 — read latest published row from blog-tracker.md
+
+After the script succeeds, the tracker has a new "published" row. Extract title + slug.
 
 ```bash
-# Re-source .env from the COACH repo (we cd'd into the site repo above).
-COACH_DIR="/Users/agni/Documents/rapidclaw"
 TODAY=$(TZ=Asia/Kolkata date +%Y-%m-%d)
-CACHE_FILE="${COACH_DIR}/marketing/.state/blog-amplification-${TODAY}.md"
+COACH_DIR="/Users/agni/Documents/rapidclaw"
 TRACKER="${COACH_DIR}/sites/rapidnative-website/scripts/blog-automation/blog-tracker.md"
-```
 
-Find the most-recent `published` internal row in `blog-tracker.md` for today's date:
-
-```bash
-# Parse the latest internal/published row matching today.
 LATEST_ROW=$(awk -F'|' -v today="$TODAY" '
   $0 ~ today && $0 ~ "internal" && $0 ~ "published" {row=$0}
   END {print row}
 ' "$TRACKER")
+
+# Parse: | date | type | title | slug | status |
+TITLE=$(echo "$LATEST_ROW" | awk -F'|' '{gsub(/^ +| +$/, "", $4); print $4}')
+SLUG=$(echo  "$LATEST_ROW" | awk -F'|' '{gsub(/^ +| +$/, "", $5); print $5}')
+URL="${NEXT_PUBLIC_BASE_URL}/blogs/${SLUG}"
 ```
 
-Extract the `title` (column 4) and `slug` (column 5) from that row. The published URL is `${NEXT_PUBLIC_BASE_URL}/blogs/${slug}` (env already exported by run.sh from `.env`).
+If the row isn't found (script claimed success but tracker not updated — shouldn't happen), log a warning and exit 0. Editorial post already landed; the missing task is a graceful degradation.
 
-Draft a 50-word LinkedIn-style amplification caption in profile.md voice:
+## Step 3 — draft a 50-word social caption
 
-- Plain, opinionated, specific
-- Lead with the most useful nugget from the blog (not "we wrote about X")
-- One sentence + one bullet of takeaways, or two short sentences
-- No "we're excited to share" or "must read"
+Use Claude to draft a short LinkedIn/Twitter-style caption that opens with the most useful nugget from the blog (not "we wrote about X"). Plain, opinionated, specific. Two sentences max OR one sentence + one bullet of takeaways. No "we're excited to share" filler.
 
-Write the cache file:
-
-```markdown
----
-title: <blog title>
-slug: <slug>
-url: ${NEXT_PUBLIC_BASE_URL}/blogs/<slug>
-type: internal
-generated_at: <ISO timestamp>
-source_date: <today's date>
----
-
-<the 50-word caption>
-```
-
-Atomic write: write to `<file>.tmp` then `mv`.
+The blog markdown is available at `${COACH_DIR}/sites/rapidnative-website/scripts/blog-automation/output/` — find the most recent `.md` file matching the slug to read the actual content.
 
 ```bash
+CAPTION=$(claude -p "Draft a 50-word LinkedIn-style caption for this blog post in profile.md voice. Plain, opinionated, specific. Lead with the most useful nugget, not 'we wrote about'.
+
+Title: ${TITLE}
+URL: ${URL}
+
+[Optionally include first 1-2 paragraphs of blog content here]")
+```
+
+## Step 4 — post the clean task to #marketing-automation
+
+Post a top-level message:
+
+```bash
+TASK_BODY=$(cat <<EOF
+*📝 Blog published: ${TITLE}*
+
+<@U09LL9JTDM5> <@U09DFJJGS1X> — design + video amplification needed
+🔗 ${URL}
+
+_Reply 'done' in this thread when assets are ready, or react :white_check_mark:._
+EOF
+)
+
+TASK_TS=$(echo "$TASK_BODY" | "${COACH_DIR}/accountability/routines/slack-post.sh" C0BBQ7PV34N)
+TASK_TS=$(echo "$TASK_TS" | sed -n 's/^OK ts=//p')
+
+if [ -z "$TASK_TS" ]; then
+  echo "WARN: task post to #marketing-automation failed; editorial post still landed" >&2
+  exit 0
+fi
+```
+
+`@famitha` (`U09LL9JTDM5`) is the designer — she's pinged for the cover image / social cards.
+`@russel` (`U09DFJJGS1X`) is the video editor — he's pinged for the video version / promo cut.
+
+If you want to route to different crew (e.g. add `@rishav` for technical-review), update `marketing/team.md` first and re-derive the ping list from there.
+
+## Step 5 — threaded reply with caption + asset breakdown
+
+Under `$TASK_TS`, post a threaded reply with the suggested social caption + a per-person breakdown:
+
+```bash
+THREAD_BODY=$(cat <<EOF
+📝 *Suggested social caption* (adapt before posting):
+
+"${CAPTION}"
+
+---
+
+*Asset checklist:*
+• <@U09LL9JTDM5> @famitha — cover image (1200×630 for OG, 1080×1080 for IG, 1500×500 for X banner)
+• <@U09DFJJGS1X> @russel — video cut (60s vertical for Reels/Shorts, 2-3min landscape for YouTube)
+• Either — short-form social post draft adapted from the caption above (post from personal LinkedIn/X accounts)
+
+Drop the rendered assets in this thread when ready.
+EOF
+)
+
+echo "$THREAD_BODY" | "${COACH_DIR}/accountability/routines/slack-post.sh" C0BBQ7PV34N "$TASK_TS" >/dev/null \
+  || echo "WARN: threaded reply failed; task message still landed" >&2
+```
+
+## Step 6 — write amplification cache (for next-day marketing-morning)
+
+Existing behavior preserved — the next morning's task list still surfaces an "amplify yesterday's blog" task for one crew member's LinkedIn-personal slot.
+
+```bash
+CACHE_FILE="${COACH_DIR}/marketing/.state/blog-amplification-${TODAY}.md"
 mkdir -p "${COACH_DIR}/marketing/.state"
-# ...write to ${CACHE_FILE}.tmp...
-mv "${CACHE_FILE}.tmp" "$CACHE_FILE"
+
+cat > "${CACHE_FILE}.tmp" <<EOF
+---
+title: ${TITLE}
+slug: ${SLUG}
+url: ${URL}
+type: internal
+generated_at: $(date -Iseconds)
+source_date: ${TODAY}
+---
+
+${CAPTION}
+EOF
+mv "${CACHE_FILE}.tmp" "${CACHE_FILE}"
 echo "OK wrote amplification cache: $CACHE_FILE"
 ```
 
-If the tracker has no matching row (script claimed success but didn't update tracker — shouldn't happen), log a warning and exit 0. The morning routine just won't have a blog to surface tomorrow.
-
 ## Failure modes
 
-- **Script exits non-zero:** propagate the exit code. The script logs its own errors (Outrank HTTP code, Slack API error, etc.). Don't retry from this routine. **Don't write the amplification cache** — the blog isn't actually live.
-- **Outrank success but Slack failure** is handled inside the script — the blog is live; the notification is best-effort. The amplification cache **should still write** in this case (Outrank is the source of truth for "is the blog live").
-- **Amplification cache write fails:** log + exit 0. The blog is published; surfacing it tomorrow is a nice-to-have, not a blocker.
+- **Script exits non-zero:** propagate, don't post task. Editorial post in marketing-automation may be partial; that's the script's problem.
+- **`blog-tracker.md` parse fails:** log + exit 0. Editorial post landed; task post is skipped this run.
+- **Task post to marketing-automation fails:** log + exit 0. Editorial post in marketing-automation is still useful as the surface.
+- **Threaded reply fails:** log + exit 0. Task message landed; thread is just empty.
+- **Amplification cache write fails:** log + exit 0. Next morning won't have the amplification task; not worth crashing.
 
-This routine is unattended cron. No clarifying questions, no extra Slack messages.
+This routine is unattended cron. No clarifying questions. The task post must NOT include any approval gating — the blog is already published.

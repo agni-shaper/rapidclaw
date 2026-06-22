@@ -159,21 +159,42 @@ Parse the cache and build two lookups:
 
 ## Step 6.6 — distribute findings across crew (NEW)
 
-Per-platform, **rotate findings across crew members** so each crew gets a different thread:
+Each platform's recon `findings` list (e.g. 4 HN threads) gets attached to crew tasks based on the task **shape**:
+
+### Single-thread engagement tasks (HN-POST, REDDIT-POST, QUORA-POST single-comment, etc.)
+
+Round-robin one finding per crew so no two crew comment on the same thread:
 
 ```python
-# For each platform's findings, assign to crew tasks in round-robin order.
-# E.g. if HN has 4 findings and 4 crew each have 1 HN task, each crew gets 1.
-# If HN has only 2 findings and 4 crew each have 1 HN task, 2 get findings + 2 get bare.
 for platform in PLATFORMS_TODAY:
     queue = recon.findings[platform].findings if recon.findings[platform].status == "ok" else []
-    crew_with_platform_task = [c for c in working_today if any(t.platform == platform for t in c.tasks)]
-    for i, crew in enumerate(crew_with_platform_task):
-        finding = queue[i] if i < len(queue) else None
-        # assign finding to that crew member's task on this platform
+    single_thread_tasks = []  # collect ALL single-thread tasks (new + carryover) on this platform
+    for crew in working_today:
+        for task in crew.tasks_today + crew.carryover_tasks:
+            if task.platform == platform and task.is_single_thread_engagement():
+                single_thread_tasks.append((crew, task))
+    for i, (crew, task) in enumerate(single_thread_tasks):
+        task.recon_finding = queue[i % len(queue)] if queue else None
 ```
 
-This guarantees no two crew get the same thread on the same day → less risk of looking coordinated to platform mods.
+**Carryover tasks ARE included** (they got rolled forward because they weren't done yesterday; they need fresh enrichment today). The round-robin spans new + carryover for the same platform.
+
+### Multi-thread engagement tasks (HN-ENGAGE, REDDIT-ENGAGE, QUORA-ENGAGE, LINKEDIN-ENGAGE, TWITTER-ENGAGE, COMMUNITY-ENGAGE)
+
+Each crew's multi-thread task gets the **full recon findings list** for that platform (typically 3-4 URLs). All crew see the same set on multi-thread tasks — that's fine because the task is "engage broadly" (upvote, lightweight comments across threads), low risk of looking coordinated.
+
+```python
+for platform in PLATFORMS_TODAY:
+    findings = recon.findings[platform].findings if recon.findings[platform].status == "ok" else []
+    for crew in working_today:
+        for task in crew.tasks_today + crew.carryover_tasks:
+            if task.platform == platform and task.is_multi_thread_engagement():
+                task.recon_findings_list = findings   # full list, not single
+```
+
+### Carryover enrichment
+
+Carryover tasks (rolled over from yesterday) ALWAYS receive today's recon data when their platform matches. The morning routine doesn't distinguish carryover vs new for enrichment purposes — both are equally actionable today.
 
 If a finding's `draft` is `null`, just attach the URL + context. No draft is fine — the crew adapts.
 
@@ -183,7 +204,7 @@ If a finding's `draft` is `null`, just attach the URL + context. No draft is fin
 
 ```python
 op = recon.get("original_posts", {})
-for platform_key, platform_to_template_prefix in [
+for platform_key, template_id in [
     ("LinkedIn", "TPL-LINKEDIN-PERSONAL"),
     ("Twitter",  "TPL-TWITTER-PERSONAL"),
     ("Quora",    "TPL-QUORA-PERSONAL"),
@@ -193,13 +214,19 @@ for platform_key, platform_to_template_prefix in [
         continue
     drafts_by_user = {d["intended_for"]: d for d in block.get("drafts", [])}
     for crew in working_today:
-        for task in crew.tasks:
-            if task.template_id != platform_to_template_prefix:
+        # ENRICH BOTH new tasks AND carryover tasks (carryover got rolled forward
+        # because crew didn't do it yesterday; they need today's draft too)
+        for task in crew.tasks_today + crew.carryover_tasks:
+            if task.template_id != template_id:
                 continue
             draft = drafts_by_user.get(crew.slack_id)
             if draft:
                 task.personal_draft = draft["draft"]
                 task.personal_topic_angle = draft.get("topic_angle")
+                # Quora drafts also carry a linked_question_url — use it as the compose URL
+                # (otherwise compose URL falls back to platform default per Step 8c)
+                if draft.get("linked_question_url"):
+                    task.compose_url_override = draft["linked_question_url"]
 ```
 
 **MUST render BOTH sub-lines under the personal-template bullet when a draft is attached:**
@@ -382,6 +409,32 @@ _Reply 'done' in this thread when complete, or react ✅._
 
 ### Step 8c — enrichment as threaded reply under each task
 
+**Definitive enrichment table.** For EVERY task whose `template_id` appears in this table, the morning routine MUST post a threaded reply with the corresponding enrichment. This applies equally to **new today** tasks AND **carryover** tasks (carryover gets enriched with today's recon data).
+
+| Template ID | Enrichment shape | Source |
+|---|---|---|
+| `TPL-HN-POST` | ONE thread URL + comment draft | `recon.findings.HN.findings[crew_index]` (round-robin) |
+| `TPL-HN-ENGAGE` | **FULL LIST** of 3-4 thread URLs + comment drafts | `recon.findings.HN.findings` (entire list) |
+| `TPL-REDDIT-POST` | ONE thread URL + draft | `recon.findings.Reddit.findings[crew_index]` |
+| `TPL-REDDIT-ENGAGE` | **FULL LIST** of Reddit findings | `recon.findings.Reddit.findings` (entire list) |
+| `TPL-QUORA-POST` | ONE question URL + draft | `recon.findings.Quora.findings[crew_index]` |
+| `TPL-QUORA-ENGAGE` | **FULL LIST** of Quora questions | `recon.findings.Quora.findings` (entire list) |
+| `TPL-COMMUNITY-ENGAGE` | (no scrape in v1) | — |
+| `TPL-LINKEDIN-PERSONAL` | Compose URL + original-post draft | `recon.original_posts.LinkedIn.drafts[crew_id]` |
+| `TPL-TWITTER-PERSONAL` | x-intent compose URL + draft | `recon.original_posts.Twitter.drafts[crew_id]` |
+| `TPL-QUORA-PERSONAL` | `linked_question_url` + answer draft | `recon.original_posts.Quora.drafts[crew_id]` |
+| `TPL-GFG-ARTICLE`, `TPL-MEDIUM-ARTICLE`, etc. (article-submission) | **no enrichment** | — |
+| `TPL-DISTRO-*` | **no enrichment** | — |
+| `TPL-FB-POST` | (no scrape in v1) | — |
+
+**RULES (read carefully):**
+1. If a task's `template_id` is in the table AND its `Enrichment shape` column isn't "no enrichment" AND its source has data → post the enrichment as a threaded reply. NO EXCEPTIONS.
+2. Carryover tasks count exactly like new tasks. If yesterday's Quora-personal rolled to today, it still gets today's enrichment.
+3. Templates ending in `-ENGAGE` (multi-target) take the FULL findings list — show all 3-4 URLs in one thread reply.
+4. Templates ending in `-POST` (single-target) take ONE finding via round-robin across crew.
+5. Templates ending in `-PERSONAL` take that crew member's draft via `intended_for = crew_slack_id`.
+6. If the source has no data (recon platform failed or empty), skip enrichment for that task. Don't post a placeholder.
+
 For tasks with enrichment (recon-attached link, draft, or blog amplification), post the enrichment as a **threaded reply** under the task's own ts. The channel feed shows the clean task bullet; opening the task's thread reveals the link, draft, and (eventually) image/video assets.
 
 ```python
@@ -395,11 +448,28 @@ For tasks with enrichment (recon-attached link, draft, or blog amplification), p
 
 **Enrichment patterns** (each is its own threaded reply under the task; structure is identical to before, just relocated from inline to threaded):
 
-**1) Engagement task** (HN-POST, HN-ENGAGE, REDDIT-*, QUORA-engagement etc.) with a recon finding:
+**1a) Single-thread engagement task** (HN-POST, REDDIT-POST, QUORA-engagement single-comment, etc.) with one recon finding:
 ```
 🔗 <https://news.ycombinator.com/item?id=12345> — "thread title" (N pts, M comments, author)
 💬 Suggested draft: "<comment text>"
 ```
+
+**1b) Multi-thread engagement task** (HN-ENGAGE, REDDIT-ENGAGE, QUORA-ENGAGE, LINKEDIN-ENGAGE, TWITTER-ENGAGE, COMMUNITY-ENGAGE) — these tasks ask the crew to engage on **multiple threads** in one go. List 3 specific URLs in the threaded reply (don't say "see morning-tasks.md"):
+
+```
+Top 3 to engage on (pick 1-2 to comment, others to upvote):
+
+1. 🔗 <https://news.ycombinator.com/item?id=12345> — "thread title 1" (N pts, M comments)
+   💬 Suggested: "<comment draft 1>"
+
+2. 🔗 <https://news.ycombinator.com/item?id=67890> — "thread title 2" (N pts, M comments)
+   💬 Suggested: "<comment draft 2>"
+
+3. 🔗 <https://news.ycombinator.com/item?id=24680> — "thread title 3" (N pts, M comments)
+   💬 Suggested: "<comment draft 3>"
+```
+
+Pick from recon's per-platform findings list, excluding any URL already assigned to that crew's single-thread engagement task today (HN-POST). With 4 findings + 1 already used by HN-POST → 3 left for HN-ENGAGE. Different crew members get different sets (round-robin).
 
 **2) Personal-account task** (LINKEDIN-PERSONAL, TWITTER-PERSONAL, QUORA-PERSONAL) with an original-post draft:
 ```
@@ -409,9 +479,10 @@ For tasks with enrichment (recon-attached link, draft, or blog amplification), p
 ```
 
 Compose URL per platform:
+- If task has `compose_url_override` (set in Step 6.65 from `linked_question_url` for Quora): use that. This is how Quora-personal tasks render — point directly at the specific unanswered question to answer.
 - Twitter (X): `accountability/routines/x-intent.sh tweet "<draft>"` → pre-filled `twitter.com/intent/tweet?text=…`
 - LinkedIn: `https://www.linkedin.com/feed/?shareActive=true&mini=true` (composer only — LinkedIn killed text-prefill in 2017; note "copy the draft below first")
-- Quora: specific question URL from recon's `findings.Quora.findings` if available, else `https://www.quora.com/`
+- Quora (no override): `https://www.quora.com/` (generic — but recon should always provide a `linked_question_url` per Step 4.5)
 
 **3) Blog amplification** (overrides personal draft on one crew's LinkedIn slot):
 ```
