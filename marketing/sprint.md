@@ -63,6 +63,7 @@ One section per day this week (Mon → Sun, IST). The morning routine matches `#
 - TPL-HN-ENGAGE
 - TPL-DISTRO-6
 - TPL-LINKEDIN-PERSONAL
+- TPL-TWITTER-PERSONAL
 
 ## 2026-06-23 (Tue)
 
@@ -79,6 +80,7 @@ One section per day this week (Mon → Sun, IST). The morning routine matches `#
 - TPL-QUORA-ENGAGE
 - TPL-DISTRO-6
 - TPL-LINKEDIN-PERSONAL
+- TPL-TWITTER-PERSONAL
 
 ## 2026-06-25 (Thu)
 
@@ -87,6 +89,7 @@ One section per day this week (Mon → Sun, IST). The morning routine matches `#
 - TPL-COMMUNITY-ENGAGE
 - TPL-DISTRO-6
 - TPL-QUORA-PERSONAL
+- TPL-TWITTER-PERSONAL
 
 ## 2026-06-26 (Fri)
 
@@ -95,6 +98,7 @@ One section per day this week (Mon → Sun, IST). The morning routine matches `#
 - TPL-HN-ENGAGE
 - TPL-DISTRO-6
 - TPL-LINKEDIN-PERSONAL
+- TPL-TWITTER-PERSONAL
 
 ## 2026-06-27 (Sat)
 

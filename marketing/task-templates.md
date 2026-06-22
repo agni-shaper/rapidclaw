@@ -19,6 +19,8 @@ Each template produces **one Slack-ready bullet** in the daily AM post. The morn
 | `{{blog_url}}` | URL of today's blog to amplify | `blog-amplification-YYYY-MM-DD.md` |
 | `{{blog_title}}` | title of today's blog | `blog-amplification-YYYY-MM-DD.md` |
 | `{{blog_caption}}` | bot-drafted social caption for the blog | `blog-amplification-YYYY-MM-DD.md` |
+| `{{personal_draft}}` | bot-drafted original post for `*-PERSONAL` templates | `recon-YYYY-MM-DD.json` → `original_posts` |
+| `{{personal_topic_angle}}` | one-line topic angle the draft is built around | `recon-YYYY-MM-DD.json` → `original_posts` |
 
 If `accounts.md` says the person owns 0 accounts on a platform, **skip** the task silently for that person.
 
@@ -55,6 +57,33 @@ Submit 1 <action> to {{platform}} ({{nth_account}} account) - {{pool}} accounts 
 ```
 {{platform}} ({{pool}} accounts) Post from {{platform}} account (from personal accounts)
 ```
+
+If recon attached a `{{personal_draft}}`, the morning routine posts the task as a **clean top-level message** in `#marketing-automation` and posts the enrichment (compose link + draft) as a **threaded reply** under that task post. So the channel feed shows just the bullet; clicking the thread reveals the assets:
+
+```
+[channel top-level]
+T0N · *{{platform}} ({{pool}} accounts) Post from {{platform}} account (from personal accounts)*
+_new today · w4-June_
+
+_Reply 'done' in this thread when complete, or react :white_check_mark:._
+
+  [threaded reply by bot]
+  🔗 Compose: <{{compose_url}}>
+  📝 Suggested post (adapt before publishing) — angle: {{personal_topic_angle}}
+  "<{{personal_draft}}>"
+```
+
+**Compose URL per platform** (rendered by morning routine, not by recon):
+
+| Platform | URL pattern | Notes |
+|---|---|---|
+| Twitter (X) | `https://twitter.com/intent/tweet?text=<urlencoded draft>` | Pre-filled — one click to ship |
+| LinkedIn | `https://www.linkedin.com/feed/?shareActive=true&mini=true` | Empty composer (LinkedIn killed text-prefill in 2017); crew copies the draft from the `📝` line |
+| Quora | Specific question URL (from recon's findings) when available, else `https://www.quora.com/` | Personal Quora = answering a specific question; recon needs to scrape unanswered questions even on personal-only days for the best UX |
+
+If no draft was attached (recon failed for that platform, or no draft for that specific crew member), render plain — no fake `🔗` / `📝` lines.
+
+**Blog amplification override:** if `blog-amplification-YYYY-MM-DD.md` exists, ONE crew member's `TPL-LINKEDIN-PERSONAL` (preferred) or first available `*-PERSONAL` task gets the blog amplification `📝` block instead of the original-post draft.
 
 ### Shape E — quota (no platform, no account)
 

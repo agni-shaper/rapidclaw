@@ -163,6 +163,86 @@ Set each finding's `draft` field to the generated comment.
 
 If a draft generation fails for one finding, set `draft: null` and continue — the morning routine will render that task without a draft suggestion.
 
+## Step 4.5 — generate original post drafts for personal-account templates (NEW)
+
+`*-PERSONAL` templates (`TPL-LINKEDIN-PERSONAL`, `TPL-TWITTER-PERSONAL`, `TPL-QUORA-PERSONAL`) ask the crew to **publish original content from their personal account**, not to comment on someone else's thread. They need a *draft post*, not a thread URL.
+
+Scan today's sprint slate (and Friday's carryover) for personal-account templates. For each platform that has at least one personal template firing today:
+
+**Pick a topic angle.** Prefer one of these in order:
+1. If `blog_amplification` is set (Step 5) and platform is LinkedIn or Twitter → use the blog's `title + caption` as the seed angle. (Drafts will riff on the blog without duplicating it.)
+2. Otherwise → use this week's `${TOPIC}` from Step 2 + one of `profile.md` pillars (react native, AI coding tools, building in public).
+
+**Generate 4 distinct drafts** — one per crew member. The drafts must differ enough that posting all 4 in the same day doesn't look templated. Vary:
+- the specific angle (one cost-focused, one perf-focused, one ergonomics-focused, etc.)
+- the lead sentence (don't all start with "Just shipped…")
+- the length within the platform's limit
+
+**Per-platform constraints:**
+
+| Platform | Length | Tone | Format hint |
+|---|---|---|---|
+| LinkedIn | 100-200 words | networking-polite but opinionated | one short hook line, 2-3 sentences of substance, optional 1-line CTA |
+| Twitter (X) | ≤ 280 characters | sharp + specific | one sentence; no hashtags unless the topic asks for it |
+| Quora (personal) | 200-400 words, question-answer format | teaching-tone | open with the question framing, body with concrete answer + code/example, no spammy "check out my site" link |
+
+**Voice rules (profile.md):**
+- Plain, opinionated, specific. No "we're excited to" / "thrilled to share" filler.
+- Numbers when bragging is warranted ("cut cold-start 40%") rather than adjectives ("massive improvement").
+- No em-dashes on Twitter (X strips them weirdly); fine on LinkedIn + Quora.
+- Brand mention only when it pays its way in the post (one line max, late in the body, not in the lead).
+
+**Output structure** in the cache:
+
+```json
+"original_posts": {
+  "LinkedIn": {
+    "status": "ok",
+    "drafts": [
+      {
+        "intended_for": "U09DC8L7PCZ",
+        "intended_handle": "@sanket",
+        "topic_angle": "EAS Build cold-start in SDK 53",
+        "draft": "Spent yesterday migrating our app to EAS Build SDK 53..."
+      },
+      { "intended_for": "U09CUJ9ATM1", ... },
+      { "intended_for": "U09DFJJGS1X", ... },
+      { "intended_for": "U09LL9JTDM5", ... }
+    ]
+  },
+  "Twitter": {
+    "status": "ok",
+    "drafts": [
+      {
+        "intended_for": "U09DC8L7PCZ",
+        "intended_handle": "@sanket",
+        "topic_angle": "EAS Build SDK 53 specifics",
+        "draft": "EAS Build SDK 53 dropped 3 things worth migrating for: ABI-stable native modules (-40% cold-start), incremental prebuild cache, channel-level deferred updates. The last one alone lets you stage rollbacks without a release."
+      },
+      ... 3 more
+    ]
+  },
+  "Quora": {
+    "status": "ok",
+    "drafts": [
+      {
+        "intended_for": "U09DC8L7PCZ",
+        "intended_handle": "@sanket",
+        "topic_angle": "How do I make React Native user authentication...",
+        "draft": "Cleanest pattern: short-lived JWT from your Express endpoint..."
+      },
+      ... 3 more
+    ]
+  }
+}
+```
+
+**Batch the LLM call** — one Claude invocation for all platform × crew drafts is far cheaper than 12 separate calls.
+
+If a platform has no personal-template firing today, omit that platform's entry from `original_posts` entirely. The morning routine treats missing entries as "no draft for that platform today".
+
+If draft generation fails for one platform, set that platform's `status: "fail"` and continue. Other platforms still get drafts.
+
 ## Step 5 — read blog amplification cache (if present)
 
 ```bash
@@ -209,6 +289,11 @@ Write to `marketing/.state/recon-${TODAY}.json`:
     "Reddit": { "status": "ok", "findings": [...] },
     "Quora": { "status": "fail", "findings": [], "reason": "login lapsed — re-run browser-open.sh https://www.quora.com/" },
     "LinkedIn": { "status": "ok", "findings": [...] }
+  },
+  "original_posts": {
+    "LinkedIn": { "status": "ok", "drafts": [...] },
+    "Twitter":  { "status": "ok", "drafts": [...] },
+    "Quora":    { "status": "ok", "drafts": [...] }
   },
   "blog_amplification": {
     "url": "https://rapidnative.com/blogs/eas-build-2026",

@@ -18,24 +18,39 @@ source accountability/routines/_lib.sh
 guard_working_day marketing-morning
 
 TODAY=$(today_ist)
-SENTINEL="marketing/.state/morning-ts-${TODAY}"
+SENTINEL="marketing/.state/morning-ts-${TODAY}.json"
 if [ -f "$SENTINEL" ]; then
   echo "[$(date '+%H:%M:%S')] marketing-morning: already posted today (sentinel exists)" >&2
-  cat "$SENTINEL" >&2
   exit 0
 fi
 ```
 
-The sentinel is a **multi-line map** of crew → Slack `ts` (one top-level post per working crew member). Format:
+**Sentinel is now JSON (v2).** Format:
 
+```json
+{
+  "version": 2,
+  "date": "2026-06-22",
+  "crews": {
+    "U09DC8L7PCZ": {
+      "handle": "@sanket",
+      "header_ts": "1782115679.528399",
+      "tasks": {
+        "T01": "1782115681.111111",
+        "T02": "1782115682.222222",
+        "...": "..."
+      }
+    },
+    "U09CUJ9ATM1": { "...": "..." }
+  }
+}
 ```
-U09DC8L7PCZ 1782115679.528399
-U09CUJ9ATM1 1782115686.506799
-U09DFJJGS1X 1782115693.628639
-U09LL9JTDM5 1782115701.573549
-```
+
+Each crew's `header_ts` is the parent header post (lightweight summary). Each `tasks[T<NN>]` is the top-level ts of that individual task post (so the evening routine can read each task's thread separately for done-claims).
 
 Existence of the file = "already ran today". Delete it to force a regenerate.
+
+**Legacy compatibility.** Old text-format sentinel files (`<slack_id> <ts>` lines, no `.json` extension) from earlier morning runs may still exist. The evening routine handles both formats: tries JSON first, falls back to legacy parse if `.json` file is missing. Old format means "per-crew parent thread holds all task done-claims" — that path stays functional for any unmigrated days.
 
 ## Step 1 — compute week label + numeric W
 
@@ -162,6 +177,83 @@ This guarantees no two crew get the same thread on the same day → less risk of
 
 If a finding's `draft` is `null`, just attach the URL + context. No draft is fine — the crew adapts.
 
+## Step 6.65 — attach personal-post drafts to *-PERSONAL tasks (NEW)
+
+`TPL-LINKEDIN-PERSONAL`, `TPL-TWITTER-PERSONAL`, and `TPL-QUORA-PERSONAL` ask the crew to **post original content from their personal account**. Recon's `original_posts` section provides 4 distinct drafts per platform (one per crew member, keyed by Slack ID).
+
+```python
+op = recon.get("original_posts", {})
+for platform_key, platform_to_template_prefix in [
+    ("LinkedIn", "TPL-LINKEDIN-PERSONAL"),
+    ("Twitter",  "TPL-TWITTER-PERSONAL"),
+    ("Quora",    "TPL-QUORA-PERSONAL"),
+]:
+    block = op.get(platform_key)
+    if not block or block.get("status") != "ok":
+        continue
+    drafts_by_user = {d["intended_for"]: d for d in block.get("drafts", [])}
+    for crew in working_today:
+        for task in crew.tasks:
+            if task.template_id != platform_to_template_prefix:
+                continue
+            draft = drafts_by_user.get(crew.slack_id)
+            if draft:
+                task.personal_draft = draft["draft"]
+                task.personal_topic_angle = draft.get("topic_angle")
+```
+
+**MUST render BOTH sub-lines under the personal-template bullet when a draft is attached:**
+1. A `🔗` line with the compose URL (one-click composer for the platform)
+2. A `📝` line with the suggested draft text
+
+**Do not omit the `🔗` line.** Even if it's a long URL, the crew needs the one-click composer link — that's the whole point of the feature. The `🔗` line goes FIRST (above the draft), so the crew sees "click here, paste draft" as the flow.
+
+The `🔗` line gives the crew a one-click way to open the platform's composer — pre-filled for X, empty composer for LinkedIn (LinkedIn killed text-prefill years ago), question URL for Quora when available.
+
+### Compose URLs per platform
+
+**Twitter (X) — pre-filled intent URL**
+
+Use the existing helper:
+```bash
+COMPOSE_URL=$(accountability/routines/x-intent.sh tweet "$DRAFT_TEXT")
+# returns: https://twitter.com/intent/tweet?text=<urlencoded draft>
+```
+
+Clicking the link opens X with the draft text pre-filled in the composer. Crew tweaks and ships in one click.
+
+**LinkedIn — composer URL (no text prefill)**
+
+```
+https://www.linkedin.com/feed/?shareActive=true&mini=true
+```
+
+LinkedIn deprecated text-prefill in 2017. Best we can do is open the share composer; crew copies the draft from the `📝` line and pastes. Document this explicitly so crew knows to copy first, click second.
+
+**Quora — specific question URL (if available) or generic compose**
+
+Quora personal answers are answers to specific questions, not standalone posts. If recon's `findings.Quora.findings` list has any unanswered questions (from engagement-template scraping), pick one whose topic overlaps with this crew's draft and use its URL. Otherwise fall back to `https://www.quora.com/` and note that the crew needs to find a question themselves.
+
+If today's recon didn't scrape Quora at all (engagement-Quora not on today's slate), the personal-Quora draft renders with the generic URL + a note: *"v2 will scrape unanswered Quora questions even on personal-only days."*
+
+### Rendered bullet
+
+```
+- [ ] T08 · LinkedIn (5,6,7 accounts) Post from LinkedIn account (from personal accounts)
+       🔗 Compose: https://www.linkedin.com/feed/?shareActive=true&mini=true (LinkedIn won't pre-fill; copy the draft below first)
+       📝 Suggested post (adapt before publishing) — angle: refresh-token flow in RN
+       "Three footguns I keep hitting in React Native auth refresh-token flows..."
+
+- [ ] T09 · Twitter (5,6,7 accounts) Post from Twitter account (from personal accounts)
+       🔗 Compose (pre-filled): https://twitter.com/intent/tweet?text=If%20two%20React...
+       📝 Draft — angle: silent refresh-token race
+       "If two React Native screens hit an expired access token at once..."
+```
+
+If recon had no draft for a crew (e.g. 3 got drafts but the 4th's generation failed), render the task plain — no fake `🔗` / `📝` lines.
+
+**Blog amplification interaction:** if Step 6.7 (blog amplification) and this step both target the same crew member's same LinkedIn-personal task, blog amplification wins (one `📝` block on that task, not two). The original-post draft for that crew is discarded for the day.
+
 ## Step 6.7 — inject blog amplification (NEW)
 
 If `blog_amplification` was captured in Step 6.5:
@@ -215,70 +307,152 @@ The bullet text inside `T0N · …` is **the rendered one-liner** — no templat
 
 The morning-tasks.md file keeps the same shape used in the Slack post.
 
-## Step 8 — post to Slack (one top-level post per crew member)
+## Step 8 — post to Slack (per-crew header + per-task TOP-LEVEL posts)
 
-**Channel-feed model.** Each working crew member gets their **own top-level post** in `#marketing-automation` (`C0BBQ7PV34N`). The post starts with `<@SLACK_ID>` so they're actually pinged, and contains their carryover + new today. Crew replies to "done with T01" in **that post's own thread** — Slack creates a thread under that top-level message, so each person's done-claims stay isolated to their own thread.
+**Channel-feed model.** Each working crew member gets:
+1. ONE **header post** in `#marketing-automation` (`C0BBQ7PV34N`) — lightweight summary with their `<@U...>` ping + task counts + instruction to reply 'done' in each task's own thread.
+2. **N top-level task posts** — one per task in their list (carryover + new today). Each task post is a separate top-level message in the channel, not threaded. Each task post contains the task bullet + its enrichment bundle (link, draft, suggested-comment, future asset uploads) **inline**.
+3. Each task post has its own **thread** where the crew member replies "done" or reacts ✅ to mark that specific task complete. The evening routine reads each task's thread separately.
 
-There is **no parent summary message**. The four top-level posts ARE the morning push. If you want a channel-feed anchor in the future, add a summary post here later — but the user explicitly wants tasks in the main channel, not buried in a thread.
+This intentionally makes the channel feed busy (4 headers + ~36 task posts = ~40 posts/day) — that's the design. The crew uses the channel feed as their task queue; each task is independently addressable, has its own thread for assets + discussion + done-claim. No deep threads.
+
+**Rate-limit:** sleep 0.3s between posts to stay polite under Slack's 1-req/sec sustained limit. ~40 posts ≈ 12s of posting per crew loop pass; with 4 crew sequential, ~50s total post time.
 
 **Important:** do NOT pass `-` as a placeholder arg to `slack-post.sh`. Its arg parser doesn't treat `-` as a stdin marker — it'll consume it as the literal text arg and ignore your heredoc.
 
-```bash
-# Empty the sentinel up front so partial failures still leave a valid (possibly empty) sentinel.
-: > "$SENTINEL"
+### Step 8a — per-crew header post (top-level, lightweight)
 
-POSTED_COUNT=0
-for each working crew member in team.md order; do
-  SLACK_ID=<lookup>                       # e.g. U09CUJ9ATM1
-  HANDLE=<lookup>                         # e.g. @rishav
-  TOTAL=$(( CARRY_COUNT + NEW_COUNT ))    # for this person
+Build an in-memory sentinel structure that you'll write at the end as JSON. For each working crew member, post the header first:
 
-  # Compose the per-person top-level message. Skip the 🔴 Carryover block entirely if zero items.
-  # If recon attached a thread URL + draft to a task, render them as indented sub-lines.
-  BODY=$(cat <<EOF
-<@${SLACK_ID}> — ${HANDLE} · ${TOTAL} tasks today
+```python
+sentinel = {"version": 2, "date": TODAY, "crews": {}}
 
-🔴 Carryover (${CARRY_COUNT} items)
-- [ ] T01 · <bullet>
-       🔗 <recon URL>
-       💬 <recon draft>
-- ...
+for crew in working_today:  # iterate in team.md order
+    SLACK_ID = crew.slack_id
+    HANDLE   = crew.handle
+    CARRY    = crew.carryover_count
+    NEW      = crew.new_count
+    TOTAL    = CARRY + NEW
 
-🟢 New today (${NEW_COUNT} items)
-- [ ] T03 · <bullet>
-- [ ] T05 · <bullet — with recon enrichment>
-       🔗 <recon URL>
-       💬 <recon draft>
-- ...
+    header_body = f"""
+<@{SLACK_ID}> — {HANDLE} · {TOTAL} tasks today ({CARRY} carryover, {NEW} new)
 
-_Reply in this thread when you finish tasks — e.g. "done with T01, T03" or "all done". The 19:30 IST routine reads this thread, marks specific T-IDs done, and rolls unfinished tasks into tomorrow._
-EOF
-)
+_Each task is posted as its own top-level message below. Open a task's thread, do the work, then reply 'done' or react ✅ in that task's thread to mark it complete. The 19:30 IST routine reads each task's thread and rolls unfinished tasks into tomorrow._
+"""
+    HEADER_TS = post(header_body)   # top-level, no thread_ts
+    if not HEADER_TS:
+        log.warn(f"header post for {HANDLE} failed — skipping crew")
+        continue
 
-  # Top-level post (no thread_ts). slack-post.sh treats absent 2nd arg as top-level.
-  POST_OUT=$(echo "$BODY" | accountability/routines/slack-post.sh C0BBQ7PV34N)
-  TS=$(echo "$POST_OUT" | sed -n 's/^OK ts=//p')
-
-  if [ -z "$TS" ]; then
-    echo "[$(date '+%H:%M:%S')] marketing-morning: post for $HANDLE failed — skipping" >&2
-    continue
-  fi
-
-  # Append to sentinel — one line per crew member.
-  echo "$SLACK_ID $TS" >> "$SENTINEL"
-  POSTED_COUNT=$((POSTED_COUNT + 1))
-done
-
-if [ "$POSTED_COUNT" -eq 0 ]; then
-  echo "[$(date '+%H:%M:%S')] marketing-morning: ALL per-person posts failed — removing empty sentinel" >&2
-  rm -f "$SENTINEL"
-  exit 1
-fi
+    sentinel["crews"][SLACK_ID] = {
+        "handle": HANDLE,
+        "header_ts": HEADER_TS,
+        "tasks": {}
+    }
+    sleep(0.3)
+    # Step 8b: post task children below
 ```
 
-If carryover is zero for a crew member, **omit the entire `🔴 Carryover` block** (don't render an empty subsection). Same for `🟢 New today` if zero — but that shouldn't happen since the routine wouldn't be running if there were no tasks for anyone.
+### Step 8b — per-task TOP-LEVEL posts (clean, no enrichment inline)
 
-**Pacing.** Don't sleep between posts — Slack's rate limit for `chat.postMessage` is generous (per-channel ~1/sec sustained), and 4 quick posts won't hit it.
+After the header lands, iterate that crew's task list (carryover first, then new today) and post each task as a **separate top-level message** in `#marketing-automation`. Capture each task's ts and store in `sentinel["crews"][SLACK_ID]["tasks"][TASK_ID]`.
+
+Each task body is **clean** — just the bullet + context + done-reply instruction. No `@handle` ping (crew already pinged in header — repeating creates ~10 notifications/day). No enrichment inline:
+
+```
+T<NN> · *<bullet text>*
+_<carryover|new today> · <week label, e.g. w4-June>_
+
+_Reply 'done' in this thread when complete, or react ✅._
+```
+
+**Don't include `@handle` in the body.** The crew was already pinged in the header. The channel-feed UX is "scrollable list of clean task bullets, one per top-level post." Crew identifies their tasks by sequential grouping (all of @sanket's tasks come right after @sanket's header) and by clicking the header thread to see counts.
+
+```python
+    for task in crew.tasks:  # carryover first, then new today, ordered T01, T02, ...
+        task_body = render_clean_task_body(task, week_label)  # bullet + context + reply prompt
+        TASK_TS = post(task_body)   # top-level, no thread_ts
+        if not TASK_TS:
+            log.warn(f"task {task.id} post for {HANDLE} failed — continuing")
+            continue
+        sentinel["crews"][SLACK_ID]["tasks"][task.id] = TASK_TS
+        sleep(0.3)
+        # Step 8c: post enrichment as threaded reply under TASK_TS (if applicable)
+```
+
+### Step 8c — enrichment as threaded reply under each task
+
+For tasks with enrichment (recon-attached link, draft, or blog amplification), post the enrichment as a **threaded reply** under the task's own ts. The channel feed shows the clean task bullet; opening the task's thread reveals the link, draft, and (eventually) image/video assets.
+
+```python
+        if task.has_enrichment():
+            enrichment_body = render_enrichment(task)
+            REPLY_TS = post(enrichment_body, thread_ts=TASK_TS)
+            if not REPLY_TS:
+                log.warn(f"enrichment reply for {task.id} failed — continuing")
+            sleep(0.3)
+```
+
+**Enrichment patterns** (each is its own threaded reply under the task; structure is identical to before, just relocated from inline to threaded):
+
+**1) Engagement task** (HN-POST, HN-ENGAGE, REDDIT-*, QUORA-engagement etc.) with a recon finding:
+```
+🔗 <https://news.ycombinator.com/item?id=12345> — "thread title" (N pts, M comments, author)
+💬 Suggested draft: "<comment text>"
+```
+
+**2) Personal-account task** (LINKEDIN-PERSONAL, TWITTER-PERSONAL, QUORA-PERSONAL) with an original-post draft:
+```
+🔗 Compose: <compose URL>
+📝 Suggested post (adapt before publishing) — angle: <topic angle>
+"<full draft on its own lines>"
+```
+
+Compose URL per platform:
+- Twitter (X): `accountability/routines/x-intent.sh tweet "<draft>"` → pre-filled `twitter.com/intent/tweet?text=…`
+- LinkedIn: `https://www.linkedin.com/feed/?shareActive=true&mini=true` (composer only — LinkedIn killed text-prefill in 2017; note "copy the draft below first")
+- Quora: specific question URL from recon's `findings.Quora.findings` if available, else `https://www.quora.com/`
+
+**3) Blog amplification** (overrides personal draft on one crew's LinkedIn slot):
+```
+🔗 Amplify today's blog: <blog URL> — "<blog title>"
+📝 Suggested caption: "<caption text>"
+```
+
+**4) Plain task** (GFG-ARTICLE, MEDIUM-ARTICLE, DISTRO-N, carryover without fresh enrichment, etc.):
+**no enrichment reply posted at all.** The task post stands alone in the channel; opening its thread is empty until the crew member posts their first reply (done-claim, question, asset upload, etc.).
+
+### Done-claim parsing (evening routine)
+
+Evening routine reads each task's thread via `conversations.replies`. Bot messages (including the enrichment reply, if any) are filtered out via `bot_id` check. Crew's done-claim reply (or ✅ reaction on the task post itself) marks that T-ID done. See `marketing-evening.md` Step 2 for the full spec.
+
+### Step 8c — write JSON sentinel atomically
+
+After all posts are made (or failed):
+
+```python
+if not sentinel["crews"]:
+    log.error("ALL crew headers failed — no sentinel written")
+    sys.exit(1)
+
+# Atomic write
+tmp = SENTINEL + ".tmp"
+with open(tmp, "w") as f:
+    json.dump(sentinel, f, indent=2)
+os.rename(tmp, SENTINEL)
+```
+
+**Don't fail the whole routine on individual task-post failures.** Header already landed, sentinel structure already in memory. Missing per-task ts means evening routine sees `tasks: {}` for that crew (or that one T-ID missing) and treats those tasks as "no reply possible" → carries forward.
+
+### Sentinel summary
+
+The JSON sentinel is the new contract between morning and evening. The evening routine:
+1. Reads JSON sentinel
+2. For each crew × each `task_id → task_ts` pair, fetches `conversations.replies` on `task_ts`
+3. Looks for a "done" reply from that crew member (or a ✅ reaction) in the task's own thread
+4. If found → that T-ID is done
+
+Header thread is NOT scanned for done-claims in v2 — done-claims are per-task now. (Old "done T01, T03" in header thread is treated as a fallback if a crew member posts there; see evening routine spec.)
 
 ### On-leave crew
 

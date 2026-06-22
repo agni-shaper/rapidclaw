@@ -13,38 +13,79 @@ source accountability/routines/_lib.sh
 guard_working_day marketing-evening
 
 TODAY=$(today_ist)
-SENTINEL="marketing/.state/morning-ts-${TODAY}"
-if [ ! -f "$SENTINEL" ] || [ ! -s "$SENTINEL" ]; then
+SENTINEL_JSON="marketing/.state/morning-ts-${TODAY}.json"
+SENTINEL_LEGACY="marketing/.state/morning-ts-${TODAY}"   # pre-v2 text format
+
+if [ -f "$SENTINEL_JSON" ]; then
+  SENTINEL_FORMAT=v2
+elif [ -f "$SENTINEL_LEGACY" ] && [ -s "$SENTINEL_LEGACY" ]; then
+  SENTINEL_FORMAT=v1
+else
   echo "[$(date '+%H:%M:%S')] marketing-evening: no AM sentinel today — skipping" >&2
   exit 0
 fi
 ```
 
-The sentinel is a multi-line map written by the morning routine. Each line: `<slack_id> <ts>` where `ts` is the **top-level post** for that crew member. Each top-level post has its own thread; that's where the crew member replies with done-claims.
+**Sentinel format v2 (current):** JSON written by morning routine. Schema:
+```json
+{
+  "version": 2,
+  "date": "2026-06-22",
+  "crews": {
+    "U09DC8L7PCZ": {
+      "handle": "@sanket",
+      "header_ts": "...",
+      "tasks": {"T01": "...", "T02": "...", ...}
+    }
+  }
+}
+```
 
-## Step 1 — fetch each crew member's thread
+**Sentinel format v1 (legacy):** text lines `<slack_id> <ts>` per crew. Used when each crew had one top-level post containing all tasks; done-claims went in that single thread with `done T01, T03` syntax. Still supported for any unmigrated historical days.
 
-For every line in `$SENTINEL`:
+## Step 1 — fetch per-task threads (v2) or per-crew thread (v1)
+
+### v2 — per-task threads
+
+For each crew × each `(task_id, task_ts)` pair in the JSON sentinel:
 
 ```bash
 TOKEN=$(get_bot_token)
-while read -r SLACK_ID TS; do
-  [ -z "$SLACK_ID" ] && continue
-  OUT="/tmp/marketing-evening-thread-${SLACK_ID}.json"
-  curl -fsS -H "Authorization: Bearer $TOKEN" \
-    "https://slack.com/api/conversations.replies?channel=C0BBQ7PV34N&ts=${TS}&limit=200" \
-    > "$OUT" \
-    || echo "[$(date '+%H:%M:%S')] marketing-evening: conversations.replies failed for $SLACK_ID — skipping" >&2
-done < "$SENTINEL"
+# Fetch each task's own thread.
+for crew in sentinel.crews:
+    for task_id, task_ts in crew.tasks:
+        OUT="/tmp/marketing-evening-${SLACK_ID}-${task_id}.json"
+        curl -fsS -H "Authorization: Bearer $TOKEN" \
+          "https://slack.com/api/conversations.replies?channel=C0BBQ7PV34N&ts=${task_ts}&limit=50" \
+          > "$OUT" \
+          || mark_task_lookup_failed(crew, task_id)
 ```
 
-If a per-crew fetch fails (network / message deleted), log + move on. That crew member shows up with `slack conversations.replies failed` in the tracker notes; their tasks all carry forward.
+If individual task fetch fails, mark that specific T-ID as "lookup failed" (carries forward, tracker note explains).
 
-## Step 2 — parse completion claims per crew member
+### v1 — per-crew thread (legacy)
 
-For each `(SLACK_ID, TS)` pair in the sentinel, open `/tmp/marketing-evening-thread-${SLACK_ID}.json` and walk its `messages` list. The first message is the AM top-level post (bot-authored, ignore). Replies follow.
+For each line `<slack_id> <ts>`, fetch the parent's thread once and parse `done T01, T03` claims from non-bot messages. Same as original evening routine.
 
-For each reply message:
+## Step 2 — parse completion per task (v2) or per claim list (v1)
+
+### v2 — per task
+
+For each `(crew, task_id, task_ts)` in the sentinel, scan that task's thread messages for done-signals from the assignee:
+
+1. **Skip bot messages** (`bot_id` set, or `user == BOT_USER_ID`).
+2. **Skip non-assignee messages.** Only the crew member the task was posted for can mark THEIR task done. Other crew chatter in that thread is ignored.
+3. **Done signals** (any one is sufficient):
+   - Text contains any of `done`, `finished`, `complete`, `completed`, `wrapped`, `wrapped up`, `shipped`, `posted` (case-insensitive)
+   - Text contains `✅` or `:white_check_mark:` or `:heavy_check_mark:`
+   - The crew member added a ✅ **reaction** on the bot's task post itself (check `message.reactions` on the FIRST message in the thread — the task post)
+4. If ANY done signal is found from the assignee in that task's thread, mark `task_id → done`. Otherwise → not done → carries forward.
+
+Phantom T-IDs in text (like "done T99") aren't a concern in v2 because each thread IS a specific task — no ID parsing needed.
+
+### v1 — claim list per crew
+
+For each reply message in the per-crew thread:
 
 1. **Skip bot messages** (`bot_id` field set, or `user == BOT_USER_ID`).
 2. **Skip non-crew messages.** If `message.user != SLACK_ID` (someone other than this thread's assignee replying), skip — we only credit done-claims from the person the thread is for. (Cross-crew chatter in a teammate's thread shouldn't accidentally mark THEIR tasks done.)
