@@ -40,7 +40,7 @@ One section per day this week (Mon → Sun, IST). The morning routine matches `#
 - TPL-DISTRO-6
 - TPL-QUORA-PERSONAL
 
-## 2026-06-19 (Fri) ← TODAY
+## 2026-06-19 (Fri)
 
 - TPL-GFG-ARTICLE
 - TPL-HN-POST
@@ -53,6 +53,54 @@ One section per day this week (Mon → Sun, IST). The morning routine matches `#
 - (off — guard_working_day skips)
 
 ## 2026-06-21 (Sun)
+
+- (off — guard_working_day skips)
+
+## 2026-06-22 (Mon) ← TODAY
+
+- TPL-GFG-ARTICLE
+- TPL-HN-POST
+- TPL-HN-ENGAGE
+- TPL-DISTRO-6
+- TPL-LINKEDIN-PERSONAL
+
+## 2026-06-23 (Tue)
+
+- TPL-MEDIUM-ARTICLE
+- TPL-REDDIT-POST
+- TPL-REDDIT-ENGAGE
+- TPL-DISTRO-6
+- TPL-TWITTER-PERSONAL
+
+## 2026-06-24 (Wed)
+
+- TPL-DEVTO-ARTICLE
+- TPL-QUORA-POST
+- TPL-QUORA-ENGAGE
+- TPL-DISTRO-6
+- TPL-LINKEDIN-PERSONAL
+
+## 2026-06-25 (Thu)
+
+- TPL-HASHNODE-ARTICLE
+- TPL-FB-POST
+- TPL-COMMUNITY-ENGAGE
+- TPL-DISTRO-6
+- TPL-QUORA-PERSONAL
+
+## 2026-06-26 (Fri)
+
+- TPL-GFG-ARTICLE
+- TPL-HN-POST
+- TPL-HN-ENGAGE
+- TPL-DISTRO-6
+- TPL-LINKEDIN-PERSONAL
+
+## 2026-06-27 (Sat)
+
+- (off — guard_working_day skips)
+
+## 2026-06-28 (Sun)
 
 - (off — guard_working_day skips)
 

@@ -22,4 +22,10 @@ Append-only. One row per (date, person). Written by the evening routine. **Never
 | 2026-06-19 | @russel | 0 | 5 | 0 | 0 | 5 | no reply |
 | 2026-06-19 | @famitha | 0 | 5 | 0 | 0 | 5 | no reply |
 
+
+| 2026-06-19 | @sanket | 0 | 5 | 0 | 0 | 5 | no reply |
+| 2026-06-19 | @rishav | 2 | 3 | 0 | 0 | 5 | 1 reply; claimed T01, T02 |
+| 2026-06-19 | @russel | 0 | 5 | 0 | 0 | 5 | no reply |
+| 2026-06-19 | @famitha | 0 | 5 | 0 | 0 | 5 | no reply |
+
 <!-- evening routine appends rows above this line -->
