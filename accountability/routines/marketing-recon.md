@@ -248,6 +248,85 @@ If a platform has no personal-template firing today, omit that platform's entry 
 
 If draft generation fails for one platform, set that platform's `status: "fail"` and continue. Other platforms still get drafts.
 
+## Step 4.6 — generate article drafts for article-submission templates (NEW)
+
+Article-submission templates ask the crew to **submit a full article** to a developer publication. Without content support, the crew has to come up with topic + outline + draft from scratch — which defeats the point of automation. Step 4.6 generates a topic suggestion + outline + partial draft per crew per template firing today.
+
+Applies to these templates if any are on today's slate (or in carryover):
+
+- `TPL-GFG-ARTICLE` — GeeksForGeeks
+- `TPL-MEDIUM-ARTICLE` — Medium
+- `TPL-DEVTO-ARTICLE` — dev.to
+- `TPL-HASHNODE-ARTICLE` — Hashnode
+- `TPL-SUBSTACK-POST` — Substack
+- `TPL-VOCAL-STORY` — Vocal
+
+Skip platforms without article-submission tasks today.
+
+### Topic seed
+
+Same as Step 4.5 — prefer the current week's `${TOPIC}` (e.g. "auth") combined with a `profile.md` pillar (react native, AI coding tools, building in public). If `blog_amplification` is set and matches the topic, the article can be a *deeper / different angle* on the same theme (don't duplicate the blog).
+
+### Per-platform tone + length
+
+| Platform | Length | Tone | Format |
+|---|---|---|---|
+| GeeksForGeeks | 800-1200 words | tutorial / how-to | numbered steps, code blocks, "Output" section, conclusion |
+| Medium | 1000-1500 words | story-driven essay | hook lede, 3-5 H2 sections, opinionated closing, no code-block-heavy walls |
+| dev.to | 800-1200 words | practical writeup | front-matter (title, tags, cover_image), 3-5 H2 sections, gist-style code blocks |
+| Hashnode | 1000-1500 words | technical deep-dive | TOC at top, H2 sections, code-block-heavy, end with "What's next" |
+| Substack | 600-900 words | newsletter voice | one big idea, conversational, light formatting, P.S. at end |
+| Vocal | 700-1000 words | personal-narrative | first-person story, light tech depth, emotional arc |
+
+**Per-platform constraints to enforce:**
+- No "we're excited to share" / "in this article we will" filler
+- Lead with the most useful nugget (data point, code snippet, contrarian take) — not a definition
+- Voice rules from `profile.md`: plain, opinionated, specific, numbers when bragging
+- Brand mention (rapidnative.com) only when it pays its way in the body — never in the lead, max once per article
+
+### Generate per crew member
+
+Each working crew member firing this template gets one article draft (no rotation needed since articles are per-account, not per-thread). Vary the **angle** across crew so the platform sees distinct voices over time:
+
+- Sanket: strategic + cost / business-decision angle
+- Rishav: engineering depth / code-heavy / patterns
+- Russel: UX + community / user-research angle
+- Famitha: design + workflow / process angle
+
+In single-crew test mode (only one crew active), generate one draft per article template — angle picked based on that crew's role from `team.md`.
+
+**Batch the LLM call** — one Claude invocation generating all article drafts at once is far cheaper than N invocations. Length pressure means article drafts may take 30-90s combined; that's fine within recon's overall budget.
+
+### Output structure
+
+```json
+"article_drafts": {
+  "TPL-GFG-ARTICLE": {
+    "status": "ok",
+    "drafts": [
+      {
+        "intended_for": "U09DFJJGS1X",
+        "intended_handle": "@russel",
+        "topic": "Implementing Biometric Authentication in React Native: A Complete Guide",
+        "outline": [
+          "Why biometric auth matters in 2026 mobile UX",
+          "Setting up expo-local-authentication",
+          "Wrapping the auth flow with proper fallbacks",
+          "Handling enrollment + revocation edge cases",
+          "Conclusion: when biometric beats passwords"
+        ],
+        "draft_body": "Biometric authentication has become table-stakes for any React Native app handling sensitive data... [800-1200 word article body in platform-appropriate format]"
+      }
+    ]
+  },
+  "TPL-MEDIUM-ARTICLE": { "status": "ok", "drafts": [...] }
+}
+```
+
+The `draft_body` is the FULL article (or a near-complete draft). The crew member opens the task's thread, reads the draft, polishes for ~10-15 minutes, and submits. Article-submission tasks become "review + ship", not "research + write from scratch".
+
+If draft generation fails for a platform, set `status: "fail"` and continue with others.
+
 ## Step 5 — read blog amplification cache (if present)
 
 ```bash
@@ -299,6 +378,11 @@ Write to `marketing/.state/recon-${TODAY}.json`:
     "LinkedIn": { "status": "ok", "drafts": [...] },
     "Twitter":  { "status": "ok", "drafts": [...] },
     "Quora":    { "status": "ok", "drafts": [...] }
+  },
+  "article_drafts": {
+    "TPL-GFG-ARTICLE":      { "status": "ok", "drafts": [...] },
+    "TPL-MEDIUM-ARTICLE":   { "status": "ok", "drafts": [...] },
+    "TPL-DEVTO-ARTICLE":    { "status": "ok", "drafts": [...] }
   },
   "blog_amplification": {
     "url": "https://rapidnative.com/blogs/eas-build-2026",

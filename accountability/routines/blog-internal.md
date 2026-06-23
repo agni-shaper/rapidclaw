@@ -85,7 +85,7 @@ Post a top-level message:
 TASK_BODY=$(cat <<EOF
 *📝 Blog published: ${TITLE}*
 
-<@U09LL9JTDM5> <@U09DFJJGS1X> — design + video amplification needed
+<@U09DFJJGS1X> — amplification needed (design + video; multi-crew assignment paused while we test the russel-only flow)
 🔗 ${URL}
 
 _Reply 'done' in this thread when assets are ready, or react :white_check_mark:._
@@ -118,10 +118,10 @@ THREAD_BODY=$(cat <<EOF
 
 ---
 
-*Asset checklist:*
-• <@U09LL9JTDM5> @famitha — cover image (1200×630 for OG, 1080×1080 for IG, 1500×500 for X banner)
+*Asset checklist (russel covers all for now; will resplit with @famitha once multi-crew resumes):*
+• <@U09DFJJGS1X> @russel — cover image (1200×630 for OG, 1080×1080 for IG, 1500×500 for X banner)
 • <@U09DFJJGS1X> @russel — video cut (60s vertical for Reels/Shorts, 2-3min landscape for YouTube)
-• Either — short-form social post draft adapted from the caption above (post from personal LinkedIn/X accounts)
+• <@U09DFJJGS1X> @russel — short-form social post draft adapted from the caption above (post from personal LinkedIn/X accounts)
 
 Drop the rendered assets in this thread when ready.
 EOF
@@ -131,29 +131,58 @@ echo "$THREAD_BODY" | "${COACH_DIR}/accountability/routines/slack-post.sh" C0BBQ
   || echo "WARN: threaded reply failed; task message still landed" >&2
 ```
 
-## Step 6 — write amplification cache (for next-day marketing-morning)
+## Step 6 — write amplification cache (full body for next morning's blog task)
 
-Existing behavior preserved — the next morning's task list still surfaces an "amplify yesterday's blog" task for one crew member's LinkedIn-personal slot.
+Write a cache file that the next morning's `marketing-morning` reads. The cache contains the title, slug, URL, suggested caption, **and the full blog markdown body** — so the morning routine can render a dedicated "Publish a blog for rapidnative" task with the entire blog content in its thread (no need for the crew to navigate to rapidnative.com to see what shipped).
 
 ```bash
 CACHE_FILE="${COACH_DIR}/marketing/.state/blog-amplification-${TODAY}.md"
 mkdir -p "${COACH_DIR}/marketing/.state"
 
-cat > "${CACHE_FILE}.tmp" <<EOF
----
-title: ${TITLE}
-slug: ${SLUG}
-url: ${URL}
-type: internal
-generated_at: $(date -Iseconds)
-source_date: ${TODAY}
----
+# Find the generated blog markdown. generate-blog.sh writes to
+# ${OUTPUT_DIR}/.blog-content-<pid>.md (extracted SECTION 1 body) for internal blogs.
+BLOG_OUTPUT_DIR="${COACH_DIR}/sites/rapidnative-website/scripts/blog-automation/output"
+BLOG_BODY_FILE=$(ls -t "${BLOG_OUTPUT_DIR}"/.blog-content-*.md 2>/dev/null | head -1)
 
-${CAPTION}
-EOF
+if [ -n "$BLOG_BODY_FILE" ] && [ -f "$BLOG_BODY_FILE" ]; then
+  BLOG_BODY=$(cat "$BLOG_BODY_FILE")
+else
+  # Fall back to the raw blog file (whole Claude /write-blog output).
+  RAW_FILE=$(ls -t "${BLOG_OUTPUT_DIR}"/*.md 2>/dev/null | head -1)
+  BLOG_BODY=$(cat "$RAW_FILE" 2>/dev/null || echo "(blog body not found at ${BLOG_OUTPUT_DIR})")
+fi
+
+# Cache format:
+#   YAML frontmatter (title, slug, url, type, generated_at, source_date)
+#   blank line
+#   ${CAPTION}                 ← 50-word social caption
+#   blank line
+#   ---BODY---                 ← separator
+#   blank line
+#   ${BLOG_BODY}               ← full markdown body of the published blog
+{
+  echo "---"
+  echo "title: ${TITLE}"
+  echo "slug: ${SLUG}"
+  echo "url: ${URL}"
+  echo "type: internal"
+  echo "generated_at: $(date -Iseconds)"
+  echo "source_date: ${TODAY}"
+  echo "---"
+  echo
+  echo "${CAPTION}"
+  echo
+  echo "---BODY---"
+  echo
+  echo "${BLOG_BODY}"
+} > "${CACHE_FILE}.tmp"
 mv "${CACHE_FILE}.tmp" "${CACHE_FILE}"
-echo "OK wrote amplification cache: $CACHE_FILE"
+echo "OK wrote amplification cache: $CACHE_FILE ($(wc -c < "$CACHE_FILE") bytes)"
 ```
+
+**Cache size is fine.** Internal blog bodies are typically 4-10KB markdown. The cache file lives in `marketing/.state/` which is `.gitignore`d (runtime state).
+
+If the body file isn't found (output cleanup race or path change in the script), the cache still writes with metadata + caption — the morning routine renders a task that links to rapidnative.com instead of inlining the body. Graceful degradation.
 
 ## Failure modes
 

@@ -28,4 +28,6 @@ Append-only. One row per (date, person). Written by the evening routine. **Never
 | 2026-06-19 | @russel | 0 | 5 | 0 | 0 | 5 | no reply |
 | 2026-06-19 | @famitha | 0 | 5 | 0 | 0 | 5 | no reply |
 
+| 2026-06-22 | @russel | 0 | 11 | 0 | 0 | 11 | no reply in any of 11 task threads (per-task v2 sentinel); test mode — solo crew |
+
 <!-- evening routine appends rows above this line -->

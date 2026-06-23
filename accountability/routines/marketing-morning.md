@@ -227,6 +227,22 @@ for platform_key, template_id in [
                 # (otherwise compose URL falls back to platform default per Step 8c)
                 if draft.get("linked_question_url"):
                     task.compose_url_override = draft["linked_question_url"]
+
+# Also attach article drafts to article-submission tasks
+ad = recon.get("article_drafts", {})
+for template_id, block in ad.items():
+    if block.get("status") != "ok":
+        continue
+    drafts_by_user = {d["intended_for"]: d for d in block.get("drafts", [])}
+    for crew in working_today:
+        for task in crew.tasks_today + crew.carryover_tasks:
+            if task.template_id != template_id:
+                continue
+            draft = drafts_by_user.get(crew.slack_id)
+            if draft:
+                task.article_topic = draft.get("topic")
+                task.article_outline = draft.get("outline", [])
+                task.article_body = draft.get("draft_body")
 ```
 
 **MUST render BOTH sub-lines under the personal-template bullet when a draft is attached:**
@@ -281,21 +297,70 @@ If recon had no draft for a crew (e.g. 3 got drafts but the 4th's generation fai
 
 **Blog amplification interaction:** if Step 6.7 (blog amplification) and this step both target the same crew member's same LinkedIn-personal task, blog amplification wins (one `📝` block on that task, not two). The original-post draft for that crew is discarded for the day.
 
-## Step 6.7 — inject blog amplification (NEW)
+## Step 6.7 — append dedicated blog task (NEW — replaces earlier LinkedIn-injection)
 
-If `blog_amplification` was captured in Step 6.5:
+If `blog-amplification-${TODAY}.md` or `blog-amplification-${YESTERDAY}.md` exists, **append a new synthetic task** to the designated crew member's list. This is a standalone task, not an injection into an existing template-driven slot.
 
-1. Pick **one crew member** whose tasks include a `TPL-LINKEDIN-PERSONAL` template today (preferred — the blog is shared on LinkedIn).
-2. If nobody has `LINKEDIN-PERSONAL`, fall back to `TPL-TWITTER-PERSONAL` or the first crew with any `*-PERSONAL` template.
-3. If nobody has a personal-account template, **append a new task** to that day's first working crew member: `T<next> · Amplify today's blog`.
-4. Replace/augment the task bullet:
-   ```
-   T0N · LinkedIn (5,6,7 accounts) Post from LinkedIn account (from personal accounts)
-        🔗 Amplify today's blog: <url> — "<title>"
-        💬 Suggested caption: <caption>
-   ```
+The cache file format (written by blog-internal.md Step 6):
+```
+---
+title: ...
+slug: ...
+url: ...
+type: internal
+source_date: YYYY-MM-DD
+---
 
-Only ONE crew gets the blog amplification per day (we don't want 4 people sharing the same blog on the same platform within 5 minutes — looks artificial).
+<50-word social caption>
+
+---BODY---
+
+<full markdown body of the blog>
+```
+
+### Pick the assignee
+
+In single-crew test mode (only one crew active per `team.md`), the blog task goes to that crew member. In multi-crew mode, pick @russel (preferred — covers design + video amplification per blog-internal spec); if @russel is on leave or inactive, fall back to @famitha; if both inactive, fall back to first active crew.
+
+### Add the task
+
+Append a synthetic task to the assignee's `tasks` list, numbered as the next sequential T-ID after their regular morning tasks. Examples:
+- If russel had T01–T11 from sprint + carryover, the blog task becomes T12
+- The task bullet is literally: `Publish a blog for rapidnative — <title>` (using the cache's `title` field)
+- The task's `template_id` is the synthetic value `BLOG-TASK` (not a real template — there's no entry in task-templates.md)
+- The task's enrichment payload is the full body + caption + URL (Step 8c handles rendering)
+
+```python
+blog_cache = read_blog_amplification_cache(TODAY) or read_blog_amplification_cache(YESTERDAY)
+if blog_cache:
+    assignee = pick_blog_assignee(working_today, prefer=["@russel", "@famitha"])
+    if assignee:
+        next_tid = f"T{len(assignee.tasks) + 1:02d}"   # e.g. T12
+        blog_task = SyntheticTask(
+            id=next_tid,
+            section="new today",
+            template_id="BLOG-TASK",
+            bullet=f"Publish a blog for rapidnative — {blog_cache['title']}",
+            week_label=week_label,
+            blog_url=blog_cache["url"],
+            blog_title=blog_cache["title"],
+            blog_caption=blog_cache["caption"],
+            blog_body=blog_cache["body"],   # full markdown body
+        )
+        assignee.tasks.append(blog_task)
+```
+
+If no blog cache exists (yesterday's blog-internal didn't fire, or failed, or already 2+ days old) → skip silently. No blog task today.
+
+Only ONE blog task per day per crew (don't duplicate across multiple crew). If multiple crew were active, only the picked assignee gets it.
+
+### Why dedicated, not injected
+
+A standalone task is cleaner than augmenting a personal-account task:
+- Clear ownership: "this is the blog task, this person owns it"
+- Full body in the thread: crew reads the published blog inline without leaving Slack
+- Done-tracking works the same way (reply 'done' in the task's thread; evening routine credits the assignee)
+- Doesn't displace the regular LinkedIn-personal draft (which still goes out as T10 or similar)
 
 ## Step 7 — write `marketing/morning-tasks.md`
 
@@ -423,9 +488,15 @@ _Reply 'done' in this thread when complete, or react ✅._
 | `TPL-LINKEDIN-PERSONAL` | Compose URL + original-post draft | `recon.original_posts.LinkedIn.drafts[crew_id]` |
 | `TPL-TWITTER-PERSONAL` | x-intent compose URL + draft | `recon.original_posts.Twitter.drafts[crew_id]` |
 | `TPL-QUORA-PERSONAL` | `linked_question_url` + answer draft | `recon.original_posts.Quora.drafts[crew_id]` |
-| `TPL-GFG-ARTICLE`, `TPL-MEDIUM-ARTICLE`, etc. (article-submission) | **no enrichment** | — |
+| `TPL-GFG-ARTICLE` | Topic + outline + full draft body | `recon.article_drafts['TPL-GFG-ARTICLE'].drafts[crew_id]` |
+| `TPL-MEDIUM-ARTICLE` | Topic + outline + full draft body | `recon.article_drafts['TPL-MEDIUM-ARTICLE'].drafts[crew_id]` |
+| `TPL-DEVTO-ARTICLE` | Topic + outline + full draft body | `recon.article_drafts['TPL-DEVTO-ARTICLE'].drafts[crew_id]` |
+| `TPL-HASHNODE-ARTICLE` | Topic + outline + full draft body | `recon.article_drafts['TPL-HASHNODE-ARTICLE'].drafts[crew_id]` |
+| `TPL-SUBSTACK-POST` | Topic + outline + full draft body | `recon.article_drafts['TPL-SUBSTACK-POST'].drafts[crew_id]` |
+| `TPL-VOCAL-STORY` | Topic + outline + full draft body | `recon.article_drafts['TPL-VOCAL-STORY'].drafts[crew_id]` |
 | `TPL-DISTRO-*` | **no enrichment** | — |
 | `TPL-FB-POST` | (no scrape in v1) | — |
+| `BLOG-TASK` (synthetic, appended in Step 6.7) | Full markdown body + URL + caption + asset checklist | `blog-amplification-YYYY-MM-DD.md` |
 
 **RULES (read carefully):**
 1. If a task's `template_id` is in the table AND its `Enrichment shape` column isn't "no enrichment" AND its source has data → post the enrichment as a threaded reply. NO EXCEPTIONS.
@@ -433,7 +504,30 @@ _Reply 'done' in this thread when complete, or react ✅._
 3. Templates ending in `-ENGAGE` (multi-target) take the FULL findings list — show all 3-4 URLs in one thread reply.
 4. Templates ending in `-POST` (single-target) take ONE finding via round-robin across crew.
 5. Templates ending in `-PERSONAL` take that crew member's draft via `intended_for = crew_slack_id`.
-6. If the source has no data (recon platform failed or empty), skip enrichment for that task. Don't post a placeholder.
+6. Article-submission templates (`*-ARTICLE`, `TPL-SUBSTACK-POST`, `TPL-VOCAL-STORY`) take that crew member's article draft via `intended_for = crew_slack_id` from `recon.article_drafts[template_id]`.
+7. If the source has no data (recon platform failed or empty), skip enrichment for that task. Don't post a placeholder.
+
+### MANDATORY enrichment checklist (anti-skip)
+
+Before declaring Step 8 done, **explicitly walk through every task posted** and log to stdout whether enrichment was attached:
+
+```
+ENRICHMENT CHECKLIST — crew @russel
+  T01 (HN-ENGAGE, carryover)           → expected: HN multi-list             → posted: yes/no
+  T02 (DISTRO-6, carryover)            → expected: none                       → posted: n/a
+  T03 (QUORA-PERSONAL, carryover)      → expected: linked-question + draft    → posted: yes/no
+  T04 (GFG-ARTICLE, new)               → expected: topic + outline + body     → posted: yes/no
+  T05 (HN-POST, new)                   → expected: one URL + draft            → posted: yes/no
+  T06 (HN-ENGAGE, new)                 → expected: HN multi-list              → posted: yes/no
+  T07 (DISTRO-6, new)                  → expected: none                       → posted: n/a
+  T08 (LINKEDIN-PERSONAL, new)         → expected: compose + draft            → posted: yes/no
+  T09 (TWITTER-PERSONAL, new)          → expected: x-intent + draft           → posted: yes/no
+TOTAL: X enriched / Y eligible
+```
+
+**If any "yes/no" comes out "no" when expected to be "yes" — go back and post that enrichment before exiting.** The eligible count must equal the enriched count, unless the recon source for that template is empty (then state "source empty" in the log).
+
+This is non-negotiable. Skipping enrichment on multi-target or carryover tasks has been a recurring problem — the checklist forces you to confirm explicitly, not rely on a default-skip heuristic.
 
 For tasks with enrichment (recon-attached link, draft, or blog amplification), post the enrichment as a **threaded reply** under the task's own ts. The channel feed shows the clean task bullet; opening the task's thread reveals the link, draft, and (eventually) image/video assets.
 
@@ -484,11 +578,51 @@ Compose URL per platform:
 - LinkedIn: `https://www.linkedin.com/feed/?shareActive=true&mini=true` (composer only — LinkedIn killed text-prefill in 2017; note "copy the draft below first")
 - Quora (no override): `https://www.quora.com/` (generic — but recon should always provide a `linked_question_url` per Step 4.5)
 
-**3) Blog amplification** (overrides personal draft on one crew's LinkedIn slot):
+**3a) Article-submission task** (TPL-GFG-ARTICLE, TPL-MEDIUM-ARTICLE, TPL-DEVTO-ARTICLE, TPL-HASHNODE-ARTICLE, TPL-SUBSTACK-POST, TPL-VOCAL-STORY) with a recon article draft:
+
 ```
-🔗 Amplify today's blog: <blog URL> — "<blog title>"
-📝 Suggested caption: "<caption text>"
+📰 Suggested article (adapt + ship — ~10-15 min review):
+
+*Topic:* <recon's topic line>
+
+*Outline:*
+1. <outline item 1>
+2. <outline item 2>
+3. <outline item 3>
+...
+
+*Draft body:*
+
+<full draft body text — may be long, that's fine, Slack handles ~40k chars per message>
 ```
+
+The draft body can be 800-1500 words. Slack supports up to ~40,000 chars per message — well within budget for a single article. If the draft is exceptionally long (e.g. >35k chars), split into 2 sequential threaded replies under the same task ts.
+
+**4) Blog task** (synthetic, `template_id = BLOG-TASK`, appended by Step 6.7) — the dedicated blog task threaded reply contains the FULL blog markdown body + URL + caption + asset checklist. This is the largest enrichment by far (4-10KB markdown body):
+
+```
+🔗 Published at: <blog URL>
+
+📝 Suggested social caption (LinkedIn / Twitter — adapt before posting):
+"<caption text>"
+
+---
+
+📰 *Full blog content* (read here, then ship the assets below):
+
+<full markdown body — may be 4-10KB, Slack supports ~40KB per message>
+
+---
+
+*Asset checklist:*
+• Cover image (1200×630 OG, 1080×1080 IG, 1500×500 X banner)
+• Video cut (60s vertical for Reels/Shorts, 2-3 min landscape for YouTube)
+• Short-form social post adapted from the caption above (post from personal LinkedIn/X)
+
+Drop rendered assets in this thread when ready, or reply 'done' / react ✅.
+```
+
+If the body is exceptionally long (>35k chars), split into 2 sequential threaded replies under the same task ts.
 
 **4) Plain task** (GFG-ARTICLE, MEDIUM-ARTICLE, DISTRO-N, carryover without fresh enrichment, etc.):
 **no enrichment reply posted at all.** The task post stands alone in the channel; opening its thread is empty until the crew member posts their first reply (done-claim, question, asset upload, etc.).
