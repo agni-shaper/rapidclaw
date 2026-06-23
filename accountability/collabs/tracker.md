@@ -15,31 +15,6 @@ Canonical list of every active and recently-closed collab. The `collabs-tuesday-
 
 ## Active
 
-### Shubham Wadekar (via Soxiol)
-- Type: creator video — Instagram reel + story
-- Amount: $259 paid
-- Status: **shipped 2026-06-04, paid 2026-06-05**
-- Owner: @sanket
-- Reach so far: "in line with Shubham's typical reel performance" (Soxiol, 2026-06-04) — Sanket noted the reel didn't generate enough traffic
-- Links:
-  - Reel: https://www.instagram.com/reel/DZJ3OvXoBOh/
-  - Story: https://www.instagram.com/stories/shubhaam.codes/3912055335267537801
-- UTM: `utm_campaign=shubham_soxiol`
-- 2026-05-25 — Sanket flagged: may bring influx of Indian devs; @suraj to consider cheaper model for India audience
-- 2026-06-05 — closed; will keep eye on tail performance
-
-### Finanzas 3.0 (Emiliano)
-- Type: creator video — Instagram reel + TikTok
-- Amount: $400 paid + ad codes provided
-- Status: **shipped 2026-06-05, paid; ad access resolved 2026-06-18 — ads ready to run**
-- Owner: @sanket → looped in @russel on 2026-06-14 to manage Meta ads
-- Links:
-  - Reel: https://www.instagram.com/reel/DZBUw6MtpWM/
-  - TikTok: https://vt.tiktok.com/ZSx7PSwdK/
-- UTM: `utm_campaign=finanzas_3_0`
-- 2026-06-18 — Sanket confirmed Finanzas access obtained; Russel can now launch Meta ads
-- Note: Emiliano flagged one-off videos rarely convert without sustained content frequency
-
 ### Ibrahim El kobai (Mr Video Editor)
 - Type: explainer video — main 60s + possible feature shorts
 - Amount: **$650 quoted for one 60s explainer (Lovable 2.0 style)** — confirmed 2026-06-15 by Sanket
@@ -88,7 +63,36 @@ Canonical list of every active and recently-closed collab. The `collabs-tuesday-
 - Booking link: calendly.com/olena-kondratiewa/tiktok-organic-promotion
 - 2026-06-18 — Sanket cancelled the call
 
-_(Shubham reel still in Active for now — pending decision on whether to keep watching the tail)_
+---
+
+## Closed
+
+### Shubham Wadekar (via Soxiol) — closed 2026-06-23
+- Type: creator video — Instagram reel + story
+- Amount: $259 paid
+- Status: **shipped 2026-06-04, paid 2026-06-05**
+- Owner: @sanket
+- Reach: "in line with Shubham's typical reel performance" (Soxiol, 2026-06-04) — Sanket noted the reel didn't generate enough traffic
+- Links:
+  - Reel: https://www.instagram.com/reel/DZJ3OvXoBOh/
+  - Story: https://www.instagram.com/stories/shubhaam.codes/3912055335267537801
+- UTM: `utm_campaign=shubham_soxiol`
+- 2026-05-25 — Sanket flagged: may bring influx of Indian devs; @suraj to consider cheaper model for India audience
+- 2026-06-05 — shipped + paid; watching tail
+- 2026-06-23 — closed by @sanket
+
+### Finanzas 3.0 (Emiliano) — closed 2026-06-23
+- Type: creator video — Instagram reel + TikTok
+- Amount: $400 paid + ad codes provided
+- Status: **shipped 2026-06-05, paid; ad access resolved 2026-06-18 — ads handed to @russel**
+- Owner: @sanket → looped in @russel on 2026-06-14 to manage Meta ads
+- Links:
+  - Reel: https://www.instagram.com/reel/DZBUw6MtpWM/
+  - TikTok: https://vt.tiktok.com/ZSx7PSwdK/
+- UTM: `utm_campaign=finanzas_3_0`
+- 2026-06-18 — Finanzas ad access obtained; Russel cleared to launch Meta ads
+- Note: Emiliano flagged one-off videos rarely convert without sustained content frequency
+- 2026-06-23 — closed by @sanket (collab deliverable complete; Meta ad spend continues under @russel separately)
 
 ---
 
