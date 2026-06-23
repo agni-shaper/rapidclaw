@@ -85,7 +85,7 @@ Post a top-level message:
 TASK_BODY=$(cat <<EOF
 *📝 Blog published: ${TITLE}*
 
-<@U09DFJJGS1X> — amplification needed (design + video; multi-crew assignment paused while we test the russel-only flow)
+<@U09LL9JTDM5> <@U09DFJJGS1X> — design + video amplification needed
 🔗 ${URL}
 
 _Reply 'done' in this thread when assets are ready, or react :white_check_mark:._
@@ -118,10 +118,10 @@ THREAD_BODY=$(cat <<EOF
 
 ---
 
-*Asset checklist (russel covers all for now; will resplit with @famitha once multi-crew resumes):*
-• <@U09DFJJGS1X> @russel — cover image (1200×630 for OG, 1080×1080 for IG, 1500×500 for X banner)
+*Asset checklist:*
+• <@U09LL9JTDM5> @famitha — cover image (1200×630 for OG, 1080×1080 for IG, 1500×500 for X banner)
 • <@U09DFJJGS1X> @russel — video cut (60s vertical for Reels/Shorts, 2-3min landscape for YouTube)
-• <@U09DFJJGS1X> @russel — short-form social post draft adapted from the caption above (post from personal LinkedIn/X accounts)
+• Either — short-form social post draft adapted from the caption above (post from personal LinkedIn/X accounts)
 
 Drop the rendered assets in this thread when ready.
 EOF
