@@ -1,92 +1,69 @@
-# Account inventory
+# Account inventory (per-crew named accounts)
 
-Per (person, platform): **how many numbered accounts they own.** The bot only references accounts by number (e.g. "use your 6th account"); the actual handle/login mapping lives with the crew member, not in this repo.
+Each crew member owns a list of **named persona accounts** that they use across all platforms (HN, Reddit, Quora, LinkedIn, X, Medium, dev.to, GeeksForGeeks, Hashnode, Substack, Vocal, Facebook, Community forums). The same persona name "Anna" represents Sanket's Anna account on every platform.
 
-If a cell shows `7`, that crew member has accounts numbered 1 through 7 on that platform. If a cell shows `0`, they don't operate on that platform — the rotation skips them.
+The weekly rotation picks **3 named accounts per week** from each crew's list (a sliding window) — see `rotation.md` for the formula. The morning routine renders bullets with names instead of numbers:
 
-If `rotation.md` asks for account N but this table says they only have N-1 accounts, the bot clamps to the highest available and notes it in the task ("…use 5th account [clamped: you only have 5]"). No silent skipping.
+```
+T03 · Quora community engagement - (Élodie, Amélie, Chloé acc for w4-June)
+T05 · Hackernews community postings using Chloé account - (Élodie, Amélie, Chloé acc for w4-June)
+```
 
-**Default seed: 7 per cell** — gives ~3-account weekly windows good cooldown over a month. Edit down where the real count is lower.
+If a crew member needs to operate from a specific persona on a given week, the rotation index maps to that position in the list below (1-indexed: Anna=position 2 in Sanket's list, etc.).
+
+---
 
 ## @sanket
 
-| Platform | Accounts owned |
-|---|---|
-| GeeksForGeeks | 7 |
-| Hackernews | 7 |
-| Quora | 7 |
-| Reddit | 7 |
-| Medium | 7 |
-| Hashnode | 7 |
-| dev.to | 7 |
-| Substack | 7 |
-| Vocal | 7 |
-| LinkedIn | 7 |
-| Facebook | 7 |
-| Twitter | 7 |
-| Community forums | 7 |
-
-## @rishav
-
-| Platform | Accounts owned |
-|---|---|
-| GeeksForGeeks | 7 |
-| Hackernews | 7 |
-| Quora | 7 |
-| Reddit | 7 |
-| Medium | 7 |
-| Hashnode | 7 |
-| dev.to | 7 |
-| Substack | 7 |
-| Vocal | 7 |
-| LinkedIn | 7 |
-| Facebook | 7 |
-| Twitter | 7 |
-| Community forums | 7 |
-
-## @russel
-
-| Platform | Accounts owned |
-|---|---|
-| GeeksForGeeks | 7 |
-| Hackernews | 7 |
-| Quora | 7 |
-| Reddit | 7 |
-| Medium | 7 |
-| Hashnode | 7 |
-| dev.to | 7 |
-| Substack | 7 |
-| Vocal | 7 |
-| LinkedIn | 7 |
-| Facebook | 7 |
-| Twitter | 7 |
-| Community forums | 7 |
+1. Rishav
+2. Anna
+3. Peter
+4. Camille
+5. Élodie
+6. Amélie
+7. Chloé
 
 ## @famitha
 
-| Platform | Accounts owned |
-|---|---|
-| GeeksForGeeks | 7 |
-| Hackernews | 7 |
-| Quora | 7 |
-| Reddit | 7 |
-| Medium | 7 |
-| Hashnode | 7 |
-| dev.to | 7 |
-| Substack | 7 |
-| Vocal | 7 |
-| LinkedIn | 7 |
-| Facebook | 7 |
-| Twitter | 7 |
-| Community forums | 7 |
+1. Chris
+2. Nikolas
+3. Famitha
+4. Sophie
+5. Juliette
+6. Léa
+7. Manon
 
-## Personal-accounts inventory (separate from numbered marketing accounts)
+## @russel
 
-Some tasks specify "from personal accounts" (e.g. Quora). These come from a different pool — the crew member's personal handles, not the numbered marketing-rotation accounts. The bot just tags the task with `(from personal accounts)`; the crew member knows which one to use.
+1. Russell
+2. Riya
+3. Suraj
+4. Lucas
+5. Hugo
+6. Louis
+7. Jules
 
-| Person | Has personal accounts on |
-|---|---|
-| @sanket | Quora, LinkedIn, Twitter |
-| @rishav | Quora, LinkedIn, Twitter |
-| @russel | Quora, LinkedIn, Twitter |
-| @famitha | Quora, LinkedIn, Twitter |
+## @rishav
+
+1. David
+2. Emily
+3. Allie
+4. Antoine
+5. Théo
+6. Mathis
+7. Arthur
+8. Pierre
+
+---
+
+## Adding a new persona
+
+Append to the relevant crew's numbered list above. The rotation formula in `rotation.md` automatically picks 3 accounts per week from positions [W+1+offset, W+2+offset, W+3+offset] (clamped to list length, de-duped). Personas at higher positions get used in later weeks of the month.
+
+## Removing a persona
+
+Strike through the line (don't delete — keep history). Re-number the remaining entries.
+
+## Personal-account templates (`*-PERSONAL`) are different
+
+`TPL-LINKEDIN-PERSONAL`, `TPL-TWITTER-PERSONAL`, `TPL-QUORA-PERSONAL` ask the crew member to post from their **own personal account** (Sanket from `@sanketsahu`, etc.), not from the rotation personas above. Those templates don't reference this file.

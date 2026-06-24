@@ -7,27 +7,4 @@ Append-only. One row per (date, person). Written by the evening routine. **Never
 | Date | Person | Done | Carried | Skipped (leave) | Skipped (no acct) | Total | Notes |
 |---|---|---|---|---|---|---|---|
 
-| 2026-06-19 | @sanket | 0 | 4 | 0 | 0 | 4 | slack reactions.get failed (missing_scope); all tasks 🟠 blocked on accounts.md TBD |
-| 2026-06-19 | @rishav | 0 | 4 | 0 | 0 | 4 | slack reactions.get failed (missing_scope); all tasks 🟠 blocked on accounts.md TBD |
-| 2026-06-19 | @russel | 0 | 4 | 0 | 0 | 4 | slack reactions.get failed (missing_scope); all tasks 🟠 blocked on accounts.md TBD |
-| 2026-06-19 | @famitha | 0 | 4 | 0 | 0 | 4 | slack reactions.get failed (missing_scope); all tasks 🟠 blocked on accounts.md TBD |
-
-| 2026-06-19 | @sanket | 0 | 5 | 0 | 0 | 5 | re-run after morning regenerated at 15:25 |
-| 2026-06-19 | @rishav | 0 | 5 | 0 | 0 | 5 | re-run after morning regenerated at 15:25 |
-| 2026-06-19 | @russel | 0 | 5 | 0 | 0 | 5 | re-run after morning regenerated at 15:25 |
-| 2026-06-19 | @famitha | 0 | 5 | 0 | 0 | 5 | re-run after morning regenerated at 15:25 |
-
-| 2026-06-19 | @sanket | 0 | 5 | 0 | 0 | 5 | no reply |
-| 2026-06-19 | @rishav | 2 | 3 | 0 | 0 | 5 | 1 reply; claimed T01, T02 |
-| 2026-06-19 | @russel | 0 | 5 | 0 | 0 | 5 | no reply |
-| 2026-06-19 | @famitha | 0 | 5 | 0 | 0 | 5 | no reply |
-
-
-| 2026-06-19 | @sanket | 0 | 5 | 0 | 0 | 5 | no reply |
-| 2026-06-19 | @rishav | 2 | 3 | 0 | 0 | 5 | 1 reply; claimed T01, T02 |
-| 2026-06-19 | @russel | 0 | 5 | 0 | 0 | 5 | no reply |
-| 2026-06-19 | @famitha | 0 | 5 | 0 | 0 | 5 | no reply |
-
-| 2026-06-22 | @russel | 0 | 11 | 0 | 0 | 11 | no reply in any of 11 task threads (per-task v2 sentinel); test mode — solo crew |
-
 <!-- evening routine appends rows above this line -->

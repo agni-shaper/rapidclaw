@@ -163,7 +163,13 @@ def parse_sprint(date_str: str) -> list[str]:
 
 
 def parse_accounts() -> dict:
-    """Return {@handle: {platform: int_count}}."""
+    """Return {@handle: [persona_name, ...]} — named-account lists, 1-indexed by list order.
+    accounts.md format: per-crew '## @handle' section followed by a numbered list:
+      1. Anna
+      2. Peter
+      ...
+    These named personas are used across ALL platforms.
+    """
     path = PROJECT_DIR / "marketing" / "accounts.md"
     out: dict = {}
     current = None
@@ -171,15 +177,14 @@ def parse_accounts() -> dict:
         m = re.match(r"^## (@\w+)", line.strip())
         if m:
             current = m.group(1)
-            out[current] = {}
+            out[current] = []
             continue
         if current is None:
             continue
-        m = re.match(r"^\| ([A-Za-z. ]+) \| (\d+) \|", line.strip())
+        # Numbered list item: "1. Anna" or " 2. Peter "
+        m = re.match(r"^\d+\.\s+(.+)$", line.strip())
         if m:
-            platform = m.group(1).strip()
-            if platform != "Platform":
-                out[current][platform] = int(m.group(2))
+            out[current].append(m.group(1).strip())
     return out
 
 
@@ -333,41 +338,44 @@ def infer_template_from_bullet(bullet: str) -> Optional[str]:
     return None
 
 
-def compute_pool(W: int, offset: int, owned: int) -> tuple:
-    """Return (pool, clamped). pool is unique-preserving tuple of account numbers."""
-    if owned <= 0:
+def compute_pool(W: int, offset: int, account_names: list) -> tuple:
+    """Return (pool_names, clamped). pool_names is a tuple of persona names picked from
+    account_names by 1-indexed positions [W+1+offset, W+2+offset, W+3+offset], clamped
+    to list length and de-duped preserving order.
+    """
+    if not account_names:
         return (), False
-    raw = [W + 1 + offset, W + 2 + offset, W + 3 + offset]
-    clamped_list = [min(n, owned) for n in raw]
+    owned = len(account_names)
+    raw_positions = [W + 1 + offset, W + 2 + offset, W + 3 + offset]
+    clamped_positions = [min(p, owned) for p in raw_positions]
     seen = set()
-    unique = tuple(n for n in clamped_list if not (n in seen or seen.add(n)))
-    clamped = unique != tuple(raw)
-    return unique, clamped
-
-
-def ordinal(n: int) -> str:
-    if 11 <= (n % 100) <= 13:
-        return f"{n}th"
-    return f"{n}{['th','st','nd','rd','th','th','th','th','th','th'][n % 10]}"
+    unique_positions = [p for p in clamped_positions if not (p in seen or seen.add(p))]
+    clamped = unique_positions != raw_positions
+    # Map 1-indexed positions to names
+    pool_names = tuple(account_names[p - 1] for p in unique_positions)
+    return pool_names, clamped
 
 
 def render_bullet(template_id: str, pool, week_lbl: str, clamped=False) -> str:
+    """Render a bullet using named accounts. `pool` is a tuple of persona names like
+    ('Élodie', 'Amélie', 'Chloé'). The 'nth' account is pool[-1] (last name in the window).
+    """
     tpl = TEMPLATE_DEFS.get(template_id, {})
     shape = tpl.get("shape", "?")
     platform = tpl.get("platform", "?")
-    pool_str = ",".join(str(n) for n in pool) if pool else "?"
-    nth_str = ordinal(pool[-1]) if pool else "?"
-    clamp = f" [clamped: only {pool[-1]} accounts]" if clamped else ""
+    pool_str = ", ".join(pool) if pool else "?"
+    last_name = pool[-1] if pool else "?"
+    clamp = f" [clamped: only {len(pool)} accounts available]" if clamped else ""
 
     if shape == "A":
         action = tpl["action"]
-        return f"Submit 1 {action} to {platform} ({nth_str} account) - {pool_str} accounts for {week_lbl}{clamp}"
+        return f"Submit 1 {action} to {platform} from {last_name} account - ({pool_str} for {week_lbl}){clamp}"
     if shape == "B":
-        return f"{platform} community postings ({nth_str} account) - {pool_str} accounts for {week_lbl}{clamp}"
+        return f"{platform} community postings using {last_name} account - ({pool_str} for {week_lbl}){clamp}"
     if shape == "C":
-        return f"{platform} community engagement - ({pool_str} acc for {week_lbl}){clamp}"
+        return f"{platform} community engagement - ({pool_str} for {week_lbl}){clamp}"
     if shape == "D":
-        return f"{platform} ({pool_str} accounts) Post from {platform} account (from personal accounts){clamp}"
+        return f"{platform} ({pool_str}) Post from {platform} account (from personal accounts){clamp}"
     if shape == "E":
         return f"Write {tpl['quota']} articles for Distribution"
     return f"<unknown template {template_id}>"
@@ -480,8 +488,12 @@ def render_enrichment_blog(task: dict) -> str:
 
 
 def build_task_list(member: dict, today_templates: list, accounts: dict, offsets: dict, W: int, wlabel: str) -> list:
-    """Build [{id, template_id, bullet, section, platform, pool, ...}] for a crew member."""
+    """Build [{id, template_id, bullet, section, platform, pool}] for a crew member.
+    `accounts` is now {@handle: [name, name, ...]} — single named list per crew,
+    used across all platforms.
+    """
     handle = member["handle"]
+    names = accounts.get(handle, [])
     tasks = []
     for tpl_id in today_templates:
         tpl = TEMPLATE_DEFS.get(tpl_id)
@@ -498,11 +510,10 @@ def build_task_list(member: dict, today_templates: list, accounts: dict, offsets
             })
         else:
             platform = tpl["platform"]
-            owned = accounts.get(handle, {}).get(platform, 0)
-            if owned == 0:
-                continue
+            if not names:
+                continue  # crew has no named accounts (shouldn't happen)
             offset = offsets.get(platform, 0)
-            pool, clamped = compute_pool(W, offset, owned)
+            pool, clamped = compute_pool(W, offset, names)
             if not pool:
                 continue
             tasks.append({
@@ -516,7 +527,12 @@ def build_task_list(member: dict, today_templates: list, accounts: dict, offsets
 
 
 def attach_carryover(tasks: list, carryover_bullets: list, accounts: dict, handle: str, offsets: dict, W: int, wlabel: str) -> list:
-    """Prepend carryover tasks (parsed from yesterday's evening-tasks.md). Infer template_id."""
+    """Prepend carryover tasks (parsed from yesterday's evening-tasks.md). Infer template_id.
+    Carryover bullets keep their original text (which still has yesterday's account
+    refs — could be numbered if from before the rename, or named going forward). We
+    don't re-render carryover bullets to avoid losing yesterday's context.
+    """
+    names = accounts.get(handle, [])
     out = []
     for bullet_text in carryover_bullets:
         tpl_id = infer_template_from_bullet(bullet_text)
@@ -525,11 +541,9 @@ def attach_carryover(tasks: list, carryover_bullets: list, accounts: dict, handl
         if tpl_id:
             tpl = TEMPLATE_DEFS.get(tpl_id, {})
             platform = tpl.get("platform")
-            if platform:
-                owned = accounts.get(handle, {}).get(platform, 0)
-                if owned > 0:
-                    offset = offsets.get(platform, 0)
-                    pool, _ = compute_pool(W, offset, owned)
+            if platform and names:
+                offset = offsets.get(platform, 0)
+                pool, _ = compute_pool(W, offset, names)
         out.append({
             "template_id": tpl_id,
             "bullet": bullet_text,
