@@ -47,12 +47,11 @@ If a crew member needs to operate from a specific persona on a given week, the r
 
 1. David
 2. Emily
-3. Allie
-4. Antoine
-5. Théo
-6. Mathis
-7. Arthur
-8. Pierre
+3. Antoine
+4. Théo
+5. Mathis
+6. Arthur
+7. Pierre
 
 ---
 
