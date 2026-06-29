@@ -12,9 +12,23 @@ voice_source: ../../profile.md
 
 # scheduler
 
-Cross-cutting skill. Today: reminders live as markdown in `accountability/reminders/YYYY-MM-DD.md` and the morning routine reads today's file at startup. Routine-run history lives nowhere structured (just /tmp/*.log).
+Cross-cutting skill. Today: reminders live as markdown in `accountability/reminders/YYYY-MM-DD.md` AND in the sqlite `reminders` table (Phase 3 backfilled both ways). Routine-run history now goes to sqlite `routine_runs` via the `log_routine_start` / `log_routine_end` helpers.
 
-Phase 3 of the architecture refactor moves both into sqlite. This SKILL.md sketches that design.
+**Phase 3 sqlite is LIVE as of 2026-06-29.** DB at `~/.config/claude/rapidnative-coach.sqlite`. Schema below matches the live tables; the proposed `_lib.sh` helpers in this skill (`add_reminder`, `list_reminders`, etc.) are NOT all built yet — see "Built so far" below.
+
+## Built so far
+
+- `db_path` — echo DB path
+- `db_query "SELECT …"` / `db_exec "INSERT …"` — generic wrappers
+- `sqlite_is_on_leave` / `sqlite_is_holiday` — read-side parity with markdown helpers
+- `log_routine_start <name>` → returns row ID
+- `log_routine_end <id> <exit_code> [notes]` — closes the row
+- `last_run <name>` — most recent started_at
+
+Not yet built (TODO when first user-facing flow needs them):
+- `add_reminder` / `list_reminders` / `cancel_reminder`
+- `record_eod_post` / `query_eod_streak`
+- Skill-specific table writers for `user_testing_issues`, `bug_reports`, `tasks_cleanup_proposals` mutations
 
 ## Read these before doing any work
 

@@ -171,3 +171,74 @@ skill_path() {
   done
   return 1
 }
+
+# ---------------- Phase 3: sqlite helpers ----------------
+# DB: ~/.config/claude/${BOT_SLUG}.sqlite (created by bin/migrate-to-sqlite.py)
+# These run ALONGSIDE the existing markdown-reading helpers (is_on_leave, is_holiday).
+# Routines that still call the markdown helpers keep working unchanged.
+# Skill-based code paths (Phase 2+) should prefer the sqlite_* variants below.
+
+DB_PATH="$HOME/.config/claude/${BOT_SLUG}.sqlite"
+
+# db_path — echo the absolute DB path (handy for one-liners).
+db_path() { echo "$DB_PATH"; }
+
+# db_query "SELECT …" — run a read query, print result rows (pipe-separated).
+# Fails loudly if the DB doesn't exist (callers can fall back to .md if they want).
+db_query() {
+  [ -f "$DB_PATH" ] || { echo "ERROR: sqlite DB not found at $DB_PATH — run bin/migrate-to-sqlite.py" >&2; return 1; }
+  sqlite3 "$DB_PATH" "$@"
+}
+
+# db_exec "INSERT …" — run a write query.
+db_exec() {
+  [ -f "$DB_PATH" ] || { echo "ERROR: sqlite DB not found at $DB_PATH — run bin/migrate-to-sqlite.py" >&2; return 1; }
+  sqlite3 "$DB_PATH" "$@"
+}
+
+# sqlite_is_on_leave <SLACK_ID> [YYYY-MM-DD] — sqlite-backed version of is_on_leave.
+# Same exit-code contract: 0 if covered, 1 otherwise.
+sqlite_is_on_leave() {
+  local sid="${1:?usage: sqlite_is_on_leave <SLACK_ID> [date]}"
+  local d="${2:-$(today_ist)}"
+  sid="${sid//[\`<>@]/}"
+  local count
+  count=$(db_query "SELECT COUNT(*) FROM leave_entries WHERE slack_id='$sid' AND status='active' AND '$d' BETWEEN start_date AND end_date;") || return 1
+  [ "$count" != "0" ]
+}
+
+# sqlite_is_holiday [YYYY-MM-DD] — sqlite-backed version of is_holiday. Same contract.
+sqlite_is_holiday() {
+  local d="${1:-$(today_ist)}"
+  local count
+  count=$(db_query "SELECT COUNT(*) FROM holidays WHERE date='$d' AND status='upcoming';") || return 1
+  [ "$count" != "0" ]
+}
+
+# log_routine_start <name> — print the new row ID (use it for log_routine_end).
+log_routine_start() {
+  local name="${1:?usage: log_routine_start <routine_name>}"
+  local log_path="/tmp/${BOT_SLUG}-${name}.log"
+  local ts; ts=$(date -Iseconds)
+  db_exec "INSERT INTO routine_runs (routine, started_at, log_path) VALUES ('$name', '$ts', '$log_path'); SELECT last_insert_rowid();"
+}
+
+# log_routine_end <id> <exit_code> [notes] — close out a routine run row.
+log_routine_end() {
+  local id="${1:?usage: log_routine_end <run_id> <exit_code> [notes]}"
+  local code="${2:?exit_code required}"
+  local notes="${3:-}"
+  local ts; ts=$(date -Iseconds)
+  local notes_sql=""
+  if [ -n "$notes" ]; then
+    local esc="${notes//\'/\'\'}"
+    notes_sql=", notes='$esc'"
+  fi
+  db_exec "UPDATE routine_runs SET ended_at='$ts', exit_code=$code$notes_sql WHERE id=$id;"
+}
+
+# last_run <routine> — print the last started_at ISO timestamp, or empty if never.
+last_run() {
+  local name="${1:?usage: last_run <routine_name>}"
+  db_query "SELECT started_at FROM routine_runs WHERE routine='$name' ORDER BY started_at DESC LIMIT 1;"
+}

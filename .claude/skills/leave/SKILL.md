@@ -61,9 +61,11 @@ n_working_days_ago 5             # → print the date N working days back (skips
 2. Insert under `## Upcoming` in `accountability/holidays.md`, date-ordered.
 3. Multi-day breaks → one line per day.
 
-## Phase 3 migration target — sqlite
+## Phase 3 sqlite — LIVE as of 2026-06-29
 
-Per `drafts/2026-06-25-architecture-refactor/plan.md`, both files become sqlite tables in Phase 3:
+The sqlite DB exists at `~/.config/claude/rapidnative-coach.sqlite` with the schema below. `_lib.sh` exposes `sqlite_is_on_leave <SID> [date]` + `sqlite_is_holiday [date]` with the same exit-code contract as the markdown helpers. Parity verified (markdown and sqlite return identical answers).
+
+Existing routines still call the markdown helpers (no behavior change). New skill-based code paths should prefer `sqlite_*` variants.
 
 ```sql
 -- ~/.config/claude/rapidnative-coach.sqlite (proposed schema)
