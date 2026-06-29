@@ -16,7 +16,7 @@ When the main coach receives a request, it should:
 
 | Skill | Status | What it owns | Replaces | Channels |
 |---|---|---|---|---|
-| `growth-marketing` | TODO (Phase 2 priority 1) | Distribution / growth ops across all 3 products. Per-brand strategies + per-account references. | `marketing/` directory + `marketing-morning`/`evening`/`recon` routines body | `#marketing-automation`, `#marketing` |
+| `growth-marketing` | **SCAFFOLDED (Phase 2 start, 2026-06-29)** — SKILL.md + 3 brand strategies + accounts.md + rotation.md + config.md pointer all created at `.claude/skills/growth-marketing/`. Routine .md replacement pending (one routine at a time, side-by-side test). | Distribution / growth ops across all 3 products. Per-brand strategies + per-account references. | `marketing/` directory + `marketing-morning`/`evening`/`recon` routines body | `#marketing-automation`, `#marketing` |
 | `task-management` | TODO | Feed `sites/tasks/` from #standup, #eod, #user-testing, git logs. 12:15 IST cleanup proposal. | `tasks-cleanup` routine body | `#tasks`, `#rapidnative-coach` |
 | `leave` | TODO | Sqlite leave_entries + holidays CRUD. `is_on_leave`, `is_working_day`. | `accountability/leave.md` + `accountability/holidays.md` (kept as projections) | any team-facing |
 | `eod-nudges` | TODO | Detect missing EOD posts, ping with leave-awareness. | `eod-streak-check` body | `#eod-updates` |
