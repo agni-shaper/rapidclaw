@@ -7,7 +7,11 @@
 accountability/listener/node_modules/
 
 # Linked sites (each bot links the projects it owns)
-sites/
+# Symlinks are gitignored because they're per-machine paths.
+# Pointer .md files (sites/<name>.md) ARE tracked — they document where to
+# find a site that isn't symlinked yet (e.g. repo not located, brand TBD).
+sites/*
+!sites/*.md
 
 # Reminders / wishlist sqlite + runtime state
 accountability/reminders/*.db

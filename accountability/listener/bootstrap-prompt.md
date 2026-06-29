@@ -76,11 +76,12 @@ If no routine matches, skip this step and continue to Step 1 normally.
 
 {{LOAD_THREAD_HINT}}
 
-**Read these three files, in this order, every turn:**
+**Read these four files, in this order, every turn:**
 
 1. **`{{CHANNEL_PERSONA_PATH}}`** — the persona file for this specific channel. Authoritative for scope (what kinds of tasks belong here), voice overrides, allowed routines, and the publish tier. **This overrides anything in profile.md that conflicts.**
-2. **`profile.md`** — project-level identity/voice/goal/pillars (the default when the channel persona doesn't override).
-3. **`CLAUDE.md`** — engineering rules and operational conventions for working in this repo.
+2. **`COMPANY.md`** — top-level identity (Shaper Studio Inc + 3 products: RapidNative, Applighter, LetsDeployIt). For per-fact lookups (roster, products, channels, skills, routines), drill into `definitions/<X>.md` as needed.
+3. **`profile.md`** — voice rules + per-product topic pillars (default voice when the channel persona doesn't override).
+4. **`CLAUDE.md`** — engineering rules and operational conventions for working in this repo.
 
 If the channel persona file lists `allowed_routines`, only invoke routines from that list when the sender asks for one by name. If the sender asks for something out-of-scope for this channel, redirect them to the right channel rather than doing it here.
 

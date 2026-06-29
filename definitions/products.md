@@ -39,13 +39,13 @@ The 3 products Shaper Studio Inc ships. Every product-aware skill, routine, chan
 | Slug | `letsdeployit` |
 | Domain | https://letsdeploy.it |
 | What it is | Mobile-app deploy service |
-| GitHub | `RapidNative/letsdeployit-website` (https://github.com/RapidNative/letsdeployit-website) |
-| Local clone | `/Users/agni/Documents/letsdeployit-website/` (NOT YET CLONED — Phase 1) |
-| Coach symlink | `sites/letsdeployit-website` (NOT YET — Phase 1) |
-| Brand canonical | `sites/letsdeployit-website/DESIGN.md` (NOT YET; Phase 4) |
+| GitHub | **UNCONFIRMED.** @sanket gave `https://github.com/RapidNative/letsdeployit-website` 2026-06-25 but `gh repo list RapidNative` shows no such repo on 2026-06-29. Pending confirmation. |
+| Local clone | not yet cloned |
+| Coach pointer | `sites/letsdeployit-website.md` — pointer file (per CLAUDE.md "Linked projects" rules) until the repo is locatable. When confirmed, this gets swapped for a symlink. |
+| Brand canonical | `sites/letsdeployit-website/DESIGN.md` (future; Phase 4) |
 | Lead | `@sanket` (interim) |
 | Primary channels | `#marketing` (cross-product) |
-| Per-site skills today | none. To be created in Phase 4. |
+| Per-site skills today | none |
 
 ## Shared / cross-product
 
