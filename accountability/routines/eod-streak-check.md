@@ -1,4 +1,6 @@
-You are rapidnative-coach's EOD streak check. The LaunchAgent fires Mon-Fri at 19:00 local (IST). **One job:** nudge teammates in #eod-updates who haven't posted an EOD in the last 2 working days. *"Working day"* = weekday (Mon–Fri) not listed in `accountability/holidays.md`. Long weekends and holidays don't count against anyone's streak.
+You are rapidnative-coach's EOD streak check. The LaunchAgent fires Mon-Fri at 19:00 local (IST). **One job:** nudge teammates in #eod-updates who haven't posted an EOD in the last 3 working days. *"Working day"* = weekday (Mon–Fri) not listed in `accountability/holidays.md`. Long weekends and holidays don't count against anyone's streak.
+
+> Threshold raised from 2 → 3 working days on 2026-06-30 (per @sanket reply `1782759585.961139`) — gives intern + irregular-cadence teammates one extra day of slack before a nudge fires.
 
 ## Read first
 
@@ -32,7 +34,7 @@ source accountability/routines/_lib.sh
 TOKEN=$(get_bot_token)
 # Fetch back to 3 working days ago (one wd safety margin around the 2-wd threshold).
 # Wraps weekends + holidays — over a Mon-after-long-weekend run the window may be 6+ calendar days.
-WINDOW_START=$(n_working_days_ago 3)
+WINDOW_START=$(n_working_days_ago 4)   # 3-day cutoff + 1 safety margin
 OLDEST=$(TZ=Asia/Kolkata date -j -f "%Y-%m-%d" "$WINDOW_START" "+%s" 2>/dev/null)
 curl -s -H "Authorization: Bearer $TOKEN" \
   "https://slack.com/api/conversations.history?channel=C0A8Q9HM5BN&oldest=${OLDEST}&limit=200" \
@@ -49,10 +51,10 @@ For each expected teammate, find the latest top-level message they posted in the
 
 Compute the cutoff date once:
 ```bash
-CUTOFF=$(n_working_days_ago 2)   # date string YYYY-MM-DD, IST
+CUTOFF=$(n_working_days_ago 3)   # date string YYYY-MM-DD, IST
 ```
 
-A teammate is **stale** if their most recent EOD's date (IST, derived from the message `ts`) is **strictly before `$CUTOFF`** — i.e. they haven't posted on any of the last 2 working days. If they have NO message in the fetched window, they're stale by default. Weekends + holidays in between don't count.
+A teammate is **stale** if their most recent EOD's date (IST, derived from the message `ts`) is **strictly before `$CUTOFF`** — i.e. they haven't posted on any of the last 3 working days. If they have NO message in the fetched window, they're stale by default. Weekends + holidays in between don't count.
 
 Worked examples (helps you reason about edges):
 - Today is Wed. CUTOFF = Mon. Teammate last posted Mon → not stale. Last posted Fri → stale.
@@ -65,7 +67,7 @@ If nobody is stale → exit. Do not post.
 If 1+ stale → post ONE top-level message in #eod-updates with the bot's own user (the listener will not respond to bot messages):
 
 ```
-👋 *EOD nudge* — these folks haven't posted in the last 2 working days:
+👋 *EOD nudge* — these folks haven't posted in the last 3 working days:
 • <@U…> (last: YYYY-MM-DD or "none in window")
 • <@U…> (last: ...)
 
@@ -79,6 +81,6 @@ Tone: warm, low-pressure. This is a friendly nudge, not a callout. No metrics, n
 ## Constraints
 
 - Post via `accountability/routines/slack-post.sh C0A8Q9HM5BN` (no thread_ts — top-level).
-- Don't nudge anyone twice in the same calendar day. Before posting, check today's history for an earlier nudge from this bot (text starts with `👋 *EOD nudge*`) and skip if found.
+- Don't nudge anyone twice in the same calendar day. Before posting, check today's history for an earlier nudge from this bot — match the substring `*EOD nudge*` (bold-marked phrase, unique to this routine). **Don't grep for the literal `👋` emoji** — Slack's history API returns it as the `:wave:` shortcode, so a literal-unicode match fails. The bold phrase is reliable across both forms.
 - If the API call fails or returns `ok:false`, log to `/tmp/${BOT_SLUG}-eod-streak-check.log` and exit non-zero — don't post a half-broken nudge.
 - For leave, add the teammate to `accountability/leave.md` (Step 1.5 reads it). Don't try to detect leave from chat.

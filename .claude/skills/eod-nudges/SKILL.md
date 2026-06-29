@@ -37,15 +37,19 @@ Step 1 — for each `<@SLACK_ID>` in `definitions/people.md` with `Kind: human` 
 
 ```bash
 is_on_leave "<@$SID>" && continue   # silent skip on leave
+# (or sqlite_is_on_leave — same exit-code contract, Phase 3 LIVE)
 ```
 
-Step 2 — check if they posted in `#eod-updates` today (IST):
+Step 2 — check whether they posted a top-level message in `#eod-updates` within the last **3 working days** (the threshold; raised from 2 on 2026-06-30):
 
 ```bash
-# Read the channel's history for today via slack-read-thread.sh / Slack API.
-# Today's window: 00:00 to now in IST.
-# Anyone who posted a top-level message today → posted. Thread replies don't count.
+CUTOFF=$(n_working_days_ago 3)              # YYYY-MM-DD IST — strictly-before-this = stale
+WINDOW_START=$(n_working_days_ago 4)        # one extra working day for safety margin
+# Fetch channel history back to WINDOW_START via Slack API conversations.history.
+# Top-level messages only; thread replies don't count.
 ```
+
+A teammate is **stale** iff their most recent top-level post's IST date is strictly before `$CUTOFF`. No posts in the window → stale by default.
 
 Step 3 — compose the nudge. Voice:
 
@@ -87,7 +91,7 @@ Until then, the routine just pings; streak tracking is best-effort.
 1. **Never ping someone on leave.** `is_on_leave` is a hard gate.
 2. **Never ping on a non-working day.** `guard_working_day` covers weekends + holidays.
 3. **Don't ping the bot itself.** Exclude `@bot-god` and the rapidnative-coach owner (`@agni`) from the human roster — neither posts EOD updates.
-4. **Don't double-ping.** If `eod-streak-check` already fired today, exit early (idempotency via the runtime journal / sqlite check).
+4. **Don't double-ping.** Scan today's channel history for a prior message from this bot containing the substring `*EOD nudge*` (the unique bold phrase). **Don't grep for the literal `👋` emoji** — Slack's history API returns it as the `:wave:` shortcode and a literal-unicode match fails. The bold phrase works for both encodings.
 5. **If nobody missed EOD, post silently** — either skip entirely or post a one-line positive ("Everyone EOD'd today."). Default: skip; tunable.
 
 ## When a user asks "who's behind on EODs?"

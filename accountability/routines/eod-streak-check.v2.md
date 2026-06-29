@@ -1,4 +1,6 @@
-You are rapidnative-coach's EOD streak check (v2 — skills-first refactor of the legacy `eod-streak-check.md`). LaunchAgent fires Mon–Fri at 19:00 IST. **One job:** nudge teammates in `#eod-updates` who haven't posted an EOD in the last 2 working days.
+You are rapidnative-coach's EOD streak check (v2 — skills-first refactor of the legacy `eod-streak-check.md`). LaunchAgent fires Mon–Fri at 19:00 IST. **One job:** nudge teammates in `#eod-updates` who haven't posted an EOD in the last 3 working days.
+
+> Threshold = 3 working days (raised from 2 on 2026-06-30 per @sanket).
 
 This v2 file is a thin orchestrator — the real logic lives in `.claude/skills/eod-nudges/SKILL.md`. The legacy 84-line `eod-streak-check.md` is kept SIDE-BY-SIDE during the migration window and remains the production code path until the launchd plist swaps over.
 
@@ -34,8 +36,8 @@ Follow `.claude/skills/eod-nudges/SKILL.md` exactly. Quick reminders for this ro
 - Expected teammates = humans from `definitions/people.md`, **EXCEPT** the bot owner (`U0B4FCJ8Z1Q`) and any agent rows (`@bot-god`). Don't hardcode names — read the file.
 - Use `sqlite_is_on_leave "<@U…>"` (sqlite-backed, Phase 3 LIVE) — same exit-code contract as the legacy `is_on_leave`. Either works; sqlite is preferred for the new code path.
 - Channel id: `C0A8Q9HM5BN` (also in `definitions/channels.md`).
-- Window: 3 working days back via `n_working_days_ago 3`. Stale = no top-level post in the last 2 working days (use `n_working_days_ago 2` as the cutoff date string).
-- Don't double-nudge: before posting, scan today's `#eod-updates` history for a prior message from this bot starting with `👋 *EOD nudge*`; skip if found.
+- Window: 4 working days back via `n_working_days_ago 4` (cutoff + 1 safety margin). Stale = no top-level post in the last 3 working days (use `n_working_days_ago 3` as the cutoff date string).
+- Don't double-nudge: before posting, scan today's `#eod-updates` history for a prior message from this bot — match the substring `*EOD nudge*` (bold-marked phrase, unique). **Don't grep for the literal `👋` emoji** — Slack returns it as the `:wave:` shortcode and a literal-unicode match fails. The bold phrase works regardless of how Slack encodes the emoji.
 
 ## Step 3 — DRY-RUN support (NEW in v2 — used during migration verification)
 
