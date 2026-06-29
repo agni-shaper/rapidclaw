@@ -1,0 +1,69 @@
+# Routines
+
+Cron-fired routines, 1:1 with `~/Library/LaunchAgents/com.agni.rapidnative-coach-*.plist`. Each routine is a `.md` prompt at `accountability/routines/<name>.md` that `run.sh` pipes into `claude -p`.
+
+> **Goal of the refactor (Phase 6):** every routine ≤80 lines. Today many are 200-438 lines. Excess goes into skills (see [`skills.md`](skills.md)).
+
+## Schedule grid (IST, weekday key: 0=Sun, 1=Mon, …, 5=Fri, 6=Sat)
+
+| Routine | Schedule | Posts to | Skill it should call (post-refactor) |
+|---|---|---|---|
+| `listener` | KeepAlive (always running, Socket Mode WebSocket) | n/a — drives in-thread responses | — |
+| `daily` | 11:30 daily | `#rapidnative-coach` | (owner-accountability, stays in coach) |
+| `noon` | 12:00 daily | `#rapidnative-coach` | (same) |
+| `friday` | 17:00 Fri | `#rapidnative-coach` | (same — week recap) |
+| `sunday` | 12:00 Sun | `#rapidnative-coach` | (same — week ahead) |
+| `eod-streak-check` | 19:00 Mon–Fri | `#eod-updates` | `eod-nudges` + `leave` |
+| `engagement` | 11:30 / 14:30 / 17:30 daily (3x) | `#rn-coach-social` | (stays — engagement scan, not a refactored skill yet) |
+| `user-testing-capture` | 10:00 daily | `#user-testing` + `#rapidnative-coach` | `user-testing` |
+| `tasks-cleanup` | 12:15 Mon–Fri | `#rapidnative-coach` (approval flow) | `task-management` + `bug-tracking` |
+| `blog-internal` | 12:00 daily | `#rapidnative-coach` + `#ai-blogs` | (stays — has its own helper script) |
+| `blog-external` | 11:00 daily | `#rapidnative-coach` + `#ai-blogs` | (same) |
+| `marketing-recon` | 06:00 Mon–Fri | (cache file only — no Slack) | `growth-marketing` (replaces 438-line prompt) |
+| `marketing-morning` | 07:00 Mon–Fri | `#marketing-automation` | `growth-marketing` |
+| `marketing-evening` | 19:30 Mon–Fri | `#marketing-automation` | `growth-marketing` |
+| `gtm-weekly-pick` | 09:00 Mon (+ Fri 17:00 recap) | `#marketing` | `growth-marketing` |
+| `biweekly-shoutouts` | 18:00 every other Fri | `#marketing` | `growth-marketing` |
+| `collabs-tuesday-update` | 09:00 Tue | `#collabs-and-partnerships` | (collabs skill — TBD) |
+| `resurface-logo-update` | 10:03 daily (one-off — already shipped) | `#design` | (transient — likely retire after run) |
+
+## Wrapper
+
+All cron-fired routines are launched via `accountability/routines/run.sh <name>`:
+
+```bash
+# inside run.sh
+PROMPT="accountability/routines/${ROUTINE}.md"
+cd /Users/agni/Documents/rapidclaw
+cat "$PROMPT" | claude -p --dangerously-skip-permissions --add-dir "$PWD"
+```
+
+The listener (`accountability/listener/listener.js`) is a separate launchd job — KeepAlive socket-mode WebSocket that spawns `claude -p --resume <session_id>` per Slack message.
+
+## Working-day guards
+
+Team-facing routines call `guard_working_day <name>` from `accountability/routines/_lib.sh`, which skips runs on weekends + holidays. The owner-facing routines (`daily`, `noon`, `sunday`) deliberately run regardless — personal accountability doesn't take holidays.
+
+Currently guarded: `eod-streak-check`, `tasks-cleanup`, `friday`, `biweekly-shoutouts`, `collabs-tuesday-update`, `gtm-weekly-pick`.
+
+## Conventions
+
+- **One prompt file per routine.** No shared bodies — each `.md` is self-contained.
+- **Post-refactor:** every routine reads (at most) `COMPANY.md` + the active channel persona + the relevant skill(s) listed above. The prompt itself becomes a thin orchestrator: guards → load skill → run → post.
+- **Idempotency:** routines that produce state should write a per-day cache file (e.g. `marketing/.state/recon-YYYY-MM-DD.json`) and exit early if it exists. Phase 3 moves these caches into sqlite.
+- **Logs:** `/tmp/rapidnative-coach-<routine>.log` per routine. launchd stdout/err at `/tmp/rapidnative-coach-<routine>-launchd-{out,err}.log`.
+
+## Operational control
+
+`accountability/routines/coach.sh` is the operator's swiss-army knife:
+
+```
+coach.sh status                       — listener + jobs + threads JSON
+coach.sh events [thread_ts] [limit]   — events log tail
+coach.sh restart-listener             — kickstart -k
+coach.sh stop-listener                — bootout
+coach.sh start-listener               — bootstrap
+coach.sh stop-job <event_ts>          — kill specific claude child
+coach.sh reset-thread <thread_ts>     — clear saved session (next msg = fresh)
+coach.sh kill-all                     — emergency stop everything
+```

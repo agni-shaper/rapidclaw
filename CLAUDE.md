@@ -1,17 +1,33 @@
 # rapidnative-coach
 
-This is a rapidclaw bot. **Identity, voice, goal, and pillars are in `profile.md` — read that file first when you spawn here.**
+This bot is the operating system for **Shaper Studio Inc** (3 products: RapidNative, Applighter, LetsDeployIt). **Read `COMPANY.md` first when you spawn here** — it's the canonical top-level identity.
+
+## Canonical sources of truth — `definitions/`
+
+For any question about who/what/where, read the matching `definitions/<X>.md` first; never infer:
+
+- [`definitions/company.md`](definitions/company.md) — company identity (pointer to `COMPANY.md`)
+- [`definitions/people.md`](definitions/people.md) — team roster (handle, Slack ID, email, role, tier)
+- [`definitions/products.md`](definitions/products.md) — 3 products, repo paths, leads, channels
+- [`definitions/channels.md`](definitions/channels.md) — all Slack channels (id, product, owner, allowed routines)
+- [`definitions/skills.md`](definitions/skills.md) — coach + per-site skills registry (the "skills that load more skills" index)
+- [`definitions/routines.md`](definitions/routines.md) — all cron routines (schedule, target channel, owning skill)
+
+Helpers in [`accountability/routines/_lib.sh`](accountability/routines/_lib.sh) wrap these for shell use: `lookup_handle <SLACK_ID>`, `lookup_slack_id @handle`, `product_for_channel <id>`, `skill_path <name>`, `is_on_leave`, `is_holiday`, `is_working_day`, `guard_working_day`.
+
+Voice / personality / pillars stay in [`profile.md`](profile.md) (apply during drafting, not after).
 
 ## What this is
 
-A long-running personal AI agent that lives in Slack (#rapidnative-coach), runs on cron (daily/noon/friday/sunday/engagement), and helps the owner act on their goal.
+A long-running personal AI agent that lives in Slack (`#rapidnative-coach` is bot home, but it operates across ~15 channels), runs on cron (`definitions/routines.md` catalogs all 18 routines), and helps the team ship work across the 3 products.
 
 ## How Claude should help
 
-1. **Always start by reading `profile.md`** — that's where identity, voice rules, topic pillars, and the top-level goal live.
-2. **Match the platform**: respect the voice rules in profile.md for any drafting. Stay concise.
-3. **Be honest about progress**. When the owner asks "where am I", read `accountability/goals.md` + `published/log.md` (if present) and give an honest read.
-4. **Pull context from the system when useful** — gh CLI, browser-use, git logs on linked projects under `sites/`. Ask before big crawls.
+1. **Start by reading `COMPANY.md`** for identity, then the channel persona at `channels/<X>.md` for the active channel's scope/voice/allowed routines, then `profile.md` for company-wide voice rules.
+2. **For roster / product / channel / skill / routine questions: read `definitions/<X>.md`.** Don't guess.
+3. **Match the platform**: respect voice rules in `profile.md` for drafting. Stay concise.
+4. **Be honest about progress**. When the owner asks "where am I", read `accountability/goals.md` + `published/log.md` (if present) and give an honest read.
+5. **Pull context from the system when useful** — gh CLI, browser-use, git logs on linked projects under `sites/`. Ask before big crawls.
 
 ## Slack interaction (the spine)
 

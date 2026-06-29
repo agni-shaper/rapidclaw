@@ -112,3 +112,62 @@ guard_working_day() {
     exit 0
   fi
 }
+
+# ---------------- Phase 0: definitions/ helpers ----------------
+# Single-source-of-truth lookups against the registry files under
+# definitions/. All helpers fail loudly if the registry file is missing —
+# definitions/ is meant to be authoritative.
+
+DEFINITIONS_DIR="$PROJECT_DIR/definitions"
+
+# Column layout in definitions/people.md (awk -F'|' yields empty $1 due to leading |):
+#   $2=Handle  $3=Name  $4=Role  $5=Kind  $6=SlackID  $7=Email  $8=Tier
+# channels.md: $2=Channel  $3=ID  $4=Product  $5=Owner …
+
+# lookup_handle <SLACK_ID> — print "@handle" for that ID, else nothing (exit 1).
+lookup_handle() {
+  local slack_id="${1:?usage: lookup_handle <SLACK_ID> (without <@>)}"
+  slack_id="${slack_id#<@}"; slack_id="${slack_id%>}"
+  [ -f "$DEFINITIONS_DIR/people.md" ] || { echo "ERROR: $DEFINITIONS_DIR/people.md not found" >&2; return 1; }
+  awk -F'|' -v id="$slack_id" '/^\| `@/{
+    gsub(/[ `]/, "", $2)
+    gsub(/[ `]/, "", $6)
+    if ($6 == id) { print $2; exit }
+  }' "$DEFINITIONS_DIR/people.md"
+}
+
+# lookup_slack_id @handle — print slack ID, else nothing (exit 1).
+lookup_slack_id() {
+  local handle="${1:?usage: lookup_slack_id @handle}"
+  handle="${handle#@}"
+  [ -f "$DEFINITIONS_DIR/people.md" ] || { echo "ERROR: $DEFINITIONS_DIR/people.md not found" >&2; return 1; }
+  awk -F'|' -v h="$handle" '/^\| `@/{
+    gsub(/[ `@]/, "", $2)
+    gsub(/[ `]/, "", $6)
+    if ($2 == h) { print $6; exit }
+  }' "$DEFINITIONS_DIR/people.md"
+}
+
+# product_for_channel <channel_id> — print product slug(s) for that channel.
+product_for_channel() {
+  local cid="${1:?usage: product_for_channel <channel_id>}"
+  [ -f "$DEFINITIONS_DIR/channels.md" ] || { echo "ERROR: $DEFINITIONS_DIR/channels.md not found" >&2; return 1; }
+  awk -F'|' -v id="$cid" '/^\| `#/{
+    gsub(/[ `]/, "", $3)
+    sub(/^ +/, "", $4); sub(/ +$/, "", $4)
+    if ($3 == id) { print $4; exit }
+  }' "$DEFINITIONS_DIR/channels.md"
+}
+
+# skill_path <skill_name> — print the absolute path to that skill's directory
+# if it exists, by checking coach .claude/skills/ first then each site's.
+skill_path() {
+  local name="${1:?usage: skill_path <skill_name>}"
+  for base in "$PROJECT_DIR/.claude/skills" "$PROJECT_DIR/sites/"*"/.claude/skills"; do
+    if [ -d "$base/$name" ]; then
+      echo "$base/$name"
+      return 0
+    fi
+  done
+  return 1
+}
