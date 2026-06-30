@@ -42,9 +42,20 @@ Follow `.claude/skills/user-testing/SKILL.md` exactly. The skill describes:
 
 When the owner replies `apply` / `apply 1,3` / `skip`, the listener will re-invoke this routine with the thread context — at that point, follow the "When the owner replies" section of the legacy v1 (it's the authoritative apply-side workflow; the skill covers the propose-side). v1 is still on disk at `accountability/routines/user-testing-capture.md` for the apply-side reference.
 
-## Step 3 — DRY-RUN support (NEW in v2 — used during migration verification)
+## Step 3 — Post the proposal (OR dry-run only if USER_TESTING_DRY_RUN=1)
 
-If the env var `USER_TESTING_DRY_RUN=1` is set, do everything UP TO the Slack post — but instead of calling `slack-post.sh`, print to stdout:
+**First, check the env var explicitly. Do not infer from context.** Run:
+
+```bash
+DRY_RUN_FLAG="${USER_TESTING_DRY_RUN:-}"
+echo "DRY_RUN_FLAG='$DRY_RUN_FLAG'"
+```
+
+**If `DRY_RUN_FLAG` is exactly the string `1`:** dry-run mode. Print the proposal text + candidate breakdown to stdout (format below) and exit 0 *without* calling `slack-post.sh`.
+
+**Any other value (empty string, unset, "0", or anything else):** *post for real* to `#rapidnative-coach` (`C0B4HG16QP3`). **Do not hedge to dry-run based on the time of day, the test feel of the invocation, or any other heuristic.** This is the production code path — cron triggers it the same way you're triggering it manually. Whether the proposal has candidates or is the "no new observations" heartbeat, post it.
+
+Dry-run output format (only when DRY_RUN_FLAG=1):
 
 ```
 DRY RUN — would have posted to #rapidnative-coach:
@@ -56,10 +67,6 @@ Candidates: <count>
 Proposed log updates: <list with summaries>
 Promotion candidates: <list with destinations>
 ```
-
-Then exit 0. This is the side-by-side parity-check mode.
-
-When `USER_TESTING_DRY_RUN` is unset (the production cron path), behave exactly like v1 — post once, no extra output.
 
 ## Step 4 — log routine end + sqlite user_testing_issues
 

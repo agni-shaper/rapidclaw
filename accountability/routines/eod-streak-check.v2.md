@@ -39,9 +39,20 @@ Follow `.claude/skills/eod-nudges/SKILL.md` exactly. Quick reminders for this ro
 - Window: 4 working days back via `n_working_days_ago 4` (cutoff + 1 safety margin). Stale = no top-level post in the last 3 working days (use `n_working_days_ago 3` as the cutoff date string).
 - Don't double-nudge: before posting, scan today's `#eod-updates` history for a prior message from this bot — match the substring `*EOD nudge*` (bold-marked phrase, unique). **Don't grep for the literal `👋` emoji** — Slack returns it as the `:wave:` shortcode and a literal-unicode match fails. The bold phrase works regardless of how Slack encodes the emoji.
 
-## Step 3 — DRY-RUN support (NEW in v2 — used during migration verification)
+## Step 3 — Post the nudge (OR dry-run only if EOD_NUDGE_DRY_RUN=1)
 
-If the env var `EOD_NUDGE_DRY_RUN=1` is set, do everything UP TO the Slack post — but instead of calling `slack-post.sh`, print to stdout:
+**First, check the env var explicitly. Do not infer from context.** Run:
+
+```bash
+DRY_RUN_FLAG="${EOD_NUDGE_DRY_RUN:-}"
+echo "DRY_RUN_FLAG='$DRY_RUN_FLAG'"
+```
+
+**If `DRY_RUN_FLAG` is exactly the string `1`:** dry-run mode. Print to stdout the proposed post text + roster breakdown (format below) and exit 0 *without* calling `slack-post.sh`.
+
+**Any other value (empty string, unset, "0", or anything else):** *post for real* via `accountability/routines/slack-post.sh C0A8Q9HM5BN <<EOF ... EOF`. **Do not hedge to dry-run based on the time of day, the test feel of the invocation, or any other heuristic.** This is the production code path — cron triggers it the same way you're triggering it manually. If `is_working_day` passed and the idempotency check passed and someone is stale, you MUST post.
+
+Dry-run output format (only when DRY_RUN_FLAG=1):
 
 ```
 DRY RUN — would have posted to #eod-updates:
@@ -52,10 +63,6 @@ Expected teammates: <list with handles + last-post dates>
 On leave today (skipped): <list>
 Stale (would be nudged): <list>
 ```
-
-Then exit 0. This is the side-by-side parity-check mode used to compare v2 output against the legacy v1's output for the same day.
-
-When `EOD_NUDGE_DRY_RUN` is unset (the production cron path), behave exactly like v1 — post once, no extra output.
 
 ## Step 4 — log routine end + sqlite eod_streaks
 
