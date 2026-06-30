@@ -13,18 +13,18 @@ Cron-fired routines, 1:1 with `~/Library/LaunchAgents/com.agni.rapidnative-coach
 | `noon` | 12:00 daily | `#rapidnative-coach` | v1 (same) |
 | `friday` | 17:00 Fri | `#rapidnative-coach` | v1 (week recap) |
 | `sunday` | 12:00 Sun | `#rapidnative-coach` | v1 (week ahead) |
-| `eod-streak-check` | 19:00 Mon–Fri | `#eod-updates` | ✅ **v2 in cron** — loads `eod-nudges` + `leave` |
+| `eod-streak-check` | 19:00 Mon–Fri | `#eod-updates` | ✅ loads `eod-nudges` + `leave` |
 | `engagement` | 11:30 / 14:30 / 17:30 daily (3x) | `#rn-coach-social` | v1 (social-engagement skill not yet scaffolded) |
-| `user-testing-capture` | 10:00 daily | `#user-testing` + `#rapidnative-coach` | ✅ **v2 in cron** — loads `user-testing` |
-| `tasks-cleanup` | 12:15 Mon–Fri | `#rapidnative-coach` (approval flow) | ✅ **v2 in cron** — loads `task-management` + `bug-tracking` + `leave` |
+| `user-testing-capture` | 10:00 daily | `#user-testing` + `#rapidnative-coach` | ✅ loads `user-testing` |
+| `tasks-cleanup` | 12:15 Mon–Fri | `#rapidnative-coach` (approval flow) | ✅ loads `task-management` + `bug-tracking` + `leave` |
 | `blog-internal` | 12:00 daily | `#marketing-automation` (via $SLACK_CONTENT_CHANNEL_ID) | v1 (thin wrapper around generate-blog.sh; no benefit from v2) |
 | `blog-external` | 11:00 daily | `#ai-blog` | v1 (same) |
-| `marketing-recon` | 06:00 Mon–Fri | (cache file only — no Slack) | ✅ **v2 in cron** — loads `growth-marketing` |
-| `marketing-morning` | 07:00 Mon–Fri | `#marketing-automation` | ✅ **v2 in cron** — loads `growth-marketing` + `leave` |
-| `marketing-evening` | 19:30 Mon–Fri | `#marketing-automation` | ✅ **v2 in cron** — loads `growth-marketing` |
-| `gtm-weekly-pick` | 09:00 Mon (+ Fri 17:00 recap) | `#marketing` | ✅ **v2 in cron** — loads `growth-marketing` + `task-management` |
-| `biweekly-shoutouts` | 18:00 every other Fri | `#marketing` | ✅ **v2 in cron** — loads `growth-marketing` |
-| `collabs-tuesday-update` | 09:00 Tue | `#collabs-and-partnerships` | ✅ **v2 in cron** — no dedicated collabs skill yet; thin orchestrator |
+| `marketing-recon` | 06:00 Mon–Fri | (cache file only — no Slack) | ✅ loads `growth-marketing` |
+| `marketing-morning` | 07:00 Mon–Fri | `#marketing-automation` | ✅ loads `growth-marketing` + `leave` |
+| `marketing-evening` | 19:30 Mon–Fri | `#marketing-automation` | ✅ loads `growth-marketing` |
+| `gtm-weekly-pick` | 09:00 Mon (+ Fri 17:00 recap) | `#marketing` | ✅ loads `growth-marketing` + `task-management` |
+| `biweekly-shoutouts` | 18:00 every other Fri | `#marketing` | ✅ loads `growth-marketing` |
+| `collabs-tuesday-update` | 09:00 Tue | `#collabs-and-partnerships` | ✅ no dedicated collabs skill yet; thin orchestrator |
 | `resurface-logo-update` | 10:03 daily (one-off — already shipped) | `#design` | v1 (retire candidate) |
 
 ## Wrapper

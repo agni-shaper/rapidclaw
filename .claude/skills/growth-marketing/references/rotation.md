@@ -2,8 +2,6 @@
 
 The bot computes a **3-account pool per platform per week-of-month** so the same account isn't burned daily. Tasks pick one number from the pool (rotating through the week) or use the whole pool ("engagement on accounts 4,5,6").
 
-> Mirror of `marketing/rotation.md`. Synced 2026-06-29. Both files stay in sync until Phase 6 cleanup.
-
 ## Week label
 
 The bot derives the label from today's date:
@@ -30,7 +28,34 @@ pool(W, offset, account_count) = [W + 1 + offset, W + 2 + offset, W + 3 + offset
 # If clamping forces duplicates, the bot keeps the unique numbers and notes the squeeze.
 ```
 
-The `offset` is a per-platform constant that staggers rotations so the same account isn't simultaneously firing on HN + Reddit + Quora in the same week. See `marketing/rotation.md` (legacy mirror) for the offset table per platform until that content fully migrates here.
+So with the default `offset = 0` and `account_count = 7`:
+- w1 → `2, 3, 4`
+- w2 → `3, 4, 5`
+- w3 → `4, 5, 6`    ← matches today (2026-06-19)
+- w4 → `5, 6, 7`
+- w5 → `6, 7, 7` (collapses to `6, 7`)
+
+## Per-platform offsets
+
+Each platform can shift the window. Higher offset = use later-numbered accounts. The `offset` also staggers rotations so the same account isn't simultaneously firing on HN + Reddit + Quora in the same week.
+
+| Platform | Offset | Reasoning |
+|---|---|---|
+| GeeksForGeeks | 0 | default |
+| Hackernews | 0 | default |
+| Quora | +1 | shifted — uses later accounts (matches user spec: w3 → 5,6,7) |
+| Reddit | 0 | default |
+| Medium | 0 | default |
+| Hashnode | 0 | default |
+| dev.to | 0 | default |
+| Substack | 0 | default |
+| Vocal | 0 | default |
+| LinkedIn | 0 | default |
+| Facebook | 0 | default |
+| Twitter | 0 | default |
+| Community forums | 0 | default |
+
+Edit offsets here when a platform needs a different rhythm.
 
 ## Anti-burnout invariants
 
@@ -38,6 +63,18 @@ The `offset` is a per-platform constant that staggers rotations so the same acco
 2. **No same account across two platforms in the same day.** If account 3 fired on HN today, it shouldn't also fire on Reddit today.
 3. **Inactive accounts skipped silently.** If `accounts.md` doesn't list position 4 for `@rishav`, the rotation pool for `@rishav` falls back to wrapping (position 4 → position 1).
 
-## When the rotation algorithm changes
+## Which specific account a single-action task uses
 
-Edit both this file AND `marketing/rotation.md` together until Phase 6 cleanup. Document the change in the commit message.
+When a template references one specific account (e.g. `TPL-GFG-ARTICLE` → "Submit 1 article, 6th account"), the bot picks **the last number in the pool** by default. Rationale: the highest-numbered account is the most recently created and least likely to be flagged for spam. For w3-June on GFG (pool `4,5,6`), that's the **6th** account.
+
+Per-platform override: if a platform needs day-of-week rotation through the pool instead, add a row here. (None today.)
+
+## Manual overrides (rare)
+
+If a specific (person, platform, week) needs a different pool — account got banned, cooldown reset, whatever — add an override:
+
+Format: `<@person> · <platform> · <week-label> · use <comma-separated accounts>`
+
+(none yet)
+
+Overrides win over the formula. The bot reads this section AFTER computing the default pool.

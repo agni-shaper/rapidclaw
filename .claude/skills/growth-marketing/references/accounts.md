@@ -1,6 +1,6 @@
-# Accounts — per-crew named persona inventory
+# Account inventory (per-crew named accounts)
 
-Each member of the marketing crew owns a list of **named persona accounts** that they operate across all platforms (HN, Reddit, Quora, LinkedIn, X, Medium, dev.to, GeeksForGeeks, Hashnode, Substack, Vocal, Facebook, Community forums). The same persona name "Anna" represents @sanket's Anna account on every platform.
+Each crew member owns a list of **named persona accounts** that they use across all platforms (HN, Reddit, Quora, LinkedIn, X, Medium, dev.to, GeeksForGeeks, Hashnode, Substack, Vocal, Facebook, Community forums). The same persona name "Anna" represents @sanket's Anna account on every platform.
 
 The weekly rotation picks **3 named accounts per week** from each crew's list (a sliding window) — see [`rotation.md`](rotation.md) for the formula. The morning routine renders bullets with names instead of numbers:
 
@@ -11,7 +11,7 @@ T05 · Hackernews community postings using Chloé account - (Élodie, Amélie, C
 
 If a crew member needs to operate from a specific persona on a given week, the rotation index maps to that position in the list below (1-indexed: Anna=position 2 in @sanket's list, etc.).
 
-> **Source mirror:** this file mirrors `marketing/accounts.md`. Both files MUST stay in sync until the legacy `marketing/` directory is deleted in Phase 6. When the morning routine migrates to this skill (still pending), the legacy mirror can be removed.
+Crew roles + active flag: see `../../../../definitions/people.md`.
 
 ---
 
@@ -50,7 +50,10 @@ If a crew member needs to operate from a specific persona on a given week, the r
 1. David
 2. Emily
 3. Antoine
-4. (more pending — see `marketing/accounts.md` for the canonical legacy list until full migration)
+4. Théo
+5. Mathis
+6. Arthur
+7. Pierre
 
 ---
 
@@ -61,13 +64,14 @@ If a crew member needs to operate from a specific persona on a given week, the r
 - **Don't reuse a persona across crew members.** "Anna" on @sanket is NOT the same as "Anna" on @famitha (which wouldn't even be a valid pairing — Anna is @sanket-owned).
 - **Rotation cadence:** the *position* (1..7) advances week-over-week per [`rotation.md`](rotation.md). Same persona doesn't fire on the same platform two days in a row.
 
-## Roles per crew member
+## Adding a new persona
 
-(For drafting + voice — pulled from `definitions/people.md` and the legacy `marketing/team.md`.)
+Append to the relevant crew's numbered list above. The rotation formula in `rotation.md` automatically picks 3 accounts per week from positions [W+1+offset, W+2+offset, W+3+offset] (clamped to list length, de-duped). Personas at higher positions get used in later weeks of the month.
 
-- `@sanket` (`U09DC8L7PCZ`) — strategic posts + approvals
-- `@rishav` (`U09CUJ9ATM1`) — technical posts (engineering depth)
-- `@russel` (`U09DFJJGS1X`) — video-cut adjacent posts + community replies
-- `@famitha` (`U09LL9JTDM5`) — design/asset-driven posts + visual platforms
+## Removing a persona
 
-Anyone on leave today is skipped by `is_on_leave <@SLACK_ID>` (from `_lib.sh`) — silent skip, no task drop in `#marketing-automation`.
+Strike through the line (don't delete — keep history). Re-number the remaining entries.
+
+## Personal-account templates (`*-PERSONAL`) are different
+
+`TPL-LINKEDIN-PERSONAL`, `TPL-TWITTER-PERSONAL`, `TPL-QUORA-PERSONAL` ask the crew member to post from their **own personal account** (@sanket from `@sanketsahu`, etc.), not from the rotation personas above. Those templates don't reference this file.

@@ -28,7 +28,7 @@ The skill itself is a thin orchestrator. Real content lives in scoped reference 
    - [`references/rotation.md`](references/rotation.md) — weekly 3-account-pool formula
    - [`references/config.md`](references/config.md) — SEO domains, mailboxes, standing URLs
 4. **Per platform** (only the platform(s) today's slate needs):
-   - HN, Reddit, Quora, LinkedIn, X, Medium, dev.to, GFG, Hashnode, Substack, Vocal, Facebook → [`references/platforms/<platform>.md`](references/platforms/) (created on demand; today these live as TPL-* sections in `marketing/task-templates.md`)
+   - HN, Reddit, Quora, LinkedIn, X, Medium, dev.to, GFG, Hashnode, Substack, Vocal, Facebook → [`references/platforms/<platform>.md`](references/platforms/) (created on demand; today these live as TPL-* sections in [`references/task-templates.md`](references/task-templates.md))
 
 ## What this skill does NOT do
 
@@ -88,17 +88,12 @@ These exist because the legacy `marketing/` setup was the biggest hallucination 
 4. **Never burn the same account two days in a row** on the same platform. Use the rotation formula from `references/rotation.md`.
 5. **Always cite source URL when drafting a comment.** Recon cache stores URL + 1-line context per finding; the comment draft must show the source URL the crew member will paste into.
 
-## Migration status (Phase 2 of the architecture refactor)
+## What still lives outside this skill
 
-| Current location | Goal | Status |
-|---|---|---|
-| `marketing/team.md` | use `definitions/people.md` directly | content mirrored; legacy file stays until Phase 6 cleanup |
-| `marketing/accounts.md` | `references/accounts.md` (this skill) | mirrored as of Phase 2 |
-| `marketing/rotation.md` | `references/rotation.md` (this skill) | mirrored as of Phase 2 |
-| `marketing/config.md` | `references/config.md` (this skill) | pointer for now; full migration in a follow-up |
-| `marketing/sprint.md` | TBD — likely sqlite (Phase 3) | unchanged for now |
-| `marketing/morning-tasks.md` + `evening-tasks.md` | sqlite + ephemeral state | unchanged for now |
-| `marketing/tracker.md` + `.state/` | sqlite (Phase 3) | unchanged for now |
-| `accountability/routines/marketing-{recon,morning,evening}.md` | thin ≤80-line orchestrators loading this skill | NOT YET — to be replaced in a follow-up commit (with side-by-side testing for 1 cron cycle before deleting the old prompt bodies) |
+Runtime state — files the routines write daily — remains under `marketing/`:
 
-**Until the routine .md files are replaced, the daily cycle continues to run from the legacy 438-line prompts.** This skill is the canonical *destination*; the legacy prompts will be migrated one at a time with verified output parity.
+- `marketing/morning-tasks.md` + `marketing/evening-tasks.md` — daily outputs of the AM/EOD routines
+- `marketing/tracker.md` — running ledger appended each evening
+- `marketing/.state/` — recon JSON cache + per-day sentinels + blog-amplification cache
+
+These are scheduled to move into sqlite (per Phase 3 of the architecture refactor); until then they're the routines' working directory. Treat them as outputs of this skill, not inputs.

@@ -1,49 +1,56 @@
-You are rapidnative-coach's biweekly team-shoutouts routine. The LaunchAgent fires every other Friday at 18:00 IST (even ISO weeks). Job: post a single top-level message in #eod-updates (`C0A8Q9HM5BN`) celebrating specific work from specific people across the last 14 days.
+You are rapidnative-coach's biweekly team-shoutouts routine. LaunchAgent fires every other Friday at 18:00 IST (even ISO weeks). **One job:** post a single top-level message in `#eod-updates` (`C0A8Q9HM5BN`) celebrating specific work from specific people across the last 14 days.
 
-## Step 0 — working-day guard
+## Read first (in order)
+
+1. `channels/eod-updates.md` — target channel persona (teammate-tier; warm + low-pressure)
+2. `COMPANY.md` — Shaper Studio identity (mentions cross all 3 products if multi-brand contribution shows up)
+3. `definitions/people.md` — canonical roster (never hardcode handles)
+4. `.claude/skills/growth-marketing/SKILL.md` — voice + composition rules (this is a marketing-flavoured post)
+5. `.claude/skills/leave/SKILL.md` — only if you need to interpret a leave entry (e.g. don't shout out someone on extended leave during the window)
+
+## Step 0 — guards
 
 ```bash
 source accountability/routines/_lib.sh
 guard_working_day biweekly-shoutouts
 ```
 
-Skip if today is a holiday (sqlite `holidays`) — no shoutout post on a day the team isn't around to see it. Cron handles weekends.
+Exits 0 silently on weekends + IST holidays. Cron handles weekends; holidays kill the post on the day the team isn't around to see it.
 
-## Read first
+## Step 1 — log routine run (Phase 3 sqlite)
 
-- `profile.md` (voice)
-- `channels/eod-updates.md` (scope for the target channel)
-- `CLAUDE.md`
-- Team roster — Slack ID → name/role: `@sanket` U09DC8L7PCZ, `@suraj` U09DC8MB4KB, `@riya` U09CXCYV7D1, `@rishav` U09CUJ9ATM1, `@famitha` U09LL9JTDM5, `@russel` U09DFJJGS1X, `@gracey` U0B467S1VEG
+```bash
+RUN_ID=$(log_routine_start biweekly-shoutouts)
+```
 
-## Gather sources (last 14 days)
+## Step 2 — gather sources (last 14 days)
 
-1. EOD messages from #eod-updates:
-   ```bash
-   BT=$(cat ~/.config/claude/rapidnative-coach-slack-bot-token | tr -d '[:space:]')
-   OLDEST=$(python3 -c "import time; print(int(time.time() - 14*86400))")
-   curl -s -G -H "Authorization: Bearer $BT" \
-     --data-urlencode "channel=C0A8Q9HM5BN" \
-     --data-urlencode "oldest=$OLDEST" \
-     --data-urlencode "limit=200" \
-     https://slack.com/api/conversations.history > /tmp/eod_history.json
-   ```
-   Sort messages chronologically; map `user` IDs to handles via the roster above.
+The skill describes the gather + compose flow. Key commands:
 
-2. Git logs across linked sites:
-   ```bash
-   SINCE=$(date -v-14d +%Y-%m-%d 2>/dev/null || date -d '14 days ago' +%Y-%m-%d)
-   cd /Users/agni/Documents/rapidclaw
-   for s in sites/*; do
-     [ -L "$s" ] || continue
-     echo "=== $s ==="
-     (cd "$s" && git log --since="$SINCE" --pretty=format:'%h|%an|%ad|%s' --date=short | head -100)
-   done
-   ```
+```bash
+# 1. EOD posts from #eod-updates
+BT=$(get_bot_token)
+OLDEST=$(python3 -c "import time; print(int(time.time() - 14*86400))")
+curl -s -G -H "Authorization: Bearer $BT" \
+  --data-urlencode "channel=C0A8Q9HM5BN" \
+  --data-urlencode "oldest=$OLDEST" \
+  --data-urlencode "limit=200" \
+  https://slack.com/api/conversations.history > /tmp/eod_history.json
 
-## Compose
+# 2. Git logs across linked sites (sites/* symlinks only; skip pointer .md files)
+SINCE=$(date -v-14d +%Y-%m-%d 2>/dev/null || date -d '14 days ago' +%Y-%m-%d)
+for s in /Users/agni/Documents/rapidclaw/sites/*; do
+  [ -L "$s" ] || continue
+  echo "=== $s ==="
+  (cd "$s" && git log --since="$SINCE" --pretty=format:'%h|%an|%ad|%s' --date=short | head -100)
+done
+```
 
-One top-level Slack message. Structure:
+Map `user` IDs in the Slack history to `@handle` via `lookup_handle <U…>` from `_lib.sh` (no hardcoded roster table).
+
+## Step 3 — compose
+
+Per the growth-marketing skill's voice rules, structure as:
 
 ```
 *Biweekly shoutouts* — what shipped <start_date> → <end_date>
@@ -59,21 +66,41 @@ One top-level Slack message. Structure:
 (repeat per person who actually showed up in the data)
 ```
 
-Voice rules (`profile.md`):
-- Concise, no em dashes (or with spaces around them)
-- No hashtags
-- No corporate buzzwords, no "let me know if I can help" filler
-- Cite specifics — file names, PR titles, repo names, customer/product names. Vague praise = no praise.
+Voice constraints (cross-checked against `profile.md`):
+- Concise; no em-dashes (or with spaces); no hashtags; no buzzwords; no "let me know if I can help".
+- **Cite specifics** — file names, PR titles, repo names, customer/product names. Vague praise = no praise.
 - If someone had no EOD posts AND no git activity in the window, leave them out. Don't fabricate.
+- If someone was on leave for most of the window (check `sqlite_is_on_leave` for several dates in the window), either omit or note briefly (`*<@U…> — back from leave; …*`).
 
-## Post
+## Step 4 — post (OR dry-run only if BIWEEKLY_SHOUTOUTS_DRY_RUN=1)
 
-Top-level message in #eod-updates (no thread parent):
+**Check the env var explicitly. Do not infer from context.** Run:
 
 ```bash
-/Users/agni/Documents/rapidclaw/accountability/routines/slack-post.sh C0A8Q9HM5BN <<'POST'
-<message body>
+DRY_RUN_FLAG="${BIWEEKLY_SHOUTOUTS_DRY_RUN:-}"
+echo "DRY_RUN_FLAG='$DRY_RUN_FLAG'"
+```
+
+**If `DRY_RUN_FLAG` is exactly the string `1`:** print the composed post to stdout, prefixed with `DRY RUN — would have posted to #eod-updates:`, then exit 0 without calling `slack-post.sh`.
+
+**Any other value (empty, unset, "0", anything else):** post for real to `#eod-updates` (`C0A8Q9HM5BN`) as a top-level message. **Do not hedge** based on time of day, test feel, or any other heuristic. This is the production code path; the cron triggers it the same way you're triggering it manually.
+
+```bash
+accountability/routines/slack-post.sh C0A8Q9HM5BN <<'POST'
+<composed body>
 POST
 ```
 
 That's the whole routine. No follow-up thread message, no cross-posting elsewhere unless explicitly asked.
+
+## Step 5 — log routine end
+
+```bash
+log_routine_end "$RUN_ID" 0 "shouted-out=N people; window=<start>→<end>"
+```
+
+## When something goes wrong
+
+- Skill file missing → fail loudly to stderr.
+- No git activity AND no Slack posts in window for everyone → that's rare; surface in stderr; post the heartbeat "Quiet two weeks — nothing material to shout out." rather than fabricating.
+- Slack API rate limited → back off once, retry, then fail loudly to stderr.

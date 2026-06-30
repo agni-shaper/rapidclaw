@@ -108,6 +108,58 @@ One section per day this week (Mon → Sun, IST). The morning routine matches `#
 
 - (off — guard_working_day skips)
 
+## 2026-06-29 (Mon) ← TODAY
+
+- TPL-GFG-ARTICLE
+- TPL-HN-POST
+- TPL-HN-ENGAGE
+- TPL-DISTRO-6
+- TPL-LINKEDIN-PERSONAL
+- TPL-TWITTER-PERSONAL
+
+## 2026-06-30 (Tue)
+
+- TPL-MEDIUM-ARTICLE
+- TPL-REDDIT-POST
+- TPL-REDDIT-ENGAGE
+- TPL-DISTRO-6
+- TPL-TWITTER-PERSONAL
+
+## 2026-07-01 (Wed)
+
+- TPL-DEVTO-ARTICLE
+- TPL-QUORA-POST
+- TPL-QUORA-ENGAGE
+- TPL-DISTRO-6
+- TPL-LINKEDIN-PERSONAL
+- TPL-TWITTER-PERSONAL
+
+## 2026-07-02 (Thu)
+
+- TPL-HASHNODE-ARTICLE
+- TPL-FB-POST
+- TPL-COMMUNITY-ENGAGE
+- TPL-DISTRO-6
+- TPL-QUORA-PERSONAL
+- TPL-TWITTER-PERSONAL
+
+## 2026-07-03 (Fri)
+
+- TPL-GFG-ARTICLE
+- TPL-HN-POST
+- TPL-HN-ENGAGE
+- TPL-DISTRO-6
+- TPL-LINKEDIN-PERSONAL
+- TPL-TWITTER-PERSONAL
+
+## 2026-07-04 (Sat)
+
+- (off — guard_working_day skips)
+
+## 2026-07-05 (Sun)
+
+- (off — guard_working_day skips)
+
 ---
 
 ## Next week's slate (template — copy + edit dates each Friday)

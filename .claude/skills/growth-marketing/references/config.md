@@ -1,35 +1,55 @@
 # Marketing automation — standing config
 
-Standing reference data the daily distribution cycle reads. **Until full migration in Phase 6**, this is a pointer to the legacy `marketing/config.md`. Update both files in lockstep.
+Standing reference data the daily distribution cycle reads. Edit by hand.
 
-> **Source mirror:** `../../../../marketing/config.md` (legacy canonical). When migrating a routine to load from this skill, copy the relevant section here verbatim and delete the legacy file in Phase 6.
+## SEO domains (rotate target URLs in posts/comments)
 
-## What's in the legacy file
+- `rapidnative.com` — primary marketing site
+- `rapidnative.com/blog/*` — long-form, indexable
+- `letsdeploy.it` — second product
+- `applighter.com` — third product
+- TBD — add more as new properties go live
 
-- **SEO domains** — rotate target URLs in posts/comments (rapidnative.com, blog/*, letsdeploy.it, applighter.com).
-- **Zoho mailboxes** — per-platform signup/support/reply mailboxes (outreach@, community@, publish@, social@, hn@).
-- **Medium subdomains / publications** — owned publications list.
-- **Standing community URLs** — always-on watch list for marketing-recon to check daily.
+## Zoho mailboxes (per-platform signup, support, replies)
 
-## Why this file is a pointer (not the canonical) yet
+| Platform group | Mailbox | Used for |
+|---|---|---|
+| GFG / Hashnode / dev.to | `outreach@rapidnative.com` | signups + reply notifications |
+| Quora / Reddit | `community@rapidnative.com` | signups + DM notifications |
+| Medium / Substack / Vocal | `publish@rapidnative.com` | publication signups |
+| LinkedIn / Facebook / Twitter | `social@rapidnative.com` | social account signups |
+| Hackernews | `hn@rapidnative.com` | signups only |
 
-The legacy `marketing/config.md` is consumed directly by `accountability/routines/marketing-recon.md` today (it's referenced in the routine's "Read first" section). Replacing the routine to read from this skill location is the migration step. Until that migration lands, the legacy file is canonical to avoid breaking the daily cycle.
+(Update once real mailboxes are confirmed.)
 
-Per the Phase 2 migration order in `drafts/2026-06-25-architecture-refactor/plan.md`, the swap is:
+## Medium subdomains / publications
 
-1. Skill scaffold created (this commit).
-2. Verify skill files mirror legacy verbatim.
-3. Replace the routine prompt to Read from this skill location.
-4. Run side-by-side for one cron cycle (07:00 IST tomorrow).
-5. Verify output parity in `#marketing-automation`.
-6. Delete `marketing/config.md` + `marketing/rotation.md` + `marketing/accounts.md` (legacy mirrors).
+- TBD — list any owned Medium publications here (e.g. `medium.com/@rapidnative`).
 
-## Action: when this file becomes canonical
+## Standing community URLs (always-on watch list)
 
-When you migrate `marketing-recon.md` (or any other routine) to load from this skill instead of from `marketing/`:
+- `news.ycombinator.com` — front page + `/newest` for relevant threads
+- `reddit.com/r/reactnative` — primary subreddit
+- `reddit.com/r/programming`
+- `reddit.com/r/webdev`
+- `reddit.com/r/devops`
+- `dev.to/t/reactnative`
+- `quora.com/topic/React-Native`
+- `quora.com/topic/Mobile-App-Development`
 
-1. Copy the relevant section of `marketing/config.md` verbatim into this file.
-2. Update the legacy file to add a "MIGRATED — read `~/Documents/rapidclaw/.claude/skills/growth-marketing/references/config.md`" pointer at the top.
-3. Run the routine once manually to confirm the new path works.
-4. Wait one cron cycle; verify output.
-5. Delete the legacy section. Leave the pointer in place until Phase 6.
+## Search strategy (cross-platform query templates)
+
+Use these as the seed queries when finding posts to comment on / answer:
+
+- `"react native" {topic}`
+- `expo {topic}` (where `topic ∈ {file-based-routing, EAS, OTA updates, push notifications}`)
+- `"rapidnative" OR "rapid native"` (brand monitoring)
+- `"letsdeploy" OR "lets deploy"` (brand monitoring)
+- `mobile dev {pain-point}` (where `pain-point ∈ {boilerplate, auth, payments, push}`)
+
+Rotate the `{topic}` slot week-over-week so the same accounts don't keep hitting the same threads.
+
+## Channel routing
+
+- Daily task list → `#marketing-automation` (`C0BBQ7PV34N`)
+- Escalations / blocked items → `#marketing` (`C09F377FGFK`)

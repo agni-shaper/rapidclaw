@@ -2,7 +2,7 @@
 
 **Single source of truth for the Shaper Studio Inc roster.** Every other file that references a teammate should link back here. When someone joins, leaves, or changes role, edit this file — nothing else.
 
-> Replaces: `.env TEAM_USERS`, `marketing/team.md`, `sites/tasks/roles.md`, auto-memory `project_team_roster.md`. Those still exist for now (until their owning subsystem migrates) but they should mirror this file.
+> Replaces: `.env TEAM_USERS`, `sites/tasks/roles.md`, auto-memory `project_team_roster.md` (the former `marketing/team.md` was retired in the marketing/ cleanup). Those that still exist should mirror this file.
 
 ## Roster
 

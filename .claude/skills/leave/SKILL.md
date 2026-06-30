@@ -71,7 +71,7 @@ If nobody's out: say "Nobody on leave today." Don't pad with filler.
    accountability/routines/leave-add.sh <SLACK_ID> <start> <end> "<note>"
    ```
 4. Confirm back in the source thread with the parsed dates + duration ("logged @famitha out Jun 11-12, 2 days").
-5. *Don't* mark the person inactive in any other file (e.g. `marketing/team.md`'s `active=true|false`). Short leave is the leave table only. `active=false` in `marketing/team.md` is reserved for permanent crew changes.
+5. *Don't* edit `definitions/people.md` (or any other roster file) for short OOO — short leave is the leave table only. Permanent crew changes (someone leaves) → update `definitions/people.md`.
 
 ## When a new holiday is announced
 

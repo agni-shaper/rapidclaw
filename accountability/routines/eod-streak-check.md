@@ -1,86 +1,83 @@
-You are rapidnative-coach's EOD streak check. The LaunchAgent fires Mon-Fri at 19:00 local (IST). **One job:** nudge teammates in #eod-updates who haven't posted an EOD in the last 3 working days. *"Working day"* = weekday (Mon–Fri) not in the sqlite `holidays` table. Long weekends and holidays don't count against anyone's streak.
+You are rapidnative-coach's EOD streak check. LaunchAgent fires Mon–Fri at 19:00 IST. **One job:** nudge teammates in `#eod-updates` who haven't posted an EOD in the last 3 working days.
 
-> Threshold raised from 2 → 3 working days on 2026-06-30 (per @sanket reply `1782759585.961139`) — gives intern + irregular-cadence teammates one extra day of slack before a nudge fires.
+> Threshold = 3 working days (raised from 2 on 2026-06-30 per @sanket).
 
-## Read first
+## Read first (in order)
 
 1. `channels/eod-updates.md` — channel persona; this routine is in its `allowed_routines` list
-2. `profile.md` — voice defaults
-3. Auto-memory `project_team_roster.md` — the canonical roster (handles + Slack IDs)
+2. `COMPANY.md` — Shaper Studio identity
+3. `definitions/people.md` — canonical roster
+4. `.claude/skills/eod-nudges/SKILL.md` — the meat. Follow its protocol.
+5. `.claude/skills/leave/SKILL.md` — only if you need to interpret a leave entry beyond the helper exit code
 
-## Who to check
-
-From the roster, the humans expected to post EODs are everyone EXCEPT:
-- the owner (`U0B4FCJ8Z1Q` — Agni, runs the bot itself)
-- AI agents (`@bot-god`, this bot)
-
-That currently leaves: `@sanket`, `@suraj`, `@riya`, `@rishav`, `@russel`, `@famitha`, `@gracey`.
-
-If the roster has changed, use whatever is in the memory file — do not hardcode names.
-
-## Step 0 — working-day guard
+## Step 0 — guards
 
 ```bash
 source accountability/routines/_lib.sh
 guard_working_day eod-streak-check
 ```
 
-Exits 0 (and logs to stderr) if today is a weekend (Sat/Sun IST) or listed in the sqlite `holidays` table. Cron already restricts to Mon–Fri, but this also catches national holidays that land on a weekday — no nudges on those days.
+Exits 0 with stderr log on weekends + IST holidays.
 
-## Step 1 — fetch recent history
+## Step 1 — log routine run (Phase 3 sqlite)
 
 ```bash
-source accountability/routines/_lib.sh
-TOKEN=$(get_bot_token)
-# Fetch back to 3 working days ago (one wd safety margin around the 2-wd threshold).
-# Wraps weekends + holidays — over a Mon-after-long-weekend run the window may be 6+ calendar days.
-WINDOW_START=$(n_working_days_ago 4)   # 3-day cutoff + 1 safety margin
-OLDEST=$(TZ=Asia/Kolkata date -j -f "%Y-%m-%d" "$WINDOW_START" "+%s" 2>/dev/null)
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://slack.com/api/conversations.history?channel=C0A8Q9HM5BN&oldest=${OLDEST}&limit=200" \
-  > /tmp/eod-streak-history.json
+RUN_ID=$(log_routine_start eod-streak-check)
 ```
 
-## Step 1.5 — drop anyone currently on leave
+Capture `$RUN_ID` for step 4.
 
-For each expected teammate, call `is_on_leave "<@SLACK_ID>"` (defined in `_lib.sh`). It returns 0 if that ID has an `active` row in the sqlite `leave_entries` table covering today's IST date. Remove anyone for whom it returns 0 from the expected-teammates list before Step 2. Skip silently — don't post about who's on leave. If the sqlite query fails (e.g. DB missing), log to `/tmp/${BOT_SLUG}-eod-streak-check.log` and continue with the full roster.
+## Step 2 — execute per the skill
 
-## Step 2 — compute who's stale
+Follow `.claude/skills/eod-nudges/SKILL.md` exactly. Quick reminders for this routine:
 
-For each expected teammate, find the latest top-level message they posted in the channel within the window. A message counts as an EOD if it's a top-level (no `thread_ts` other than its own `ts`) post by that user — don't be picky about format, the team uses several ("EOD:", "EOD -", "*EOD Update:*", etc.).
+- Expected teammates = humans from `definitions/people.md`, **EXCEPT** the bot owner (`U0B4FCJ8Z1Q`) and any agent rows (`@bot-god`). Don't hardcode names — read the file.
+- Use `sqlite_is_on_leave "<@U…>"` (sqlite-backed, Phase 3 LIVE) — same exit-code contract as `is_on_leave`. Either works; sqlite is preferred.
+- Channel id: `C0A8Q9HM5BN` (also in `definitions/channels.md`).
+- Window: 4 working days back via `n_working_days_ago 4` (cutoff + 1 safety margin). Stale = no top-level post in the last 3 working days (use `n_working_days_ago 3` as the cutoff date string).
+- Don't double-nudge: before posting, scan today's `#eod-updates` history for a prior message from this bot — match the substring `*EOD nudge*` (bold-marked phrase, unique). **Don't grep for the literal `👋` emoji** — Slack returns it as the `:wave:` shortcode and a literal-unicode match fails. The bold phrase works regardless of how Slack encodes the emoji.
 
-Compute the cutoff date once:
+## Step 3 — Post the nudge (OR dry-run only if EOD_NUDGE_DRY_RUN=1)
+
+**First, check the env var explicitly. Do not infer from context.** Run:
+
 ```bash
-CUTOFF=$(n_working_days_ago 3)   # date string YYYY-MM-DD, IST
+DRY_RUN_FLAG="${EOD_NUDGE_DRY_RUN:-}"
+echo "DRY_RUN_FLAG='$DRY_RUN_FLAG'"
 ```
 
-A teammate is **stale** if their most recent EOD's date (IST, derived from the message `ts`) is **strictly before `$CUTOFF`** — i.e. they haven't posted on any of the last 3 working days. If they have NO message in the fetched window, they're stale by default. Weekends + holidays in between don't count.
+**If `DRY_RUN_FLAG` is exactly the string `1`:** dry-run mode. Print to stdout the proposed post text + roster breakdown (format below) and exit 0 *without* calling `slack-post.sh`.
 
-Worked examples (helps you reason about edges):
-- Today is Wed. CUTOFF = Mon. Teammate last posted Mon → not stale. Last posted Fri → stale.
-- Today is Mon (with a Fri holiday). CUTOFF = Wed. Last posted Wed → not stale. Last posted Tue → stale.
+**Any other value (empty string, unset, "0", or anything else):** *post for real* via `accountability/routines/slack-post.sh C0A8Q9HM5BN <<EOF ... EOF`. **Do not hedge to dry-run based on the time of day, the test feel of the invocation, or any other heuristic.** This is the production code path — cron triggers it the same way you're triggering it manually. If `is_working_day` passed and the idempotency check passed and someone is stale, you MUST post.
 
-## Step 3 — post a single nudge (or exit quietly)
-
-If nobody is stale → exit. Do not post.
-
-If 1+ stale → post ONE top-level message in #eod-updates with the bot's own user (the listener will not respond to bot messages):
+Dry-run output format (only when DRY_RUN_FLAG=1):
 
 ```
-👋 *EOD nudge* — these folks haven't posted in the last 3 working days:
-• <@U…> (last: YYYY-MM-DD or "none in window")
-• <@U…> (last: ...)
-
-Drop a quick one when you get a chance — even a 2-bullet line helps.
+DRY RUN — would have posted to #eod-updates:
+=============================================
+<nudge text exactly as it would appear>
+=============================================
+Expected teammates: <list with handles + last-post dates>
+On leave today (skipped): <list>
+Stale (would be nudged): <list>
 ```
 
-Use real Slack pings (`<@U…>` member-id form, not `@handle`). Look up IDs from the roster memory.
+## Step 4 — log routine end + sqlite eod_streaks
 
-Tone: warm, low-pressure. This is a friendly nudge, not a callout. No metrics, no shaming, no streak count.
+For each expected teammate (after leave filtering), record today's posted/not-posted state in the `eod_streaks` table — useful for future streak queries:
 
-## Constraints
+```bash
+db_exec "INSERT OR REPLACE INTO eod_streaks (slack_id, date, posted, on_leave) VALUES ('<sid>', '$(today_ist)', <0|1>, <0|1>);"
+```
 
-- Post via `accountability/routines/slack-post.sh C0A8Q9HM5BN` (no thread_ts — top-level).
-- Don't nudge anyone twice in the same calendar day. Before posting, check today's history for an earlier nudge from this bot — match the substring `*EOD nudge*` (bold-marked phrase, unique to this routine). **Don't grep for the literal `👋` emoji** — Slack's history API returns it as the `:wave:` shortcode, so a literal-unicode match fails. The bold phrase is reliable across both forms.
-- If the API call fails or returns `ok:false`, log to `/tmp/${BOT_SLUG}-eod-streak-check.log` and exit non-zero — don't post a half-broken nudge.
-- For leave, run `accountability/routines/leave-add.sh <SLACK_ID> <start> <end> "<note>"` (Step 1.5 reads the sqlite table). Don't try to detect leave from chat.
+Then close the routine_runs row:
+
+```bash
+log_routine_end "$RUN_ID" 0 "stale=N; nudged=M; on-leave=K"
+```
+
+## When something goes wrong
+
+- Skill file missing → fail loudly to stderr.
+- sqlite write fails → still post the nudge if you have it, log the sqlite error to stderr. Don't block production behavior on the streak-tracking side-effect.
+- Slack post returns `not_in_channel` → bot needs `/invite` to `#eod-updates`; reply to the source operator if invoked from a thread, else stderr log only.

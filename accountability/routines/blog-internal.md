@@ -104,7 +104,7 @@ fi
 `@famitha` (`U09LL9JTDM5`) is the designer — she's pinged for the cover image / social cards.
 `@russel` (`U09DFJJGS1X`) is the video editor — he's pinged for the video version / promo cut.
 
-If you want to route to different crew (e.g. add `@rishav` for technical-review), update `marketing/team.md` first and re-derive the ping list from there.
+If you want to route to different crew (e.g. add `@rishav` for technical-review), update `definitions/people.md` first and re-derive the ping list from there.
 
 ## Step 5 — threaded reply with caption + asset breakdown
 
