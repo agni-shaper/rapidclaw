@@ -40,6 +40,10 @@ accountability/engagement-screenshots/
 .idea/
 Thumbs.db
 
+# Python bytecode caches (e.g. accountability/routines/__pycache__)
+__pycache__/
+*.pyc
+
 # Studio (if present, Next.js build artifacts)
 studio/node_modules/
 studio/.next/
