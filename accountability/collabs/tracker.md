@@ -51,6 +51,17 @@ Canonical list of every active and recently-closed collab. The `collabs-tuesday-
 - Based: Accra, Ghana
 - 2026-06-23 — Sanket sent follow-up nudge
 
+### ET Most Innovative AI Product Awards 2026 (Times Internet / Economic Times)
+- Type: awards nomination — Economic Times AI Product Awards 2026 (digital showcase + jury evaluation)
+- Amount: no fee mentioned; cost is internal time to complete the form
+- Status: **nomination form in progress — Famitha blocked on ET site credentials from Sanket**
+- Owner: @sanket → handed to @famitha on 2026-06-26
+- Contacts: Rishima Sharma <rishima.sharma@timesinternet.in>, Shruti Aggarwal <shruti.aggarwal1@timesinternet.in>, Prashant Vashishtha <prashant.vashishtha@timesinternet.in>
+- Microsite: https://economictimes.indiatimes.com/et-spotlight/et-ai-awards-2026
+- Deadline: **2026-07-15** (submission window closes)
+- 2026-06-26 — Sanket forwarded the ET email to the channel and looped in @famitha
+- 2026-06-29 — @famitha asked @sanket for the registered ET microsite credentials so she can complete the form
+
 
 ### Taha Anwar (BleedAI / BleedConnections) — dropped 2026-06-18
 - Type: cold outbound campaign — funded-founder targeting; PRD-style strategy doc delivered
