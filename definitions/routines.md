@@ -6,26 +6,26 @@ Cron-fired routines, 1:1 with `~/Library/LaunchAgents/com.agni.rapidnative-coach
 
 ## Schedule grid (IST, weekday key: 0=Sun, 1=Mon, …, 5=Fri, 6=Sat)
 
-| Routine | Schedule | Posts to | Skill it should call (post-refactor) |
+| Routine | Schedule | Posts to | Status |
 |---|---|---|---|
-| `listener` | KeepAlive (always running, Socket Mode WebSocket) | n/a — drives in-thread responses | — |
-| `daily` | 11:30 daily | `#rapidnative-coach` | (owner-accountability, stays in coach) |
-| `noon` | 12:00 daily | `#rapidnative-coach` | (same) |
-| `friday` | 17:00 Fri | `#rapidnative-coach` | (same — week recap) |
-| `sunday` | 12:00 Sun | `#rapidnative-coach` | (same — week ahead) |
-| `eod-streak-check` | 19:00 Mon–Fri | `#eod-updates` | `eod-nudges` + `leave` |
-| `engagement` | 11:30 / 14:30 / 17:30 daily (3x) | `#rn-coach-social` | (stays — engagement scan, not a refactored skill yet) |
-| `user-testing-capture` | 10:00 daily | `#user-testing` + `#rapidnative-coach` | `user-testing` |
-| `tasks-cleanup` | 12:15 Mon–Fri | `#rapidnative-coach` (approval flow) | `task-management` + `bug-tracking` |
-| `blog-internal` | 12:00 daily | `#rapidnative-coach` + `#ai-blogs` | (stays — has its own helper script) |
-| `blog-external` | 11:00 daily | `#rapidnative-coach` + `#ai-blogs` | (same) |
-| `marketing-recon` | 06:00 Mon–Fri | (cache file only — no Slack) | `growth-marketing` (replaces 438-line prompt) |
-| `marketing-morning` | 07:00 Mon–Fri | `#marketing-automation` | `growth-marketing` |
-| `marketing-evening` | 19:30 Mon–Fri | `#marketing-automation` | `growth-marketing` |
-| `gtm-weekly-pick` | 09:00 Mon (+ Fri 17:00 recap) | `#marketing` | `growth-marketing` |
-| `biweekly-shoutouts` | 18:00 every other Fri | `#marketing` | `growth-marketing` |
-| `collabs-tuesday-update` | 09:00 Tue | `#collabs-and-partnerships` | (collabs skill — TBD) |
-| `resurface-logo-update` | 10:03 daily (one-off — already shipped) | `#design` | (transient — likely retire after run) |
+| `listener` | KeepAlive (always running, Socket Mode WebSocket) | n/a — drives in-thread responses | (no migration) |
+| `daily` | 11:30 daily | `#rapidnative-coach` | v1 (owner-accountability; not bloated) |
+| `noon` | 12:00 daily | `#rapidnative-coach` | v1 (same) |
+| `friday` | 17:00 Fri | `#rapidnative-coach` | v1 (week recap) |
+| `sunday` | 12:00 Sun | `#rapidnative-coach` | v1 (week ahead) |
+| `eod-streak-check` | 19:00 Mon–Fri | `#eod-updates` | ✅ **v2 in cron** — loads `eod-nudges` + `leave` |
+| `engagement` | 11:30 / 14:30 / 17:30 daily (3x) | `#rn-coach-social` | v1 (social-engagement skill not yet scaffolded) |
+| `user-testing-capture` | 10:00 daily | `#user-testing` + `#rapidnative-coach` | ✅ **v2 in cron** — loads `user-testing` |
+| `tasks-cleanup` | 12:15 Mon–Fri | `#rapidnative-coach` (approval flow) | ✅ **v2 in cron** — loads `task-management` + `bug-tracking` + `leave` |
+| `blog-internal` | 12:00 daily | `#marketing-automation` (via $SLACK_CONTENT_CHANNEL_ID) | v1 (thin wrapper around generate-blog.sh; no benefit from v2) |
+| `blog-external` | 11:00 daily | `#ai-blog` | v1 (same) |
+| `marketing-recon` | 06:00 Mon–Fri | (cache file only — no Slack) | ✅ **v2 in cron** — loads `growth-marketing` |
+| `marketing-morning` | 07:00 Mon–Fri | `#marketing-automation` | ✅ **v2 in cron** — loads `growth-marketing` + `leave` |
+| `marketing-evening` | 19:30 Mon–Fri | `#marketing-automation` | ✅ **v2 in cron** — loads `growth-marketing` |
+| `gtm-weekly-pick` | 09:00 Mon (+ Fri 17:00 recap) | `#marketing` | ✅ **v2 in cron** — loads `growth-marketing` + `task-management` |
+| `biweekly-shoutouts` | 18:00 every other Fri | `#marketing` | ✅ **v2 in cron** — loads `growth-marketing` |
+| `collabs-tuesday-update` | 09:00 Tue | `#collabs-and-partnerships` | ✅ **v2 in cron** — no dedicated collabs skill yet; thin orchestrator |
+| `resurface-logo-update` | 10:03 daily (one-off — already shipped) | `#design` | v1 (retire candidate) |
 
 ## Wrapper
 

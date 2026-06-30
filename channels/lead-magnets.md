@@ -5,6 +5,11 @@ purpose: Lead generation assets — free downloads, ebooks, mini-courses, gated 
 voice_source: profile.md
 publish_tier: superadmin
 allowed_routines: []
+product: rapidnative
+owner: <@U09DC8L7PCZ>
+members: [<@U0B4FCJ8Z1Q>, <@U09DC8L7PCZ>, <@U09LL9JTDM5>]
+allowed_skills: []
+
 ---
 
 # Purpose

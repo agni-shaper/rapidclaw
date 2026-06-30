@@ -19,6 +19,12 @@ accountability/reminders/*.db-journal
 accountability/wishlist/*.db
 accountability/wishlist/*.db-journal
 
+# Routine state (per-day JSON cache / proposals / sentinels)
+# sqlite (Phase 3) owns these going forward; the .archive/ dir
+# keeps the pre-cutover files locally as a backup but doesn't track them.
+accountability/state/
+marketing/.state/
+
 # Ephemeral screenshots from browser-use scans
 accountability/engagement-screenshots/
 

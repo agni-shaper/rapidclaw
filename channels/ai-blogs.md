@@ -5,6 +5,11 @@ purpose: AI/ML/agents/devtools blog content for rapidnative-website — ideation
 voice_source: profile.md
 publish_tier: superadmin
 allowed_routines: [blog-internal, blog-external]
+product: rapidnative
+owner: <@U09DC8L7PCZ>
+members: [<@U0B4FCJ8Z1Q>, <@U09DC8L7PCZ>, <@U09DC8MB4KB>, <@U09CUJ9ATM1>]
+allowed_skills: []
+
 ---
 
 # Purpose

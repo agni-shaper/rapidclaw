@@ -5,6 +5,11 @@ purpose: Task tracking and execution — updating the tasks repo, reporting prog
 voice_source: profile.md
 publish_tier: teammate
 allowed_routines: []
+product: all
+owner: <@U09DC8L7PCZ>
+members: [<@U0B4FCJ8Z1Q>, <@U09DC8L7PCZ>, <@U09DC8MB4KB>, <@U09CXCYV7D1>, <@U09CUJ9ATM1>, <@U09DFJJGS1X>, <@U09LL9JTDM5>, <@U0B467S1VEG>]
+allowed_skills: []
+
 ---
 
 # Purpose

@@ -5,6 +5,11 @@ purpose: Search engine optimization — keyword research, on-page SEO for rapidn
 voice_source: profile.md
 publish_tier: superadmin
 allowed_routines: []
+product: rapidnative
+owner: <@U09DC8L7PCZ>
+members: [<@U0B4FCJ8Z1Q>, <@U09DC8L7PCZ>, <@U09CUJ9ATM1>]
+allowed_skills: []
+
 ---
 
 # Purpose

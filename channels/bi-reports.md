@@ -5,6 +5,11 @@ purpose: Business intelligence and analytics reports for the rapidnative-website
 voice_source: profile.md
 publish_tier: superadmin
 allowed_routines: []
+product: rapidnative
+owner: <@U09DC8L7PCZ>
+members: [<@U0B4FCJ8Z1Q>, <@U09DC8L7PCZ>, <@U09DC8MB4KB>]
+allowed_skills: []
+
 ---
 
 # Purpose

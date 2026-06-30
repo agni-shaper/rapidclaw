@@ -5,6 +5,11 @@ purpose: Design coordination — brand assets, UI/UX feedback, design-system wor
 voice_source: profile.md
 publish_tier: superadmin
 allowed_routines: []
+product: all
+owner: <@U09LL9JTDM5>
+members: [<@U0B4FCJ8Z1Q>, <@U09DC8L7PCZ>, <@U09LL9JTDM5>, <@U09DFJJGS1X>]
+allowed_skills: []
+
 ---
 
 # Purpose

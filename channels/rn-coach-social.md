@@ -5,6 +5,11 @@ purpose: Social engagement workspace for rapidnative-coach — scheduled scans s
 voice_source: profile.md
 publish_tier: superadmin
 allowed_routines: [engagement]
+product: rapidnative
+owner: <@U0B4FCJ8Z1Q>
+members: [<@U0B4FCJ8Z1Q>]
+allowed_skills: []
+
 ---
 
 # Purpose

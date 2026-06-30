@@ -5,6 +5,11 @@ purpose: Brand collaborations, strategic partnerships, co-marketing — outreach
 voice_source: profile.md
 publish_tier: superadmin
 allowed_routines: [collabs-tuesday-update]
+product: all
+owner: <@U09DC8L7PCZ>
+members: [<@U0B4FCJ8Z1Q>, <@U09DC8L7PCZ>, <@U09DC8MB4KB>]
+allowed_skills: []
+
 ---
 
 # Purpose

@@ -5,6 +5,11 @@ purpose: Affiliate program operations — partner outreach, commission tracking,
 voice_source: profile.md
 publish_tier: superadmin
 allowed_routines: []
+product: applighter,rapidnative
+owner: <@U09DC8L7PCZ>
+members: [<@U0B4FCJ8Z1Q>, <@U09DC8L7PCZ>]
+allowed_skills: []
+
 ---
 
 # Purpose

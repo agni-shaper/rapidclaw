@@ -5,6 +5,11 @@ purpose: Personal AI agent for the rapidclaw bot owner — daily/weekly accounta
 voice_source: profile.md
 publish_tier: superadmin
 allowed_routines: [daily, noon, friday, sunday, blog-internal, blog-external, user-testing-capture, tasks-cleanup]
+product: rapidnative
+owner: <@U0B4FCJ8Z1Q>
+members: [<@U0B4FCJ8Z1Q>, <@U09DC8L7PCZ>, <@U09DC8MB4KB>]
+allowed_skills: [user-testing, task-management, bug-tracking, leave]
+
 ---
 
 # Purpose

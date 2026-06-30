@@ -5,6 +5,11 @@ purpose: Growing the rapidnative community — Discord/forum activity, audience 
 voice_source: profile.md
 publish_tier: superadmin
 allowed_routines: []
+product: all
+owner: <@U0B467S1VEG>
+members: [<@U0B4FCJ8Z1Q>, <@U09DC8L7PCZ>, <@U0B467S1VEG>]
+allowed_skills: []
+
 ---
 
 # Purpose
