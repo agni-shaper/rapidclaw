@@ -79,7 +79,7 @@ The line between "UX issue" and "bug":
 ## Migration status
 
 - **Today:** runs via `accountability/routines/user-testing-capture.md` (108 lines). Replacement pending; small enough to migrate quickly.
-- **Phase 3:** sqlite `user_testing_issues` table; `issues-log.md` becomes a projection.
+- **Storage:** `accountability/user-testing/issues-log.md` stays the source of truth. The empty `user_testing_issues` sqlite table was dropped 2026-06-30 — at current scale (single-digit rows, team eyeballs the markdown table) sqlite added zero value. If the log ever grows past ~30 rows or needs structured filtering, revisit.
 
 ## Related skills
 

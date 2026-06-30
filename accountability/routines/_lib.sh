@@ -44,12 +44,13 @@ is_weekend() {
   [ "$dow" = "6" ] || [ "$dow" = "7" ]
 }
 
-# is_holiday [YYYY-MM-DD] — exit 0 if listed under any section of accountability/holidays.md, else 1.
+# is_holiday [YYYY-MM-DD] — exit 0 if listed as 'upcoming' in sqlite `holidays`, else 1.
+# Sqlite-backed since 2026-06-30 (leave/holidays md files removed).
 is_holiday() {
   local d="${1:-$(today_ist)}"
-  local f="$PROJECT_DIR/accountability/holidays.md"
-  [ -f "$f" ] || return 1
-  grep -Eq "^- ${d} " "$f"
+  local count
+  count=$(db_query "SELECT COUNT(*) FROM holidays WHERE date='$d' AND status='upcoming';") || return 1
+  [ "$count" != "0" ]
 }
 
 # is_working_day [YYYY-MM-DD] — exit 0 if weekday AND not a holiday, else 1.
@@ -57,30 +58,19 @@ is_working_day() {
   ! is_weekend "$@" && ! is_holiday "$@"
 }
 
-# is_on_leave <@SLACK_ID> [YYYY-MM-DD] — exit 0 if id is in leave.md *Active* covering the date.
-# Accepts the id with or without `<@…>` / backticks.
+# is_on_leave <@SLACK_ID> [YYYY-MM-DD] — exit 0 if id has an active leave entry covering the date.
+# Accepts the id with or without `<@…>` / backticks. Sqlite-backed since 2026-06-30.
 is_on_leave() {
-  local sid="$1"
+  local sid="${1:?usage: is_on_leave <SLACK_ID> [date]}"
   local d="${2:-$(today_ist)}"
-  local f="$PROJECT_DIR/accountability/leave.md"
-  [ -f "$f" ] || return 1
   sid="${sid//[\`<>@]/}"
-  awk -v sid="$sid" -v today="$d" '
-    /^## Active/ {active=1; next}
-    /^## / && active {exit}
-    active && index($0, sid) > 0 {
-      if (match($0, /[0-9]{4}-[0-9]{2}-[0-9]{2} to [0-9]{4}-[0-9]{2}-[0-9]{2}/)) {
-        range = substr($0, RSTART, RLENGTH)
-        split(range, p, " to ")
-        if (today >= p[1] && today <= p[2]) { found=1; exit }
-      }
-    }
-    END { exit found ? 0 : 1 }
-  ' "$f"
+  local count
+  count=$(db_query "SELECT COUNT(*) FROM leave_entries WHERE slack_id='$sid' AND status='active' AND '$d' BETWEEN start_date AND end_date;") || return 1
+  [ "$count" != "0" ]
 }
 
 # n_working_days_ago N — print YYYY-MM-DD (IST) that is N working days BEFORE today.
-# A "working day" is a weekday (Mon–Fri) not listed in holidays.md. Today is NOT counted.
+# A "working day" is a weekday (Mon–Fri) not listed in the sqlite `holidays` table. Today is NOT counted.
 # e.g. if today is Tue and Mon is a holiday: `n_working_days_ago 2` = previous Thu.
 n_working_days_ago() {
   local n="$1"
@@ -107,8 +97,8 @@ guard_working_day() {
   fi
   if is_holiday; then
     local label
-    label=$(grep -E "^- ${today} " "$PROJECT_DIR/accountability/holidays.md" | sed -E "s/^- ${today} · //")
-    echo "[$(date '+%H:%M:%S')] $name: skipping — $today is a holiday: ${label:-listed in holidays.md}" >&2
+    label=$(db_query "SELECT name FROM holidays WHERE date='$today' AND status='upcoming' LIMIT 1;" 2>/dev/null)
+    echo "[$(date '+%H:%M:%S')] $name: skipping — $today is a holiday: ${label:-listed in sqlite holidays}" >&2
     exit 0
   fi
 }
@@ -172,11 +162,11 @@ skill_path() {
   return 1
 }
 
-# ---------------- Phase 3: sqlite helpers ----------------
-# DB: ~/.config/claude/${BOT_SLUG}.sqlite (created by bin/migrate-to-sqlite.py)
-# These run ALONGSIDE the existing markdown-reading helpers (is_on_leave, is_holiday).
-# Routines that still call the markdown helpers keep working unchanged.
-# Skill-based code paths (Phase 2+) should prefer the sqlite_* variants below.
+# ---------------- Sqlite helpers ----------------
+# DB: ~/.config/claude/${BOT_SLUG}.sqlite (created by bin/migrate-to-sqlite.py).
+# Since 2026-06-30 sqlite is the sole source of truth for leave / holidays / reminders;
+# the .md projection files have been deleted. is_on_leave / is_holiday above query
+# this DB directly. CRUD wrappers live in accountability/routines/{leave,holiday,reminder}-*.sh.
 
 DB_PATH="$HOME/.config/claude/${BOT_SLUG}.sqlite"
 
@@ -196,24 +186,8 @@ db_exec() {
   sqlite3 "$DB_PATH" "$@"
 }
 
-# sqlite_is_on_leave <SLACK_ID> [YYYY-MM-DD] — sqlite-backed version of is_on_leave.
-# Same exit-code contract: 0 if covered, 1 otherwise.
-sqlite_is_on_leave() {
-  local sid="${1:?usage: sqlite_is_on_leave <SLACK_ID> [date]}"
-  local d="${2:-$(today_ist)}"
-  sid="${sid//[\`<>@]/}"
-  local count
-  count=$(db_query "SELECT COUNT(*) FROM leave_entries WHERE slack_id='$sid' AND status='active' AND '$d' BETWEEN start_date AND end_date;") || return 1
-  [ "$count" != "0" ]
-}
-
-# sqlite_is_holiday [YYYY-MM-DD] — sqlite-backed version of is_holiday. Same contract.
-sqlite_is_holiday() {
-  local d="${1:-$(today_ist)}"
-  local count
-  count=$(db_query "SELECT COUNT(*) FROM holidays WHERE date='$d' AND status='upcoming';") || return 1
-  [ "$count" != "0" ]
-}
+# (Legacy aliases sqlite_is_on_leave / sqlite_is_holiday were removed 2026-06-30
+#  since the canonical is_on_leave / is_holiday are now sqlite-backed themselves.)
 
 # log_routine_start <name> — print the new row ID (use it for log_routine_end).
 log_routine_start() {

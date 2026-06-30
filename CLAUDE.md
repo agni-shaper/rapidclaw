@@ -77,15 +77,36 @@ For logged-in views, always use `browser-open.sh`. For GitHub data, prefer the `
 
 ## Team leave, holidays & working-day guard
 
-Two canonical files drive team-availability decisions, both consumed via helpers in `accountability/routines/_lib.sh`:
+Team-availability data lives in **sqlite** at `~/.config/claude/rapidnative-coach.sqlite` (since 2026-06-30 — the markdown `leave.md` / `holidays.md` files were retired). Two tables:
 
-- **`accountability/leave.md`** — per-person OOO. Each *Active* entry: `<@SLACK_ID> · YYYY-MM-DD to YYYY-MM-DD · note` (IST, inclusive). Helper: `is_on_leave "<@SLACK_ID>"` returns 0 if covered today.
-- **`accountability/holidays.md`** — company/national holidays for the whole team. Each *Upcoming* entry: `- YYYY-MM-DD · short name` (IST, one date per line). Helper: `is_holiday` returns 0 if today is listed.
+- **`leave_entries`** — per-person OOO. Cols: `slack_id`, `start_date`, `end_date`, `note`, `status` (`active` \| `past`). Dates IST, inclusive.
+- **`holidays`** — team-wide off-days. Cols: `date` (PK), `name`, `region`, `status` (`upcoming` \| `past`). IST. One row per day for multi-day breaks.
 
-Combined: `is_working_day` returns 0 if today is a weekday AND not a holiday. `guard_working_day <routine>` calls that helper and exits 0 (with stderr log) when today's a weekend or holiday — call it at the top of any team-facing routine.
+**Yes/no helpers (`accountability/routines/_lib.sh`)** — sqlite-backed; same exit-code contract as before:
+
+```bash
+is_on_leave "<@U…>" [date]       # 0 if covered
+is_holiday  [date]               # 0 if listed
+is_working_day [date]            # 0 if weekday AND not a holiday
+guard_working_day <name>         # exits 0 (with stderr log) if not a working day
+n_working_days_ago N             # print YYYY-MM-DD N working days back
+```
+
+**CRUD wrappers (`accountability/routines/`)** — the only sanctioned write path; the `leave` skill drives them:
+
+| Script | Purpose |
+|---|---|
+| `leave-add.sh <SLACK_ID> <start> <end> [note]` | new leave entry (active) |
+| `leave-rm.sh <SLACK_ID> <start>` | soft-delete (status → past) |
+| `leave-list.sh [--all \| --on YYYY-MM-DD]` | print active / all / for a date |
+| `holiday-add.sh <date> <name> [region]` | new upcoming holiday |
+| `holiday-rm.sh <date>` | soft-delete |
+| `holiday-list.sh [--all]` | print upcoming / all |
+
+Removals are soft (status flip) — never `DELETE`. Audit trail stays in sqlite forever.
 
 **When to read:** before routing an approval, pinging a teammate, posting a team-facing report, or running any team-availability nudge.
-**When to update:** same turn anyone goes OOO (→ `leave.md`) or a new holiday is announced (→ `holidays.md`). Move expired entries to *Past* sections when convenient; no auto-prune.
+**When to update:** same turn anyone goes OOO (→ `leave-add.sh`) or a new holiday is announced (→ `holiday-add.sh`).
 
 Routines that already call `guard_working_day` + skip leave: `eod-streak-check`, `tasks-cleanup`, `friday`, `biweekly-shoutouts`, `collabs-tuesday-update`, `gtm-weekly-pick`. Owner-facing routines (`daily`, `noon`, `sunday`) deliberately do **not** skip on holidays — personal accountability runs regardless.
 

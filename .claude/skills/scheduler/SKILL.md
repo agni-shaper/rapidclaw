@@ -1,128 +1,112 @@
 ---
 name: scheduler
-description: Reminders + routine-run history. Will own the sqlite DB at `~/.config/claude/rapidnative-coach.sqlite` once Phase 3 lands. Until then, this skill is design-only — the existing plist-fired cron + markdown reminders continue to work.
+description: Reminders + routine-run history. Owns the sqlite tables `reminders` and `routine_runs` in `~/.config/claude/rapidnative-coach.sqlite`. CRUD via shell scripts in `accountability/routines/`.
 when_to_load: |
   Load when ANY of the following:
   - User says "remind me to X on <date>" / "set a reminder for X"
   - User asks "what reminders do I have?" / "what's scheduled?"
   - User asks why a routine didn't fire / when did X last run
-  - Phase 3 sqlite migration begins
+  - User wants to cancel or list past reminders
 voice_source: ../../profile.md
 ---
 
 # scheduler
 
-Cross-cutting skill. Today: reminders live as markdown in `accountability/reminders/YYYY-MM-DD.md` AND in the sqlite `reminders` table (Phase 3 backfilled both ways). Routine-run history now goes to sqlite `routine_runs` via the `log_routine_start` / `log_routine_end` helpers.
+Cross-cutting skill. Owns two tables in the bot's sqlite DB:
 
-**Phase 3 sqlite is LIVE as of 2026-06-29.** DB at `~/.config/claude/rapidnative-coach.sqlite`. Schema below matches the live tables; the proposed `_lib.sh` helpers in this skill (`add_reminder`, `list_reminders`, etc.) are NOT all built yet — see "Built so far" below.
+| Table | What it holds |
+|---|---|
+| `reminders` | Future-dated message bodies that fire as Slack posts on `fire_date`. Picked up by `daily.md` Step 0 each morning. |
+| `routine_runs` | Audit trail of every cron-fired routine — `started_at`, `ended_at`, `exit_code`, log path, optional notes. |
 
-## Built so far
+DB path: `~/.config/claude/rapidnative-coach.sqlite`. Both tables sqlite-only since 2026-06-30 (the markdown reminder files at `accountability/reminders/` were removed in the same cutover).
 
+## Shell wrappers — reminders
+
+| Script | Purpose |
+|---|---|
+| `accountability/routines/reminder-add.sh <fire_date> "<body>" [--time HH:MM] [--channel <id>] [--thread <ts>] [--by <SLACK_ID>]` | Schedule a reminder. Defaults: channel `C0B4HG16QP3` (#rapidnative-coach), created_by `bot`. |
+| `accountability/routines/reminder-list.sh [--all \| --today \| --on YYYY-MM-DD]` | Print scheduled reminders. Default: pending today onwards. |
+| `accountability/routines/reminder-cancel.sh <id>` | Soft-cancel a pending reminder (`status='cancelled'`). |
+
+The daily routine (`daily.md` Step 0, 11:30 IST) picks up every `pending` row whose `fire_date = today`, posts the body to the row's channel/thread, and marks it `fired`.
+
+## Shell helpers — routine_runs (already in `_lib.sh`)
+
+```bash
+source accountability/routines/_lib.sh
+
+ID=$(log_routine_start "my-routine")    # → INSERT, returns row ID
+# ... do the work ...
+log_routine_end "$ID" "$?" "summary"    # → UPDATE ended_at, exit_code, notes
+
+last_run "my-routine"                   # → most recent started_at (ISO)
+```
+
+Other generic helpers:
 - `db_path` — echo DB path
-- `db_query "SELECT …"` / `db_exec "INSERT …"` — generic wrappers
-- `sqlite_is_on_leave` / `sqlite_is_holiday` — read-side parity with markdown helpers
-- `log_routine_start <name>` → returns row ID
-- `log_routine_end <id> <exit_code> [notes]` — closes the row
-- `last_run <name>` — most recent started_at
+- `db_query "SELECT …"` — read query
+- `db_exec "INSERT …"` — write query
 
-Not yet built (TODO when first user-facing flow needs them):
-- `add_reminder` / `list_reminders` / `cancel_reminder`
-- `record_eod_post` / `query_eod_streak`
-- Skill-specific table writers for `user_testing_issues`, `bug_reports`, `tasks_cleanup_proposals` mutations
+## When the user says "remind me to X on <date>"
 
-## Read these before doing any work
+1. Resolve the date to absolute YYYY-MM-DD IST (today is in `today_ist`).
+2. Default channel: the channel the request came from. Default thread: none (top-level on the fire date).
+3. Run:
+   ```bash
+   accountability/routines/reminder-add.sh <date> "<body>" --by <sender_slack_id>
+   ```
+4. Confirm back with the parsed date + the returned reminder ID so the user can cancel by id later.
 
-1. `accountability/reminders/` — current per-day reminder files (markdown).
-2. `accountability/routines/daily.md` Step 0 — current reminder pickup mechanism.
-3. `definitions/routines.md` — full cron catalog (for "when did X last run" questions).
+## When the user asks "what reminders do I have?"
 
-## What this skill will own (Phase 3+)
+```bash
+accountability/routines/reminder-list.sh
+```
+
+## When the user asks "when did X last run?" / "did X fire today?"
+
+```bash
+last_run "X"                                                 # most recent
+db_query "SELECT COUNT(*) FROM routine_runs WHERE routine='X' AND DATE(started_at)=DATE('now');"
+```
+
+## Anti-hallucination guards
+
+1. **Don't claim a routine fired without checking `routine_runs`** (or `/tmp/<bot>-<routine>.log` mtime as a backup).
+2. **Don't assume a reminder will fire if it's not in the DB.** Query sqlite — never trust memory.
+3. **All times are IST** unless the user explicitly asks for UTC.
+
+## Schema reference (live)
 
 ```sql
--- ~/.config/claude/rapidnative-coach.sqlite
-
 CREATE TABLE reminders (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  fire_date   TEXT NOT NULL,   -- YYYY-MM-DD IST
-  fire_time   TEXT,            -- HH:MM IST, optional (default: morning routine)
-  channel_id  TEXT,            -- where to post the reminder
-  thread_ts   TEXT,            -- optional, if it's a thread continuation
-  body        TEXT NOT NULL,   -- markdown
-  created_by  TEXT NOT NULL,   -- Slack user ID
-  created_at  TEXT DEFAULT CURRENT_TIMESTAMP,
-  fired_at    TEXT,            -- NULL until the reminder fires; then ISO timestamp
-  status      TEXT DEFAULT 'pending'  -- pending / fired / cancelled
+  fire_date   TEXT NOT NULL,                  -- YYYY-MM-DD IST
+  fire_time   TEXT,                           -- HH:MM IST, optional
+  channel_id  TEXT,                           -- default C0B4HG16QP3 if NULL
+  thread_ts   TEXT,                           -- optional, for thread reply
+  body        TEXT NOT NULL,                  -- Slack mrkdwn
+  created_by  TEXT,                           -- Slack user ID or 'bot'
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  fired_at    TEXT,                           -- ISO ts once fired
+  status      TEXT NOT NULL DEFAULT 'pending' -- 'pending' | 'fired' | 'cancelled'
 );
 CREATE INDEX idx_reminders_pending ON reminders(fire_date, status);
 
 CREATE TABLE routine_runs (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  routine     TEXT NOT NULL,   -- 'daily', 'tasks-cleanup', etc.
-  started_at  TEXT NOT NULL,   -- ISO timestamp
-  ended_at    TEXT,            -- ISO timestamp on completion, NULL while running
+  routine     TEXT NOT NULL,
+  started_at  TEXT NOT NULL,
+  ended_at    TEXT,
   exit_code   INTEGER,
-  log_path    TEXT,            -- /tmp/rapidnative-coach-<routine>.log
-  notes       TEXT             -- optional one-line summary
+  log_path    TEXT,
+  notes       TEXT
 );
 CREATE INDEX idx_routine_runs_recent ON routine_runs(routine, started_at DESC);
 ```
 
-## Phase 3 helpers (proposed, to add to `_lib.sh`)
-
-```bash
-# Add a reminder
-add_reminder <fire_date> <body> [--time HH:MM] [--channel <id>] [--thread <ts>]
-# → INSERT INTO reminders ...
-
-# List pending reminders for today (or a date)
-list_reminders [<YYYY-MM-DD>]
-# → SELECT FROM reminders WHERE fire_date = ? AND status = 'pending'
-
-# Cancel a reminder
-cancel_reminder <id>
-
-# Log a routine run
-log_routine_start <name>  # → INSERT INTO routine_runs (started_at, routine) RETURNING id
-log_routine_end <id> <exit_code>  # → UPDATE routine_runs SET ended_at, exit_code WHERE id = ?
-
-# Query history
-last_run <routine>          # → SELECT MAX(started_at) WHERE routine = ?
-runs_today <routine>        # → COUNT(*) WHERE routine = ? AND DATE(started_at) = DATE('now')
-```
-
-## How current reminder mechanism works (Today, until Phase 3)
-
-`accountability/routines/daily.md` Step 0:
-
-```bash
-REMINDER_FILE="accountability/reminders/$(date +%F).md"
-if [ -f "$REMINDER_FILE" ]; then
-  {
-    echo "📌 *Reminders for today*"
-    echo
-    cat "$REMINDER_FILE"
-  } | accountability/routines/slack-post.sh C0B4HG16QP3 - >/dev/null
-fi
-```
-
-To add a reminder today, write a file at `accountability/reminders/YYYY-MM-DD.md`. The morning routine pings it.
-
-## Migration plan (Phase 3)
-
-1. Create the sqlite DB at `~/.config/claude/rapidnative-coach.sqlite` (if not already by `leave` migration).
-2. Backfill `reminders` from existing `accountability/reminders/*.md` files (one INSERT per existing file).
-3. Add the `_lib.sh` helpers above.
-4. Update `accountability/routines/daily.md` Step 0 to query sqlite instead of reading the .md file.
-5. Update any `add reminder` flow (TBD — needs design for how users add reminders via Slack).
-6. Once stable, delete `accountability/reminders/*.md`.
-
-## Anti-hallucination guards
-
-1. **Don't claim a routine fired without checking `routine_runs`** (after Phase 3) or `/tmp/<routine>.log` mtime (before Phase 3).
-2. **Don't assume a reminder will fire if it's not in the DB.** Check sqlite (post-Phase 3) or the .md file (pre-Phase 3).
-3. **All times are IST.** Don't quote in UTC unless explicitly asked.
-
 ## Related skills
 
-- All routines, indirectly — this skill is the substrate
-- `leave` — also writes to sqlite (Phase 3); shared DB
+- `leave` — also writes to the same DB (`leave_entries`, `holidays`)
+- All cron-fired routines — read and write `routine_runs` via the helpers above

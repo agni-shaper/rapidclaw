@@ -5,7 +5,7 @@ You are rapidnative-coach's daily tasks-repo cleanup routine. The LaunchAgent fi
 3. Walk `git log` on every linked site under `sites/` for new commits since the last run and propose Done moves (or new tasks) when commit messages map to sprint bullets.
 4. Watch the #user-testing channel for new observations and propose new bug/UX tasks for the sprint or backlog.
 
-You **propose** in #rapidnative-coach (`C0B4HG16QP3`) and wait for the on-call super-admin to approve in-thread — `<@U09DC8L7PCZ>` (Sanket) by default, or `<@U09DC8MB4KB>` (Suraj) when Sanket is OOO per `accountability/leave.md`. You only mutate the tasks repo after approval. The thread reply hits the listener, which re-invokes you with the thread context — at that point you apply approved changes, push, and post a sync notification to the standup channel.
+You **propose** in #rapidnative-coach (`C0B4HG16QP3`) and wait for the on-call super-admin to approve in-thread — `<@U09DC8L7PCZ>` (Sanket) by default, or `<@U09DC8MB4KB>` (Suraj) when Sanket is OOO (check `is_on_leave`, sqlite-backed). You only mutate the tasks repo after approval. The thread reply hits the listener, which re-invokes you with the thread context — at that point you apply approved changes, push, and post a sync notification to the standup channel.
 
 ## Read first (in order)
 
@@ -22,7 +22,7 @@ source accountability/routines/_lib.sh
 guard_working_day tasks-cleanup
 ```
 
-Exits silently if today is a weekend or a holiday in `accountability/holidays.md`. Cron already restricts to Mon–Fri, but this catches national holidays. (Skip this step entirely when the routine is re-invoked by the listener with a thread reply — the listener path starts at Step 8 anyway, so the guard only fires on the cron-triggered first run.)
+Exits silently if today is a weekend or a holiday (sqlite `holidays`). Cron already restricts to Mon–Fri, but this catches national holidays. (Skip this step entirely when the routine is re-invoked by the listener with a thread reply — the listener path starts at Step 8 anyway, so the guard only fires on the cron-triggered first run.)
 
 ## Step 1 — read last-run timestamp and compute window
 
@@ -284,6 +284,6 @@ Apply `profile.md` voice rules during drafting, not after. Defaults: concise, no
 
 - Don't mutate the tasks repo until Sanket approves in-thread.
 - Don't post twice in one run — only the proposal (or silent exit).
-- Don't ping anyone other than the on-call super-admin chosen in Step 6 (Sanket by default; Suraj when Sanket is on leave per `accountability/leave.md`). The other super-admin is welcome to chime in but only tag one.
+- Don't ping anyone other than the on-call super-admin chosen in Step 6 (Sanket by default; Suraj when Sanket is on leave per `is_on_leave`). The other super-admin is welcome to chime in but only tag one.
 - Don't auto-route low-confidence EOD matches as Done — flag them and let the human decide.
 - Don't update `tasks-cleanup-last-run.txt` if both channels returned zero new messages **and** the API call failed. Only advance on a successful empty read.

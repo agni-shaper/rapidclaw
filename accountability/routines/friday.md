@@ -11,7 +11,7 @@ source accountability/routines/_lib.sh
 guard_working_day friday
 ```
 
-If today is a holiday listed in `accountability/holidays.md`, skip the recap entirely — no `#marketing` post, no nudges. Cron handles weekends; this catches Fridays that are national holidays.
+If today is a holiday (sqlite `holidays`), skip the recap entirely — no `#marketing` post, no nudges. Cron handles weekends; this catches Fridays that are national holidays.
 
 ## Read first
 

@@ -1,12 +1,12 @@
 ---
 name: leave
-description: Team leave / OOO management. CRUD over `accountability/leave.md` + `accountability/holidays.md`. Authoritative for "is @X on leave today" lookups used by every team-facing routine.
+description: Team leave / OOO management. CRUD over sqlite `leave_entries` + `holidays` via shell scripts. Authoritative for "is @X on leave today" lookups used by every team-facing routine.
 when_to_load: |
   Load when ANY of the following:
   - User asks "who's on leave today?" / "is @X out?" / "when is @Y back?"
   - User says "@X is on leave from <date> to <date>" or "log a holiday on <date>"
   - A routine needs to check leave/holiday status programmatically (use `_lib.sh` helpers — they don't need to load this skill)
-  - User asks to move expired entries to the Past section
+  - User asks to remove/correct an entry
 voice_source: ../../profile.md
 ---
 
@@ -14,84 +14,83 @@ voice_source: ../../profile.md
 
 Single source of truth for *who's out* and *when the team is off*. Every team-facing routine consults this before pinging anyone.
 
-## Files this skill owns
+## Where the data lives
 
-| File | What it holds | Format |
-|---|---|---|
-| `accountability/leave.md` | Per-person OOO entries | `<@SLACK_ID> · YYYY-MM-DD to YYYY-MM-DD · note` (inclusive dates, IST) |
-| `accountability/holidays.md` | Team-wide holidays (national / company) | `- YYYY-MM-DD · short name` (IST, one date per line) |
+Sqlite DB at `~/.config/claude/rapidnative-coach.sqlite`, two tables:
 
-Both files have *Active* / *Upcoming* and *Past* sections. New entries go in *Active* / *Upcoming*; move to *Past* when convenient (no auto-prune).
+| Table | What it holds |
+|---|---|
+| `leave_entries` | Per-person OOO. Cols: `slack_id`, `start_date`, `end_date`, `note`, `status` (`active` \| `past`). Unique on `(slack_id, start_date, end_date)`. |
+| `holidays` | Team-wide holidays (national / company). Cols: `date` (PK), `name`, `region`, `status` (`upcoming` \| `past`). |
 
-## Shell helpers (already in `_lib.sh`)
+Dates are IST, inclusive on both ends. Removals are soft (`status='past'`) — never `DELETE`. The 2026-06-30 cutover removed the markdown projection files; sqlite is the only store.
 
-Skills + routines that just need a yes/no answer should use these — no need to read this SKILL.md:
+## Shell wrappers (use these — do not hand-write SQL)
+
+All in `accountability/routines/`:
+
+| Script | Purpose |
+|---|---|
+| `leave-add.sh <SLACK_ID> <start> <end> [note]` | Insert active leave entry. Accepts `<@U…>`, bare `U…`, or `@handle` (resolved via people.md). |
+| `leave-rm.sh <SLACK_ID> <start>` | Soft-delete: mark active entry as `past`. |
+| `leave-list.sh [--all | --on YYYY-MM-DD]` | Print active entries (default), all entries, or entries covering a date. |
+| `holiday-add.sh <date> <name> [region]` | Insert upcoming holiday. |
+| `holiday-rm.sh <date>` | Soft-delete: mark upcoming as `past`. |
+| `holiday-list.sh [--all]` | Print upcoming (default) or all. |
+
+## Shell helpers (already in `_lib.sh`) — for routines that just need a yes/no
 
 ```bash
 source accountability/routines/_lib.sh
 
-is_on_leave "<@U09LL9JTDM5>"     # → exit 0 if covered by today's IST date
-is_on_leave "<@U09LL9JTDM5>" 2026-06-12   # check specific date
-is_holiday                       # → exit 0 if today is in holidays.md
+is_on_leave "<@U09LL9JTDM5>"          # → exit 0 if covered by today's IST date
+is_on_leave "<@U09LL9JTDM5>" 2026-06-12  # check specific date
+is_holiday                            # → exit 0 if today is a holiday
 is_holiday 2026-08-15
-is_working_day                   # → exit 0 if weekday AND not a holiday
-guard_working_day my-routine     # exit 0 (skip) if not a working day; prints "skipping — …"
-n_working_days_ago 5             # → print the date N working days back (skips wknd + holidays)
+is_working_day                        # → exit 0 if weekday AND not a holiday
+guard_working_day my-routine          # exit 0 (skip) if not a working day; prints "skipping — …"
+n_working_days_ago 5                  # → print the date N working days back
 ```
 
-`is_on_leave` is the contract every routine that pings teammates honours. The morning routine, `eod-streak-check`, `tasks-cleanup`, `friday`, `biweekly-shoutouts`, `collabs-tuesday-update`, `gtm-weekly-pick` all call it (or `guard_working_day`) at Step 0.
+All sqlite-backed since 2026-06-30. Same exit-code contract as before; six v2 routines (`eod-streak-check`, `tasks-cleanup`, `friday`, `biweekly-shoutouts`, `collabs-tuesday-update`, `gtm-weekly-pick`) call them at Step 0.
 
 ## When the user asks "who's on leave today?"
 
-1. `source accountability/routines/_lib.sh` — gives access to `today_ist` + `is_on_leave`.
-2. For each person in `definitions/people.md` (roster), call `is_on_leave <@SLACK_ID>`.
-3. List those returning 0 with their leave note (parse the right line from `accountability/leave.md`).
-4. If nobody's out, say so plainly: "Nobody on leave today." Don't pad with filler.
+```bash
+accountability/routines/leave-list.sh
+```
+
+If nobody's out: say "Nobody on leave today." Don't pad with filler.
 
 ## When the user logs a new leave entry
 
-1. Format: `- <@SLACK_ID> · YYYY-MM-DD to YYYY-MM-DD · note (per @sanket | self)`
-2. Insert under `## Active` in `accountability/leave.md`. Keep entries date-ordered (earliest start date first).
-3. **Don't** mark the person inactive in any other file (e.g. `marketing/team.md`'s `active=true|false`). Short leave is `leave.md`-only. `active=false` in `marketing/team.md` is reserved for permanent crew changes.
+1. Resolve the teammate to a Slack ID (use `lookup_slack_id @handle` if needed).
+2. Convert any relative dates to absolute YYYY-MM-DD IST.
+3. Run:
+   ```bash
+   accountability/routines/leave-add.sh <SLACK_ID> <start> <end> "<note>"
+   ```
 4. Confirm back in the source thread with the parsed dates + duration ("logged @famitha out Jun 11-12, 2 days").
+5. *Don't* mark the person inactive in any other file (e.g. `marketing/team.md`'s `active=true|false`). Short leave is the leave table only. `active=false` in `marketing/team.md` is reserved for permanent crew changes.
 
 ## When a new holiday is announced
 
-1. Format: `- YYYY-MM-DD · short name (region if relevant)`
-2. Insert under `## Upcoming` in `accountability/holidays.md`, date-ordered.
-3. Multi-day breaks → one line per day.
-
-## Phase 3 sqlite — LIVE as of 2026-06-29
-
-The sqlite DB exists at `~/.config/claude/rapidnative-coach.sqlite` with the schema below. `_lib.sh` exposes `sqlite_is_on_leave <SID> [date]` + `sqlite_is_holiday [date]` with the same exit-code contract as the markdown helpers. Parity verified (markdown and sqlite return identical answers).
-
-Existing routines still call the markdown helpers (no behavior change). New skill-based code paths should prefer `sqlite_*` variants.
-
-```sql
--- ~/.config/claude/rapidnative-coach.sqlite (proposed schema)
-
-CREATE TABLE leave_entries (
-  slack_id  TEXT NOT NULL,
-  start_date TEXT NOT NULL,  -- YYYY-MM-DD IST
-  end_date   TEXT NOT NULL,
-  note       TEXT,
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_leave_dates ON leave_entries(start_date, end_date);
-
-CREATE TABLE holidays (
-  date  TEXT PRIMARY KEY,  -- YYYY-MM-DD IST
-  name  TEXT NOT NULL,
-  region TEXT  -- e.g. "India", "company", null = global
-);
+```bash
+accountability/routines/holiday-add.sh <date> "<name>" [region]
 ```
 
-After Phase 3:
+For multi-day breaks, call once per day. `region` is free text like "India" or "company"; null means global.
 
-- `_lib.sh` helpers (`is_on_leave`, `is_holiday`) query sqlite directly (faster, atomic, no grep over markdown).
-- `accountability/leave.md` and `accountability/holidays.md` become *projections* — auto-generated read-only views the team can eyeball. Source of truth is sqlite.
-- This SKILL.md updates to add `INSERT` / `UPDATE` examples in addition to markdown editing.
+## When the user wants to remove or correct an entry
+
+Soft-delete then re-add:
+```bash
+accountability/routines/leave-rm.sh <SLACK_ID> <start>     # mark past
+accountability/routines/leave-add.sh <SLACK_ID> <new_start> <new_end> "<note>"
+accountability/routines/holiday-rm.sh <date>
+```
+
+Soft-delete preserves audit trail. If the user explicitly asks for a hard delete, you can run `db_exec "DELETE FROM leave_entries WHERE …"` — but check with them first.
 
 ## Voice when reporting leave status
 
@@ -103,4 +102,5 @@ After Phase 3:
 
 - `eod-nudges` — reads `is_on_leave` before pinging missing-EOD teammates
 - `growth-marketing` — morning routine silently skips on-leave crew via `is_on_leave`
-- `task-management` (Phase 2) — tasks-cleanup skips assignments to anyone on leave
+- `task-management` — tasks-cleanup skips assignments to anyone on leave
+- `scheduler` — owns the `reminders` table in the same DB

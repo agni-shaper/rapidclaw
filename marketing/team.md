@@ -19,4 +19,4 @@ Format: `<@SLACK_ID>` · handle · active (true|false) · notes
 
 ## How leave works
 
-Don't mark someone `active=false` for short leave — use `accountability/leave.md` instead. The morning routine calls `is_on_leave <@SLACK_ID>` per crew member and silently skips anyone covered by today's IST date. Long-term reassignment (someone permanently leaves the crew) → flip `active=true` to `active=false` here.
+Don't mark someone `active=false` for short leave — run `accountability/routines/leave-add.sh <SLACK_ID> <start> <end> "<note>"` instead (it writes to the sqlite `leave_entries` table). The morning routine calls `is_on_leave <@SLACK_ID>` per crew member and silently skips anyone covered by today's IST date. Long-term reassignment (someone permanently leaves the crew) → flip `active=true` to `active=false` here.

@@ -7,7 +7,7 @@ source accountability/routines/_lib.sh
 guard_working_day gtm-weekly-pick
 ```
 
-Skip if today is a holiday in `accountability/holidays.md`. Cron handles weekends. NOTE: since this routine only fires Mondays, a holiday-Monday means this week's picks just don't drop automatically — a super-admin can re-run the routine manually (`accountability/routines/run.sh gtm-weekly-pick`) the next working day if needed.
+Skip if today is a holiday (sqlite `holidays`). Cron handles weekends. NOTE: since this routine only fires Mondays, a holiday-Monday means this week's picks just don't drop automatically — a super-admin can re-run the routine manually (`accountability/routines/run.sh gtm-weekly-pick`) the next working day if needed.
 
 ## Read first (in order)
 

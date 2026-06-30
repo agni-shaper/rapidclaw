@@ -11,18 +11,32 @@ You are running the morning routine for rapidnative-coach. The LaunchAgent fires
 
 ## Step 0 — surface any reminders scheduled for today
 
-Before anything else, check `accountability/reminders/$(date +%F).md`. If it exists, post the contents to #rapidnative-coach as a top-level message under a *📌 Reminders for today* header (pings inside the file are already in `<@U…>` form). If the file doesn't exist, skip silently — do not post anything.
+Before anything else, query the sqlite `reminders` table for pending entries whose `fire_date` is today (IST). For each, post the body to the row's `channel_id` (default `C0B4HG16QP3` #rapidnative-coach) under a *📌 Reminders for today* header, then mark the row `status='fired'`.
+
+Use the shell helpers — do not hand-write SQL in this prompt.
 
 ```bash
-REMINDER_FILE="accountability/reminders/$(date +%F).md"
-if [ -f "$REMINDER_FILE" ]; then
+source accountability/routines/_lib.sh
+TODAY=$(today_ist)
+PENDING_IDS=$(db_query "SELECT id FROM reminders WHERE fire_date='$TODAY' AND status='pending' ORDER BY COALESCE(fire_time,'');")
+
+for id in ${(f)PENDING_IDS}; do
+  [ -z "$id" ] && continue
+  CHANNEL=$(db_query "SELECT COALESCE(channel_id, 'C0B4HG16QP3') FROM reminders WHERE id=$id;")
+  THREAD=$(db_query  "SELECT COALESCE(thread_ts, '') FROM reminders WHERE id=$id;")
+  BODY=$(db_query    "SELECT body FROM reminders WHERE id=$id;")
   {
     echo "📌 *Reminders for today*"
     echo
-    cat "$REMINDER_FILE"
-  } | accountability/routines/slack-post.sh C0B4HG16QP3 - >/dev/null
-fi
+    echo "$BODY"
+  } | accountability/routines/slack-post.sh "$CHANNEL" "${THREAD:--}" >/dev/null
+  db_exec "UPDATE reminders SET status='fired', fired_at=datetime('now') WHERE id=$id;"
+done
 ```
+
+If there are no pending reminders for today, skip silently — do not post anything.
+
+To schedule a reminder for a future date: `accountability/routines/reminder-add.sh <date> "<body>" --by <SLACK_ID>`.
 
 This step is independent of the rest of the routine — even if the morning push has nothing to surface, the reminders still go out.
 

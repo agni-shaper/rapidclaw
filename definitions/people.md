@@ -36,11 +36,9 @@
 
 ## Leave
 
-Day-by-day OOO entries live in [`../accountability/leave.md`](../accountability/leave.md). Helpers `is_on_leave <@SLACK_ID>` and `is_working_day` in [`../accountability/routines/_lib.sh`](../accountability/routines/_lib.sh) read from there.
+Day-by-day OOO entries and team-wide holidays live in the sqlite DB at `~/.config/claude/rapidnative-coach.sqlite` (tables `leave_entries` and `holidays`). Helpers `is_on_leave <@SLACK_ID>`, `is_holiday`, and `is_working_day` in [`../accountability/routines/_lib.sh`](../accountability/routines/_lib.sh) query the DB.
 
-Holidays (whole-team) live in [`../accountability/holidays.md`](../accountability/holidays.md).
-
-(Both files will move to sqlite during Phase 3 of the architecture refactor — see `drafts/2026-06-25-architecture-refactor/plan.md`.)
+CRUD via shell wrappers in `accountability/routines/`: `leave-add.sh`, `leave-rm.sh`, `leave-list.sh`, `holiday-add.sh`, `holiday-rm.sh`, `holiday-list.sh`. Driven by the `leave` skill at `.claude/skills/leave/SKILL.md`.
 
 ## Maintenance
 

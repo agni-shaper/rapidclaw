@@ -7,7 +7,7 @@ source accountability/routines/_lib.sh
 guard_working_day collabs-tuesday-update
 ```
 
-Skip if today is a holiday in `accountability/holidays.md` (no `#collabs-and-partnerships` post on holidays). Cron already pins this to Tuesday.
+Skip if today is a holiday (sqlite `holidays`) — no `#collabs-and-partnerships` post on holidays. Cron already pins this to Tuesday.
 
 ## Read first
 

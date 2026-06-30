@@ -11,7 +11,7 @@ The fix: move the posting + enrichment logic into a deterministic Python helper 
 `gen-marketing-morning.py`:
 1. Working-day + idempotency guard (refuses to run on weekends, holidays, or if today's sentinel already exists)
 2. Parses `marketing/sprint.md` for today's templates
-3. Reads `marketing/team.md`, filters to `active=true` and not-on-leave (via `accountability/leave.md`)
+3. Reads `marketing/team.md`, filters to `active=true` and not-on-leave (via sqlite `leave_entries` / `is_on_leave`)
 4. Reads `marketing/accounts.md`, `marketing/rotation.md`, `marketing/evening-tasks.md` carryover
 5. Loads `marketing/.state/recon-${TODAY}.json` (engagement findings + personal drafts + article drafts)
 6. Loads `marketing/.state/blog-amplification-${TODAY}.md` (or yesterday's) for the synthetic blog task

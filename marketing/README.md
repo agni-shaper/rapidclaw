@@ -67,7 +67,7 @@ Unmarked tasks per crew member roll into tomorrow's carryover queue **at the tas
 
 **Update the sprint.** Friday afternoon: open `sprint.md`, replace next week's date headings, list template IDs per day. The routine refuses to run if today's date isn't a heading.
 
-**Mark someone on leave.** Add a line to `accountability/leave.md` (the org-wide leave file, NOT a marketing-local one). The morning routine calls `is_on_leave` and skips them silently.
+**Mark someone on leave.** Run `accountability/routines/leave-add.sh <SLACK_ID> <start> <end> "<note>"` (writes to the org-wide sqlite `leave_entries` table — no marketing-local store). The morning routine calls `is_on_leave` and skips them silently.
 
 **Add a new platform.** Edit `task-templates.md` (new `TPL-FOO` block) → add a `FOO` row in every person's `accounts.md` table → reference `TPL-FOO` in `sprint.md` on whichever day it should fire.
 
@@ -83,7 +83,7 @@ The EOD post is a thread-reply on the AM message — short recap (N done / M car
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| 07:00 came + went, no Slack post | Holiday or weekend | Check `accountability/holidays.md`; weekends are intentional |
+| 07:00 came + went, no Slack post | Holiday or weekend | Check `accountability/routines/holiday-list.sh`; weekends are intentional |
 | Post lands but no `🔗` / `💬` sub-lines | Recon didn't run, or ran and found nothing | Check `marketing/.state/recon-<today>.json` exists; if missing check `/tmp/rapidnative-coach-marketing-recon.log` |
 | Some platforms enriched, others not | Recon scrape failed for those platforms (likely Quora/LinkedIn/X login lapsed) | `browser-open.sh https://<platform>/` and log in once; cookies persist |
 | "Today's date not found in sprint.md" | Sprint not rolled forward | Edit `sprint.md` to add today's date heading |
@@ -110,7 +110,7 @@ accountability/routines/run.sh marketing-evening
 This system **reuses** the existing rapidnative-coach plumbing — no new infrastructure:
 
 - Slack: `accountability/routines/slack-post.sh`, bot token at `~/.config/claude/${BOT_SLUG}-slack-bot-token`
-- Leave: `accountability/leave.md` (the canonical org-wide file)
+- Leave: sqlite `leave_entries` table (the canonical org-wide store); CRUD via `accountability/routines/leave-{add,rm,list}.sh`
 - Working-day / holiday: `accountability/routines/_lib.sh` (`guard_working_day`, `is_on_leave`)
 - Team roster: `~/.claude/projects/-Users-agni-Documents-rapidclaw/memory/project_team_roster.md`
 - Scheduler: launchd plists in `launchd/`, auto-loaded by `launchd/install.sh`

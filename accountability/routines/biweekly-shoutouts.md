@@ -7,7 +7,7 @@ source accountability/routines/_lib.sh
 guard_working_day biweekly-shoutouts
 ```
 
-Skip if today is a holiday in `accountability/holidays.md` (no shoutout post on a day the team isn't around to see it). Cron handles weekends.
+Skip if today is a holiday (sqlite `holidays`) — no shoutout post on a day the team isn't around to see it. Cron handles weekends.
 
 ## Read first
 

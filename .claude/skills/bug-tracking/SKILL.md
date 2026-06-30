@@ -73,8 +73,8 @@ Each becomes a proposed row in the tasks-cleanup proposal; approval applies all 
 
 ## Migration status
 
-- **Today:** runs as part of `tasks-cleanup` (no separate routine). `sites/tasks/intake/bugs.md` is the existing DB.
-- **Phase 3:** sqlite `bug_reports` table; `bugs.md` becomes a projection.
+- **Today:** runs as part of `tasks-cleanup` (no separate routine). `sites/tasks/intake/bugs.md` is the source of truth.
+- **Storage:** stays md-only. The empty `bug_reports` sqlite table was dropped 2026-06-30 — mirroring `bugs.md` into coach's local sqlite would split the bug DB across two stores. The tasks repo already provides git-audited history and `[[wiki-links]]` to task pages.
 
 ## Related skills
 

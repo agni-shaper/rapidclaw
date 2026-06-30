@@ -217,6 +217,6 @@ Don't touch `morning-tasks.md` (tomorrow morning's job). Don't delete the sentin
 ## Constraints
 
 - Don't read or write outside `marketing/` + `/tmp/`.
-- Don't touch `accountability/leave.md` or `holidays.md` — read-only.
+- Don't write to the sqlite `leave_entries` / `holidays` tables from this routine — read-only via `is_on_leave` / `is_holiday`.
 - EOD recap is a single top-level post in #marketing-automation (no thread parent — morning routine no longer creates one).
 - The `BOT_USER_ID` for skipping bot replies is in `.env` (auto-sourced via `_lib.sh`). If not set, use `bot_id` field presence as the bot-detection signal.

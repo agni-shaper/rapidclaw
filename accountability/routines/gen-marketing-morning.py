@@ -21,6 +21,7 @@ import datetime
 import json
 import os
 import re
+import sqlite3
 import sys
 import time
 import urllib.parse
@@ -31,6 +32,7 @@ from typing import Optional
 PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
 CHANNEL_ID = "C0BBQ7PV34N"
 TOKEN_PATH = Path.home() / ".config" / "claude" / "rapidnative-coach-slack-bot-token"
+DB_PATH = Path.home() / ".config" / "claude" / "rapidnative-coach.sqlite"
 
 
 # ─────────────────────────── DATES + GUARDS ───────────────────────────
@@ -54,31 +56,27 @@ def is_weekend(date_str: str) -> bool:
 
 
 def is_holiday(date_str: str) -> bool:
-    path = PROJECT_DIR / "accountability" / "holidays.md"
-    if not path.exists():
+    if not DB_PATH.exists():
         return False
-    return bool(re.search(rf"^- {re.escape(date_str)} ", path.read_text(), re.MULTILINE))
+    with sqlite3.connect(DB_PATH) as conn:
+        cur = conn.execute(
+            "SELECT 1 FROM holidays WHERE date=? AND status='upcoming' LIMIT 1",
+            (date_str,),
+        )
+        return cur.fetchone() is not None
 
 
 def is_on_leave(slack_id: str, date_str: str) -> bool:
-    path = PROJECT_DIR / "accountability" / "leave.md"
-    if not path.exists():
+    if not DB_PATH.exists():
         return False
     sid = slack_id.strip("<>@`")
-    in_active = False
-    for line in path.read_text().splitlines():
-        if line.strip().startswith("## Active"):
-            in_active = True
-            continue
-        if line.startswith("##") and in_active:
-            break
-        if not in_active:
-            continue
-        if sid in line:
-            m = re.search(r"(\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})", line)
-            if m and m.group(1) <= date_str <= m.group(2):
-                return True
-    return False
+    with sqlite3.connect(DB_PATH) as conn:
+        cur = conn.execute(
+            "SELECT 1 FROM leave_entries WHERE slack_id=? AND status='active' "
+            "AND ? BETWEEN start_date AND end_date LIMIT 1",
+            (sid, date_str),
+        )
+        return cur.fetchone() is not None
 
 
 def week_of_month(date_str: str) -> int:
@@ -780,7 +778,7 @@ def write_snapshot(sentinel: dict, today: str, wlabel: str, on_leave: list):
     out.append("")
     if on_leave:
         for m in on_leave:
-            out.append(f"- <@{m['slack_id']}> {m['handle']} — covered by accountability/leave.md")
+            out.append(f"- <@{m['slack_id']}> {m['handle']} — covered by sqlite leave_entries")
     else:
         out.append("- _nobody_")
     out.append("")
