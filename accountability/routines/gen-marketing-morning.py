@@ -124,25 +124,37 @@ def slack_post(text: str, thread_ts: Optional[str] = None) -> Optional[str]:
 
 
 def parse_team() -> list:
-    """Return [{slack_id, handle, active}] for Active section of team.md."""
-    path = PROJECT_DIR / "marketing" / "team.md"
+    """Return [{slack_id, handle, active}]. Crew handles come from accounts.md
+    section headers (`## @handle`); Slack IDs are resolved via definitions/people.md.
+    Anyone in accounts.md is treated as active — leave is filtered separately."""
+    accounts_path = PROJECT_DIR / ".claude" / "skills" / "growth-marketing" / "references" / "accounts.md"
+    people_path = PROJECT_DIR / "definitions" / "people.md"
+
+    handles = []
+    for line in accounts_path.read_text().splitlines():
+        m = re.match(r"^## (@\w+)", line.strip())
+        if m:
+            handles.append(m.group(1))
+
+    slack_id_by_handle: dict = {}
+    for line in people_path.read_text().splitlines():
+        m = re.match(r"^\|\s*`(@\w+)`\s*\|[^|]*\|[^|]*\|[^|]*\|\s*`([A-Z0-9]+)`\s*\|", line)
+        if m:
+            slack_id_by_handle[m.group(1)] = m.group(2)
+
     out = []
-    in_active = False
-    for line in path.read_text().splitlines():
-        if line.strip().startswith("## Active"):
-            in_active = True
+    for h in handles:
+        sid = slack_id_by_handle.get(h)
+        if not sid:
+            print(f"WARN: {h} in accounts.md has no Slack ID in definitions/people.md — skipping", file=sys.stderr)
             continue
-        if line.startswith("##") and in_active:
-            break
-        m = re.match(r"^- `<@([A-Z0-9]+)>` · (@\w+) · active=(true|false)", line.strip())
-        if m and in_active:
-            out.append({"slack_id": m.group(1), "handle": m.group(2), "active": m.group(3) == "true"})
+        out.append({"slack_id": sid, "handle": h, "active": True})
     return out
 
 
 def parse_sprint(date_str: str) -> list[str]:
     """Return [TPL-IDs] for today's section in sprint.md, [] if not found."""
-    path = PROJECT_DIR / "marketing" / "sprint.md"
+    path = PROJECT_DIR / ".claude" / "skills" / "growth-marketing" / "references" / "sprint.md"
     if not path.exists():
         return []
     in_today = False
@@ -168,7 +180,7 @@ def parse_accounts() -> dict:
       ...
     These named personas are used across ALL platforms.
     """
-    path = PROJECT_DIR / "marketing" / "accounts.md"
+    path = PROJECT_DIR / ".claude" / "skills" / "growth-marketing" / "references" / "accounts.md"
     out: dict = {}
     current = None
     for line in path.read_text().splitlines():
@@ -188,7 +200,7 @@ def parse_accounts() -> dict:
 
 def parse_rotation_offsets() -> dict:
     """Return {platform: int_offset}."""
-    path = PROJECT_DIR / "marketing" / "rotation.md"
+    path = PROJECT_DIR / ".claude" / "skills" / "growth-marketing" / "references" / "rotation.md"
     out = {}
     in_table = False
     for line in path.read_text().splitlines():
