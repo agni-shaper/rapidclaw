@@ -22,7 +22,7 @@ This SKILL.md is deliberately a **dispatcher** — it tells you which sub-skill 
 
 | Sub-skill | Read when… | Loaded by (cron / manual) |
 |---|---|---|
-| [`social-engagement/`](social-engagement/SKILL.md) | Daily social distribution — HN, Reddit, Quora, LinkedIn, X, dev.to, GFG, Hashnode, Substack, Vocal, Facebook. Persona rotations, engagement drafts, sprint templates. | `marketing-recon` (06:00), `marketing-morning` (07:00), `marketing-evening` (19:30) Mon–Fri · `gtm-weekly-pick` · `biweekly-shoutouts` |
+| [`social-engagement/`](social-engagement/SKILL.md) | Daily social distribution orchestrator + shared mechanics (persona rotations, sprint parsing, task-template rendering). Itself splits into three per-product sub-skills (loaded on demand): [`social-engagement-rapidnative`](social-engagement/social-engagement-rapidnative/SKILL.md), [`social-engagement-applighter`](social-engagement/social-engagement-applighter/SKILL.md), [`social-engagement-letsdeployit`](social-engagement/social-engagement-letsdeployit/SKILL.md). | `marketing-recon` (06:00), `marketing-morning` (07:00), `marketing-evening` (19:30) Mon–Fri · `gtm-weekly-pick` · `biweekly-shoutouts` |
 | [`newsletter/`](newsletter/SKILL.md) | Cross-product newsletter cycle — prep, draft, approve, send. Sources from `drafts/newsletter-next/items.md`. | manual (no cron yet — pending Sanket's answers on cadence + send tool) |
 | [`weekly-wrap/`](weekly-wrap/SKILL.md) | Friday recap composer — what shipped + key metrics across all 3 products. | `cross-channel/weekly-wrap.md` (invoked on-demand from Slack) |
 | [`blogs/`](blogs/SKILL.md) | Blog authoring + amplification (currently placeholder; real routines still ad-hoc). | `blog-internal` (12:00), `blog-external` (11:00) Mon–Fri |

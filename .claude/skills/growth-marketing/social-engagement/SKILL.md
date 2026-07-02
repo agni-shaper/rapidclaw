@@ -15,6 +15,27 @@ The daily social-distribution spine of `growth-marketing`. Everything that reads
 
 For higher-level umbrella concerns (brand voice per-product, cross-sub-skill invariants), read the parent [`../SKILL.md`](../SKILL.md).
 
+## Sub-skill map (since 2026-07-02)
+
+social-engagement is itself an orchestrator over three per-product sub-skills. LLM-facing product voice lives in each sub-skill; shared mechanics (persona rotation, sprint parsing, task-template rendering) stay here.
+
+| Sub-skill | Read when… |
+|---|---|
+| [`social-engagement-rapidnative/`](social-engagement-rapidnative/SKILL.md) | Today's sprint has a `### RapidNative` block · user asks about RN social copy · marketing-recon scrapes for RN |
+| [`social-engagement-applighter/`](social-engagement-applighter/SKILL.md) | Today's sprint has a `### Applighter` block · user asks about Applighter social copy · marketing-recon scrapes for Applighter |
+| [`social-engagement-letsdeployit/`](social-engagement-letsdeployit/SKILL.md) | Today's sprint has a `### LetsDeployIt` block · user asks about LDI social copy · marketing-recon scrapes for LDI |
+
+**Loading rule for the orchestrator:** read THIS SKILL.md first (shared mechanics), then read the sub-skill(s) for the product(s) in today's slate. Don't load sub-skills you don't need — token cost adds up when the sprint touches all 3.
+
+**Loading rule for ad-hoc user asks:** if the user names one product, load that sub-skill only. If they name multiple or say "our socials", load all three plus this parent.
+
+Nested SKILL.md files aren't auto-discovered by the Claude Code harness — they surface only when this parent points at them (via the map above) or when the invoking routine reads them directly.
+
+## Runtime status (Phase 1 vs. Phase 2)
+
+- **Phase 1 (2026-07-02):** the 3 sub-skill SKILL.md files exist as LLM-facing docs. The daily fire is still done by `gen-marketing-morning.py` reading `references/products/<slug>.md` directly. No behavior change in cron — this is a docs-only structural split.
+- **Phase 2 (planned):** shell wrappers `create-social-eng-task.sh --product <slug>` and `create-blog-task.sh` invoke the Python engine per product AND persist each generated task to sqlite via `tasks.sh add ... --category=marketing --product=<slug> --notify` (or batched summary). Marketing tasks become sqlite-native; marketing-evening reads sqlite for done-claims instead of parsing Slack threads.
+
 ## Read these before doing any work
 
 The skill itself is a thin orchestrator. Real content lives in scoped reference files — load only what the current task needs.
