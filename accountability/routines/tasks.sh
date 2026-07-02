@@ -9,7 +9,7 @@
 # The dispatcher adds:
 #   - JSON output mode  (--json)             for programmatic callers
 #   - Slack notification (--notify)          fires slack-post.sh with a summary
-#   - Custom notify channel (--channel <id>) default is #rapidnative-coach
+#   - Custom notify channel (--channel <id>) default is #tasks (C0ASK9520JG)
 #
 # ═══════════════════════════════════════════════════════════════════════════
 # USAGE
@@ -47,7 +47,7 @@ SCRIPT_PATH="${0:A}"
 HERE="${SCRIPT_PATH:h}"
 source "$HERE/_lib.sh"
 
-BOT_HOME_CHANNEL="C0B4HG16QP3"   # #rapidnative-coach
+TASK_NOTIFY_CHANNEL="C0ASK9520JG"   # #tasks — default channel for task assignments
 
 show_help() {
   sed -n '/^# USAGE/,/^# EXIT CODES/p' "$SCRIPT_PATH" | sed 's/^# \{0,1\}//'
@@ -58,7 +58,7 @@ extract_global_flags() {
   # Reads $@; sets globals FORMAT, NOTIFY, CHANNEL; assigns REMAINING array.
   FORMAT="text"
   NOTIFY=0
-  CHANNEL="$BOT_HOME_CHANNEL"
+  CHANNEL="$TASK_NOTIFY_CHANNEL"
   REMAINING=()
   while [ $# -gt 0 ]; do
     case "$1" in

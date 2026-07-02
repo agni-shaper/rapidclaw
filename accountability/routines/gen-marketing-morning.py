@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Optional
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
-CHANNEL_ID = "C0BBQ7PV34N"
+CHANNEL_ID = "C0ASK9520JG"   # #tasks (was #marketing-automation C0BBQ7PV34N until 2026-07-02)
 TOKEN_PATH = Path.home() / ".config" / "claude" / "rapidnative-coach-slack-bot-token"
 DB_PATH = Path.home() / ".config" / "claude" / "rapidnative-coach.sqlite"
 
@@ -110,7 +110,7 @@ def get_token() -> str:
 
 
 def slack_post(text: str, thread_ts: Optional[str] = None) -> Optional[str]:
-    """Post to #marketing-automation. Returns ts on success, None on failure."""
+    """Post to #tasks (default). Returns ts on success, None on failure."""
     payload: dict = {"channel": CHANNEL_ID, "text": text, "mrkdwn": True}
     if thread_ts:
         payload["thread_ts"] = thread_ts
@@ -318,6 +318,61 @@ def load_recon(date_str: str) -> dict:
         # Legacy shape — wrap
         return {"rapidnative": data}
     return {}
+
+
+def insert_task_sqlite(task: dict, member: dict, today: str, wlabel: str, task_ts: Optional[str]) -> Optional[int]:
+    """Persist a marketing-morning-generated task row into sqlite `tasks` — the
+    centralized task DB. Every task the helper posts to Slack also lands here as
+    an `open` row so the evening routine (and any other consumer) can query it
+    via `tasks.sh list --category marketing --due <today>`.
+
+    Fields:
+      - title:    the human-readable bullet
+      - assignee: crew member's Slack ID
+      - status:   'open'
+      - priority: 'normal' (uniform for now; future: derive from template shape)
+      - category: 'marketing'
+      - product:  the fan-out product tag ('rapidnative' | 'applighter' | 'letsdeployit')
+      - source:   'marketing-morning:<YYYY-MM-DD>:<TPL-ID>'
+      - due_date: today (same-day social distribution)
+      - metadata: JSON — template_id, platform, pool, section, week_label,
+                        slack_thread_ts (for evening reconciliation)
+
+    Returns the new row id on success, None on failure. Never raises — Slack
+    posting continues even if sqlite is down.
+    """
+    if not DB_PATH.exists():
+        return None
+    product = task.get("product") or "rapidnative"
+    if product not in PRODUCT_SLUGS:
+        product = "rapidnative"
+    tpl_id = task.get("template_id") or "unknown"
+    metadata = {
+        "template_id": tpl_id,
+        "platform": task.get("platform"),
+        "pool": list(task["pool"]) if task.get("pool") else None,
+        "section": task.get("section"),
+        "week_label": wlabel,
+        "slack_thread_ts": task_ts,
+    }
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cur = conn.execute(
+                "INSERT INTO tasks (title, assignee, status, priority, category, product, source, due_date, metadata) "
+                "VALUES (?, ?, 'open', 'normal', 'marketing', ?, ?, ?, ?)",
+                (
+                    task["bullet"],
+                    member["slack_id"],
+                    product,
+                    f"marketing-morning:{today}:{tpl_id}",
+                    today,
+                    json.dumps(metadata),
+                ),
+            )
+            return cur.lastrowid
+    except Exception as e:
+        print(f"  [sqlite-err] insert failed for {member['handle']}: {e}", file=sys.stderr)
+        return None
 
 
 def load_blog_cache(date_str: str) -> Optional[dict]:
@@ -796,9 +851,12 @@ def number_tasks(tasks: list) -> list:
 # ─────────────────────────── POST LOOP ───────────────────────────
 
 
-def post_for_crew(member: dict, tasks: list, wlabel: str, dry_run: bool) -> dict:
-    """Post header + all tasks (with enrichment) for one crew member.
-    Returns {handle, header_ts, tasks: {Tid: ts}, posted, enriched, failed}.
+def post_for_crew(member: dict, tasks: list, wlabel: str, today: str, dry_run: bool) -> dict:
+    """Post header + all tasks (with enrichment) for one crew member; also
+    persist each task to sqlite `tasks` (the centralized DB) so downstream
+    consumers (evening routine, task-list.sh, etc.) can see them.
+
+    Returns {handle, header_ts, tasks: {Tid: ts}, posted, enriched, failed, sqlite_rows}.
     """
     sid = member["slack_id"]
     handle = member["handle"]
@@ -833,7 +891,7 @@ def post_for_crew(member: dict, tasks: list, wlabel: str, dry_run: bool) -> dict
             return {"handle": handle, "header_ts": None, "tasks": {}, "posted": 0, "enriched": 0, "failed": 1}
         time.sleep(0.3)
 
-    result = {"handle": handle, "header_ts": header_ts, "tasks": {}, "posted": 0, "enriched": 0, "failed": 0}
+    result = {"handle": handle, "header_ts": header_ts, "tasks": {}, "posted": 0, "enriched": 0, "failed": 0, "sqlite_rows": 0}
 
     for task in tasks:
         tid = task["id"]
@@ -860,6 +918,13 @@ def post_for_crew(member: dict, tasks: list, wlabel: str, dry_run: bool) -> dict
 
         result["tasks"][tid] = task_ts
         result["posted"] += 1
+
+        # Persist to sqlite `tasks` (the centralized DB) — skip in dry-run
+        if not dry_run:
+            row_id = insert_task_sqlite(task, member, today, wlabel, task_ts)
+            if row_id:
+                result["sqlite_rows"] += 1
+                task["sqlite_id"] = row_id
 
         # Enrichment
         enrichment = build_enrichment(task)
@@ -1037,7 +1102,7 @@ def main():
         if not tasks:
             continue
         print(f">>> posting for {m['handle']} ({len(tasks)} tasks)")
-        result = post_for_crew(m, tasks, wlabel, args.dry_run)
+        result = post_for_crew(m, tasks, wlabel, today, args.dry_run)
         sentinel["crews"][sid] = {
             "handle": result["handle"],
             "header_ts": result["header_ts"],
@@ -1046,7 +1111,8 @@ def main():
         total_posted += result["posted"]
         total_enriched += result["enriched"]
         total_failed += result["failed"]
-        print(f"    posted={result['posted']}, enriched={result['enriched']}, failed={result['failed']}")
+        total_sqlite = locals().get("total_sqlite", 0) + result.get("sqlite_rows", 0)
+        print(f"    posted={result['posted']}, enriched={result['enriched']}, sqlite_rows={result.get('sqlite_rows', 0)}, failed={result['failed']}")
 
     if args.dry_run:
         print()
@@ -1066,10 +1132,11 @@ def main():
 
     print()
     print("=== RUN SUMMARY ===")
-    print(f"crews posted: {len(sentinel['crews'])}")
-    print(f"tasks posted: {total_posted}")
-    print(f"enrichments: {total_enriched}")
-    print(f"failures:    {total_failed}")
+    print(f"crews posted:  {len(sentinel['crews'])}")
+    print(f"tasks posted:  {total_posted}")
+    print(f"sqlite rows:   {locals().get('total_sqlite', 0)}")
+    print(f"enrichments:   {total_enriched}")
+    print(f"failures:      {total_failed}")
     return 0
 
 

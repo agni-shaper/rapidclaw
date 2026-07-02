@@ -452,7 +452,7 @@ db_exec "INSERT OR REPLACE INTO marketing_recon (recon_date, platforms, findings
 
 Recon is **silent and side-effect-free** except for the cache file + sqlite row. Don't post to Slack. Don't update `morning-tasks.md`. Don't touch `tracker.md`.
 
-If you want a one-line status post for debugging, post it as a thread reply under the most recent #marketing-automation post (look up the morning sentinel). **Don't post a new top-level message** — that pollutes the channel.
+If you want a one-line status post for debugging, post it as a thread reply under the most recent #tasks post (look up the morning sentinel). **Don't post a new top-level message** — that pollutes the channel.
 
 ## Step 4 — log routine end
 

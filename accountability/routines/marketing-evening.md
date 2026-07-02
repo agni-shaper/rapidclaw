@@ -64,7 +64,7 @@ for crew in sentinel.crews:
     for task_id, task_ts in crew.tasks:
         OUT="/tmp/marketing-evening-${SLACK_ID}-${task_id}.json"
         curl -fsS -H "Authorization: Bearer $TOKEN" \
-          "https://slack.com/api/conversations.replies?channel=C0BBQ7PV34N&ts=${task_ts}&limit=50" \
+          "https://slack.com/api/conversations.replies?channel=C0ASK9520JG&ts=${task_ts}&limit=50" \
           > "$OUT" \
           || mark_task_lookup_failed(crew, task_id)
 ```
@@ -184,10 +184,10 @@ echo "DRY_RUN_FLAG='$DRY_RUN_FLAG'"
 
 **If `DRY_RUN_FLAG` is exactly the string `1`:** print the EOD recap to stdout (don't post, don't write tracker rows, don't write `evening-tasks.md`).
 
-**Any other value:** post one top-level EOD recap message to `#marketing-automation` (`C0BBQ7PV34N`). **Do not hedge** based on time of day or test feel.
+**Any other value:** post one top-level EOD recap message to `#tasks` (`C0ASK9520JG`). **Do not hedge** based on time of day or test feel.
 
 ```bash
-accountability/routines/slack-post.sh C0BBQ7PV34N <<EOF
+accountability/routines/slack-post.sh C0ASK9520JG <<EOF
 *EOD recap — ${TODAY}*
 
 ${TOTAL_DONE}/${TOTAL_ASSIGNED} tasks done · ${CARRYOVER_COUNT} rolling forward · ${ON_LEAVE_COUNT} on leave
@@ -220,7 +220,7 @@ Don't touch `marketing/morning-tasks.md` (tomorrow morning's job). Don't delete 
 
 - Don't read or write outside `marketing/` + `/tmp/`.
 - Don't write to the sqlite `leave_entries` / `holidays` tables from this routine — read-only via `is_on_leave` / `is_holiday`.
-- EOD recap is a single top-level post in `#marketing-automation` (no thread parent — morning routine no longer creates one).
+- EOD recap is a single top-level post in `#tasks` (no thread parent — morning routine no longer creates one).
 - The `BOT_USER_ID` for skipping bot replies is in `.env` (auto-sourced via `_lib.sh`). If not set, use `bot_id` field presence as the bot-detection signal.
 
 ## Failure modes
