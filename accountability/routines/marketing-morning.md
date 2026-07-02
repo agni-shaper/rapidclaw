@@ -5,9 +5,9 @@ You are rapidnative-coach's marketing-automation **morning** routine. LaunchAgen
 1. `channels/marketing.md` (and `marketing-automation` if a persona file is added later) — voice
 2. `COMPANY.md` — Shaper Studio identity
 3. `.claude/skills/growth-marketing/SKILL.md` — voice + composition rules
-4. `.claude/skills/growth-marketing/references/{accounts,rotation,strategies/*}.md` — per-crew accounts + this week's rotation pool
-5. `.claude/skills/growth-marketing/references/sprint.md` — today's section drives task selection
-6. `.claude/skills/growth-marketing/references/task-templates.md` — TPL-* → rendered bullet
+4. `.claude/skills/growth-marketing/social-engagement/references/{accounts,rotation,strategies/*}.md` — per-crew accounts + this week's rotation pool
+5. `.claude/skills/growth-marketing/social-engagement/references/sprint.md` — today's section drives task selection
+6. `.claude/skills/growth-marketing/social-engagement/references/task-templates.md` — TPL-* → rendered bullet
 7. `marketing/.state/recon-$(today_ist).json` — recon cache (enrichment source)
 8. `marketing/.state/blog-amplification-YYYY-MM-DD.md` — latest blog to amplify
 
@@ -69,9 +69,9 @@ fi
 The helper:
 
 1. Working-day + idempotency guard (refuses to run on weekends, holidays, or if today's sentinel exists)
-2. Parses `.claude/skills/growth-marketing/references/sprint.md` for today's templates
+2. Parses `.claude/skills/growth-marketing/social-engagement/references/sprint.md` for today's templates
 3. Reads `definitions/people.md`, filters to `active=true` and not-on-leave (via sqlite `leave_entries` / `is_on_leave`)
-4. Reads `.claude/skills/growth-marketing/references/accounts.md`, `.claude/skills/growth-marketing/references/rotation.md`, `marketing/evening-tasks.md` carryover
+4. Reads `.claude/skills/growth-marketing/social-engagement/references/accounts.md`, `.claude/skills/growth-marketing/social-engagement/references/rotation.md`, `marketing/evening-tasks.md` carryover
 5. Loads `marketing/.state/recon-${TODAY}.json` (engagement findings + personal drafts + article drafts)
 6. Loads `marketing/.state/blog-amplification-${TODAY}.md` (or yesterday's) for the synthetic blog task
 7. For each working crew member: posts ONE header message, then each task as its own top-level message, then enrichment as a threaded reply per a hard-coded enrichment table inside the script

@@ -45,7 +45,7 @@ Distribution + growth angle for **RapidNative** (rapidnative.com) — Shaper Stu
 
 ## Standing community URLs to watch
 
-(see `.claude/skills/growth-marketing/references/config.md` for the full list — to be migrated to `../config.md` in a follow-up)
+(see `../config.md` for the full list)
 
 ## What NOT to do for RapidNative
 

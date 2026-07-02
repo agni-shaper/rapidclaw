@@ -6,7 +6,7 @@ when_to_load: |
   - User says "post the weekly wrap" / "send the weekly recap" / "weekly wrap please" / "draft this week's wrap"
   - User asks "what shipped this week across the company"
   - The cross-channel routine `weekly-wrap.md` fires (Fri 17:00 or on-demand)
-voice_source: ../../profile.md
+voice_source: ../../../profile.md
 ---
 
 # weekly-wrap

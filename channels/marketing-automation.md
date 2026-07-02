@@ -53,4 +53,4 @@ NOT here:
 - The bot uses `<@U…>` member-id form for all pings (never `@handle` text).
 - On-leave crew are silently skipped (per `sqlite_is_on_leave`).
 - The morning routine writes a sentinel at `marketing/.state/morning-ts-YYYY-MM-DD.json` keyed by Slack ID → parent message ts. The evening routine reads this to know which threads to parse.
-- If a teammate isn't in the `definitions/people.md` "Active" list (or its skill-side mirror at `.claude/skills/growth-marketing/references/accounts.md`), they don't get a slate. To onboard a new crew member, edit BOTH files until the legacy `marketing/` is deleted in a future commit.
+- If a teammate isn't in the `definitions/people.md` "Active" list (or its skill-side mirror at `.claude/skills/growth-marketing/social-engagement/references/accounts.md`), they don't get a slate. To onboard a new crew member, edit BOTH files until the legacy `marketing/` is deleted in a future commit.

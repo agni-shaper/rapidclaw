@@ -42,5 +42,5 @@ Then update `definitions/products.md` to reflect the real status.
 ## Until then
 
 - `definitions/products.md` LetsDeployIt row still flags this not-yet-located state.
-- `.claude/skills/growth-marketing/references/strategies/letsdeployit.md` carries provisional positioning + voice notes; drafts using it explicitly disclose "LetsDeployIt strategy is still TBD".
+- `.claude/skills/growth-marketing/social-engagement/references/strategies/letsdeployit.md` carries provisional positioning + voice notes; drafts using it explicitly disclose "LetsDeployIt strategy is still TBD".
 - No other refactor work blocks on this — pointer file unblocks the rest of Phase 1.

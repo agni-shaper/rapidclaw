@@ -6,7 +6,7 @@ when_to_load: |
   - User says "what's in the newsletter?" / "draft the newsletter" / "send the newsletter"
   - The newsletter cron routine fires (cadence TBD — likely bi-weekly Friday — needs Sanket's decision)
   - Someone adds an item to drafts/newsletter-next/items.md
-voice_source: ../../profile.md
+voice_source: ../../../profile.md
 ---
 
 # newsletter
