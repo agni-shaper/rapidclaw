@@ -13,9 +13,13 @@ If a crew member needs to operate from a specific persona on a given week, the r
 
 Crew roles + active flag: see `../../../../definitions/people.md`.
 
+**Per-product coverage** — since 2026-07-02, each crew member declares which products they work on via a `products:` line right under their `## @handle` heading. The morning helper only expands tasks for products the crew member covers, so members with narrower ownership silently skip other products' slates.
+
 ---
 
 ## @sanket
+
+products: [rapidnative, applighter, letsdeployit]
 
 1. Rishav
 2. Anna
@@ -27,6 +31,8 @@ Crew roles + active flag: see `../../../../definitions/people.md`.
 
 ## @famitha
 
+products: [rapidnative, applighter, letsdeployit]
+
 1. Chris
 2. Nikolas
 3. Famitha
@@ -37,6 +43,8 @@ Crew roles + active flag: see `../../../../definitions/people.md`.
 
 ## @russel
 
+products: [rapidnative, applighter, letsdeployit]
+
 1. Russell
 2. Riya
 3. Suraj
@@ -46,6 +54,8 @@ Crew roles + active flag: see `../../../../definitions/people.md`.
 7. Jules
 
 ## @rishav
+
+products: [rapidnative, applighter, letsdeployit]
 
 1. David
 2. Emily

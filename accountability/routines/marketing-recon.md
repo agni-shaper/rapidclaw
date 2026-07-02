@@ -1,4 +1,4 @@
-You are rapidnative-coach's marketing-automation **recon** routine. LaunchAgent fires Mon–Fri at 06:00 IST. **One job:** scan the platforms relevant to today's marketing sprint, find RapidNative-relevant threads/posts, draft a suggested comment per finding, and write a cache file. The morning routine (07:00 IST) reads that cache.
+You are rapidnative-coach's marketing-automation **recon** routine. LaunchAgent fires Mon–Fri at 06:00 IST. **One job:** for each product in today's marketing sprint (RapidNative, Applighter, LetsDeployIt), scan the platforms it needs, find product-relevant threads/posts, draft a suggested comment per finding, and write a per-product cache file. The morning routine (07:00 IST) reads that cache.
 
 Recon is **slow and LLM-heavy by design** — that's why it's split from morning. Failures here degrade morning gracefully (tasks ship without enriched links).
 
@@ -6,11 +6,12 @@ Recon is **slow and LLM-heavy by design** — that's why it's split from morning
 
 1. `COMPANY.md` — Shaper Studio identity (recon for all 3 brands when relevant)
 2. `.claude/skills/growth-marketing/SKILL.md` — voice + per-brand strategies + per-crew accounts
-3. `.claude/skills/growth-marketing/references/strategies/{rapidnative,applighter,letsdeployit}.md` — only the ones today's sprint touches
-4. `.claude/skills/growth-marketing/references/config.md` — SEO URLs, mailboxes, search topics, standing community URLs
-5. `.claude/skills/growth-marketing/references/sprint.md` — today's section drives which platforms to scrape
-6. `.claude/skills/growth-marketing/references/task-templates.md` — TPL-* prefix → platform mapping
-7. `marketing/.state/blog-amplification-YYYY-MM-DD.md` if present — most recent blog to amplify
+3. `.claude/skills/growth-marketing/social-engagement/references/strategies/{rapidnative,applighter,letsdeployit}.md` — voice / positioning per product (read the ones today's sprint touches)
+4. `.claude/skills/growth-marketing/social-engagement/references/products/{rapidnative,applighter,letsdeployit}.md` — per-product topics, search-query templates, community URLs, brand-monitor terms (read the ones today's sprint touches)
+5. `.claude/skills/growth-marketing/social-engagement/references/config.md` — cross-product config (channel routing, dedupe rules, Medium subdomains)
+6. `.claude/skills/growth-marketing/social-engagement/references/sprint.md` — today's `## <date>` section, split by `### <Product>` sub-headings, drives which product × platforms to scrape
+7. `.claude/skills/growth-marketing/social-engagement/references/task-templates.md` — TPL-* prefix → platform mapping (product-agnostic)
+8. `marketing/.state/blog-amplification-YYYY-MM-DD.md` if present — most recent blog to amplify
 
 ## Step 0 — guards + idempotency
 
@@ -34,11 +35,17 @@ Cache existence = "already ran today". Delete `$RECON_FILE` to force regenerate.
 RUN_ID=$(log_routine_start marketing-recon)
 ```
 
-## Step 2 — figure out today's platforms + scrape
+## Step 2 — figure out today's platforms + scrape (per product)
 
-### 2.1 — map today's sprint to platforms needing recon
+**Multi-product fan-out (since 2026-07-02).** Recon now runs **once per product** listed in today's sprint. Every product uses its own topic pool + search query templates + community URLs + brand-monitor terms, sourced from `.claude/skills/growth-marketing/social-engagement/references/products/<slug>.md`. A cross-product URL-dedupe pass runs at the end so the same thread isn't drafted for two products.
 
-Read today's section in `.claude/skills/growth-marketing/references/sprint.md`. Map each `TPL-*` ID to a platform via `task-templates.md`:
+### 2.1 — parse today's sprint per product
+
+Read today's section in `.claude/skills/growth-marketing/social-engagement/references/sprint.md`. **New format:** each date has three `### <Product>` sub-headings (`### RapidNative`, `### Applighter`, `### LetsDeployIt`) with template lists underneath. Legacy dates (before 2026-07-02) have a flat template list — treat as RapidNative-only.
+
+Build `TEMPLATES_BY_PRODUCT` — a map `{slug: [TPL-IDs]}`. Slugs use lowercase (`rapidnative`, `applighter`, `letsdeployit`) matching the `products/` file names.
+
+For each product's template list, map `TPL-*` → platform via `task-templates.md`:
 
 | Template prefix | Platform |
 |---|---|
@@ -52,29 +59,43 @@ Read today's section in `.claude/skills/growth-marketing/references/sprint.md`. 
 | `TPL-DISTRO-*` | (no recon — quota-only template) |
 | `TPL-COMMUNITY-*` | (no recon — too varied to scrape automatically) |
 
-`PLATFORMS_TODAY` = unique set of platforms that need recon. If empty, write an empty `findings:{}` cache and exit.
+Result: `PLATFORMS_BY_PRODUCT` — a map `{slug: set(platforms)}`. If every product's set is empty, write an empty `{}` cache and exit.
 
-Also collect carryover platforms from `marketing/evening-tasks.md` → `## Carryover queue → tomorrow` (carryover tasks need fresh links today since yesterday's stalled).
+Also collect carryover platforms from `marketing/evening-tasks.md` → `## Carryover queue → tomorrow` (carryover tasks need fresh links today since yesterday's stalled). Union carryover platforms into RapidNative's set for now (evening routine will grow product-awareness in a later phase).
 
-### 2.2 — pick the topic for this week
+### 2.2 — pick this week's topic PER PRODUCT
 
-Compute `week_label` (e.g. `w4-June`) same way `marketing-morning.md` does:
+Compute `week_label` (e.g. `w1-July`) same way `marketing-morning.md` does:
 
 ```python
 W = ((d.day - 1) // 7) + 1
 week_label = f"w{W}-{month_name}"
 ```
 
-Pick the week's topic from `.claude/skills/growth-marketing/references/config.md` → "Search strategy" `{topic}` slots, rotating by week number:
+For each product `<slug>` in `TEMPLATES_BY_PRODUCT`, read `.claude/skills/growth-marketing/social-engagement/references/products/<slug>.md` and pick the week's topic from that product's `## Topics (rotates weekly)` list:
 
 ```python
-topics = ["EAS", "file-based routing", "OTA updates", "push notifications", "boilerplate", "auth", "payments"]
-topic = topics[ISO_WEEK % len(topics)]
+topic_by_product = {}
+for slug, templates in TEMPLATES_BY_PRODUCT.items():
+    topics = read_topics_list(f"products/{slug}.md")   # from ## Topics
+    if not topics: continue                             # empty pool → skip topic search for this product
+    topic_by_product[slug] = topics[ISO_WEEK % len(topics)]
 ```
 
-This drives every platform's search query so all crew engage on the same theme this week.
+Also read from the same file: `search_query_templates` (from `## Search query templates`), `community_urls` (from `## Community URLs`), and `brand_terms` (from `## Meta` line). Each product may use a different search-query template — e.g. RapidNative uses `"react native" {topic}` while Applighter uses `"{topic}"` verbatim.
 
-### 2.3 — scrape each platform
+If a product's `topics` list is empty (Applighter / LetsDeployIt may be partial), skip the topic-based scrape for that product — only the brand-monitor sweep runs. Recon degrades gracefully.
+
+### 2.3 — scrape each platform, per product
+
+**Outer loop:** for each `(slug, platforms)` in `PLATFORMS_BY_PRODUCT.items()`, run 2.3a–2.3e for the platforms in `platforms`, using that product's `topic_by_product[slug]` + `search_query_templates` + `community_urls` + `brand_terms`.
+
+**URL-dedupe pass:** maintain a `SEEN_URLS` set across the outer loop. Any finding whose `url` is already in `SEEN_URLS` is dropped for the current product — it stays tagged to whichever product claimed it first. Add each accepted URL to `SEEN_URLS` before moving on.
+
+**Storage:** collect findings into `findings_by_product[slug][platform] = {status, findings, reason?}`. Same for `original_posts_by_product` (from 2.5) and `article_drafts_by_product` (from 2.6). If a product ends up with no non-empty findings, keep its entry (with `status: "ok", findings: []` per platform attempted) so morning can distinguish "scraped, nothing found" from "not scraped".
+
+The per-platform mechanics below (Algolia HN, Reddit RSS, browser-use Quora/LinkedIn/X) don't change — same commands, just parameterized by the current product's search query.
+
 
 For each platform in `PLATFORMS_TODAY`, run the appropriate scraper. Each scraper returns `{status: "ok"|"fail", findings: [...]}`. Each finding is `{url, title, context, draft: null}` (drafts get filled in 2.4).
 
@@ -99,7 +120,7 @@ Also do a 2nd query for brand monitoring: `query=rapidnative` → if any hits, p
 
 #### 2.3b — Reddit via JSON API (no browser)
 
-For each subreddit in `.claude/skills/growth-marketing/references/config.md` standing community URLs (r/reactnative, r/programming, r/webdev, r/devops):
+For each subreddit in `.claude/skills/growth-marketing/social-engagement/references/config.md` standing community URLs (r/reactnative, r/programming, r/webdev, r/devops):
 
 ```bash
 curl -fsS -H "User-Agent: rapidnative-coach/1.0" \
@@ -354,46 +375,74 @@ If both blog files are missing or stale (>2 days old), set `blog_amplification: 
 
 Assemble the full cache JSON and write atomically to `marketing/.state/recon-${TODAY}.json` (write to `<file>.tmp` then `mv`) so a half-written cache never confuses morning.
 
+**New per-product JSON shape (since 2026-07-02).** Top-level keys are product slugs. `gen-marketing-morning.py` also accepts the legacy single-product shape (auto-wrapped as `rapidnative`) — but new-writes should use the nested shape below so all 3 products' tasks get enrichment.
+
 ```json
 {
-  "generated_at": "2026-06-22T06:04:23+05:30",
-  "week_label": "w4-June",
-  "topic": "EAS",
-  "platforms_today": ["HN", "Reddit", "Quora", "LinkedIn"],
-  "findings": {
-    "HN": {
-      "status": "ok",
-      "findings": [
-        {
-          "url": "https://news.ycombinator.com/item?id=12345",
-          "title": "Show HN: React Native build optimizer",
-          "context": "42 comments, 215 points, dang",
-          "draft": "Worth noting that Metro's tree-shaking has had quirks with..."
-        }
-      ]
+  "generated_at": "2026-07-02T06:04:23+05:30",
+  "week_label": "w1-July",
+  "products_today": ["rapidnative", "applighter", "letsdeployit"],
+  "rapidnative": {
+    "topic": "EAS",
+    "platforms_scraped": ["HN", "Reddit", "Quora", "LinkedIn"],
+    "findings": {
+      "HN": {
+        "status": "ok",
+        "findings": [
+          {
+            "url": "https://news.ycombinator.com/item?id=12345",
+            "title": "Show HN: React Native build optimizer",
+            "context": "42 comments, 215 points, dang",
+            "draft": "Worth noting that Metro's tree-shaking has had quirks with..."
+          }
+        ]
+      },
+      "Reddit": { "status": "ok", "findings": [...] },
+      "Quora":  { "status": "fail", "findings": [], "reason": "login lapsed" },
+      "LinkedIn": { "status": "ok", "findings": [...] }
     },
-    "Reddit": { "status": "ok", "findings": [...] },
-    "Quora": { "status": "fail", "findings": [], "reason": "login lapsed — re-run browser-open.sh https://www.quora.com/" },
-    "LinkedIn": { "status": "ok", "findings": [...] }
+    "original_posts": {
+      "LinkedIn": { "status": "ok", "drafts": [...] },
+      "Twitter":  { "status": "ok", "drafts": [...] },
+      "Quora":    { "status": "ok", "drafts": [...] }
+    },
+    "article_drafts": {
+      "TPL-GFG-ARTICLE":    { "status": "ok", "drafts": [...] },
+      "TPL-MEDIUM-ARTICLE": { "status": "ok", "drafts": [...] },
+      "TPL-DEVTO-ARTICLE":  { "status": "ok", "drafts": [...] }
+    }
   },
-  "original_posts": {
-    "LinkedIn": { "status": "ok", "drafts": [...] },
-    "Twitter":  { "status": "ok", "drafts": [...] },
-    "Quora":    { "status": "ok", "drafts": [...] }
+  "applighter": {
+    "topic": "expo supabase auth",
+    "platforms_scraped": ["HN", "Reddit", "Quora"],
+    "findings": { "HN": { "status": "ok", "findings": [...] }, ... },
+    "original_posts": { "LinkedIn": { "status": "ok", "drafts": [...] }, ... },
+    "article_drafts": { "TPL-GFG-ARTICLE": { "status": "ok", "drafts": [...] }, ... }
   },
-  "article_drafts": {
-    "TPL-GFG-ARTICLE":    { "status": "ok", "drafts": [...] },
-    "TPL-MEDIUM-ARTICLE": { "status": "ok", "drafts": [...] },
-    "TPL-DEVTO-ARTICLE":  { "status": "ok", "drafts": [...] }
+  "letsdeployit": {
+    "topic": "app store rejection",
+    "platforms_scraped": ["HN", "Reddit"],
+    "findings": { ... },
+    "original_posts": { ... },
+    "article_drafts": { ... }
   },
   "blog_amplification": {
+    "product": "rapidnative",
     "url": "https://rapidnative.com/blogs/eas-build-2026",
     "title": "EAS Build in 2026: What Changed",
     "caption": "Just published — the EAS build pipeline got 3 new flags in SDK 53...",
-    "source_date": "2026-06-22"
+    "source_date": "2026-07-02"
   }
 }
 ```
+
+**Key changes from the legacy shape:**
+- Top-level `findings` / `original_posts` / `article_drafts` moved INSIDE each product key.
+- `topic` and `platforms_scraped` are per-product (each product picks its own weekly topic).
+- `blog_amplification` gains a `product` field so morning knows which product's crew gets the blog task.
+- URL-dedupe already applied at Step 2.3 — no post-processing needed.
+
+**What if a product had nothing to scrape** (empty templates today, or all its platforms were `TPL-DISTRO-*` / `TPL-COMMUNITY-*`)? Write its entry with `platforms_scraped: []` and empty sub-blocks — morning will render bare tasks for those (no enrichment) without erroring.
 
 **Mirror to sqlite:**
 

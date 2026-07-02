@@ -1,55 +1,28 @@
-# Marketing automation — standing config
+# Marketing automation — cross-product standing config
 
-Standing reference data the daily distribution cycle reads. Edit by hand.
+**Product-specific config moved to [`products/`](products/) as of 2026-07-02.** Per-product topics, search-query templates, community URLs, mailboxes, and SEO URLs now live in `products/{rapidnative,applighter,letsdeployit}.md`. This file holds only the cross-product bits.
 
-## SEO domains (rotate target URLs in posts/comments)
+## Product roster (read in order)
 
-- `rapidnative.com` — primary marketing site
-- `rapidnative.com/blog/*` — long-form, indexable
-- `letsdeploy.it` — second product
-- `applighter.com` — third product
-- TBD — add more as new properties go live
+- [`products/rapidnative.md`](products/rapidnative.md) — primary product, full config
+- [`products/applighter.md`](products/applighter.md) — partial (topics only; community URLs + mailboxes TBD)
+- [`products/letsdeployit.md`](products/letsdeployit.md) — partial (topics only; community URLs + mailboxes TBD)
 
-## Zoho mailboxes (per-platform signup, support, replies)
+The morning routine iterates today's sprint per-product (see [`sprint.md`](sprint.md)) and only touches products that appear in the day's slate.
 
-| Platform group | Mailbox | Used for |
-|---|---|---|
-| GFG / Hashnode / dev.to | `outreach@rapidnative.com` | signups + reply notifications |
-| Quora / Reddit | `community@rapidnative.com` | signups + DM notifications |
-| Medium / Substack / Vocal | `publish@rapidnative.com` | publication signups |
-| LinkedIn / Facebook / Twitter | `social@rapidnative.com` | social account signups |
-| Hackernews | `hn@rapidnative.com` | signups only |
+## Medium subdomains / publications (cross-product)
 
-(Update once real mailboxes are confirmed.)
-
-## Medium subdomains / publications
-
-- TBD — list any owned Medium publications here (e.g. `medium.com/@rapidnative`).
-
-## Standing community URLs (always-on watch list)
-
-- `news.ycombinator.com` — front page + `/newest` for relevant threads
-- `reddit.com/r/reactnative` — primary subreddit
-- `reddit.com/r/programming`
-- `reddit.com/r/webdev`
-- `reddit.com/r/devops`
-- `dev.to/t/reactnative`
-- `quora.com/topic/React-Native`
-- `quora.com/topic/Mobile-App-Development`
-
-## Search strategy (cross-platform query templates)
-
-Use these as the seed queries when finding posts to comment on / answer:
-
-- `"react native" {topic}`
-- `expo {topic}` (where `topic ∈ {file-based-routing, EAS, OTA updates, push notifications}`)
-- `"rapidnative" OR "rapid native"` (brand monitoring)
-- `"letsdeploy" OR "lets deploy"` (brand monitoring)
-- `mobile dev {pain-point}` (where `pain-point ∈ {boilerplate, auth, payments, push}`)
-
-Rotate the `{topic}` slot week-over-week so the same accounts don't keep hitting the same threads.
+- TBD — list any owned Medium publications here (e.g. `medium.com/@rapidnative`, `medium.com/@applighter`).
 
 ## Channel routing
 
 - Daily task list → `#marketing-automation` (`C0BBQ7PV34N`)
 - Escalations / blocked items → `#marketing` (`C09F377FGFK`)
+
+## Anti-burnout & dedupe rules (cross-product)
+
+Applied by `marketing-recon` when it fans out across products:
+
+1. **URL-level thread dedupe.** If the same thread URL is found for two products in the same recon run, tag it to whichever product's scrape finished first. The other product's slate for that thread is skipped (avoids the same persona replying to the same thread twice via different product angles).
+2. **Persona-account exclusivity** — enforced by [`rotation.md`](rotation.md), not overridden per product.
+3. **Same account never fires on two products on the same day** — a natural consequence of rule 2, since rotation is per-crew, not per-product.

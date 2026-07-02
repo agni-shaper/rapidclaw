@@ -24,13 +24,24 @@ The skill itself is a thin orchestrator. Real content lives in scoped reference 
    - RapidNative → [`references/strategies/rapidnative.md`](references/strategies/rapidnative.md)
    - Applighter → [`references/strategies/applighter.md`](references/strategies/applighter.md)
    - LetsDeployIt → [`references/strategies/letsdeployit.md`](references/strategies/letsdeployit.md)
-3. **For the daily distribution cycle (marketing-morning / evening / recon):**
-   - [`references/accounts.md`](references/accounts.md) — per-crew named persona accounts
+3. **Per-product config (since 2026-07-02)** — each product has its own topics, search-query templates, community URLs, brand-monitor terms, mailboxes, and SEO URLs:
+   - [`references/products/rapidnative.md`](references/products/rapidnative.md)
+   - [`references/products/applighter.md`](references/products/applighter.md)
+   - [`references/products/letsdeployit.md`](references/products/letsdeployit.md)
+4. **For the daily distribution cycle (marketing-morning / evening / recon):**
+   - [`references/accounts.md`](references/accounts.md) — per-crew named persona accounts, plus each crew's `products:` list (which products they cover)
    - [`references/rotation.md`](references/rotation.md) — weekly 3-account-pool formula
-   - [`references/config.md`](references/config.md) — SEO domains, mailboxes, standing URLs
-   - [`references/sprint.md`](references/sprint.md) — 7-day rolling template plan
-   - [`references/task-templates.md`](references/task-templates.md) — TPL-* prefix → platform + bullet body
-4. **Per platform** (only the platform(s) today's slate needs) → TPL-* sections in [`references/task-templates.md`](references/task-templates.md).
+   - [`references/config.md`](references/config.md) — cross-product config only (channel routing, dedupe rules, Medium subdomains). Per-product SEO/mailboxes/topics live in `products/*.md`.
+   - [`references/sprint.md`](references/sprint.md) — 7-day rolling template plan; each date has `### RapidNative / ### Applighter / ### LetsDeployIt` sub-headings driving product fan-out
+   - [`references/task-templates.md`](references/task-templates.md) — TPL-* prefix → platform + bullet body (product-agnostic)
+5. **Per platform** (only the platform(s) today's slate needs) → TPL-* sections in [`references/task-templates.md`](references/task-templates.md).
+
+## Multi-product model (v2, 2026-07-02)
+
+- **Sprint fan-out**: for each product listed in today's sprint × each crew member whose `products:` list includes that product × each `TPL-*` template → one task.
+- **Recon fan-out**: `marketing-recon` runs once per product with that product's own topic + search queries + community URLs. Cross-product URL-dedupe applied (first product to claim a thread keeps it).
+- **Enrichment**: findings/drafts are per-product; only tasks tagged with product X get enrichment from recon's product-X block.
+- **Backwards compat**: legacy flat sprint sections (no `### Product` sub-headings) are treated as `rapidnative`-only. Legacy single-product recon JSON (no product-keyed top level) is auto-wrapped as `rapidnative`.
 
 ## Daily distribution cycle (the spine)
 
