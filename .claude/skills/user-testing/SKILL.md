@@ -62,7 +62,7 @@ Owns the projection from `#user-testing` (channel `C09EU7C87BM`) → `accountabi
 
 ## When a #user-testing observation also looks like a bug
 
-If the message clearly describes a reproducible bug (not just a UX nit), include it in BOTH this skill's proposal AND the `bug-tracking` skill's proposal. The latter feeds `sites/tasks/intake/bugs.md`.
+If the message clearly describes a reproducible bug (not just a UX nit), include it in BOTH this skill's proposal AND the `bug-tracking` skill's proposal. The latter now writes sqlite `tasks` rows with `category='bug'` via `tasks.sh` (was `sites/tasks/intake/bugs.md` until 2026-07-02).
 
 The line between "UX issue" and "bug":
 
@@ -83,6 +83,6 @@ The line between "UX issue" and "bug":
 
 ## Related skills
 
-- `task-management` — bugs from this skill become tasks in `sites/tasks/`
+- `task-management` — bugs from this skill become sqlite `tasks` rows with `category='bug'` via `tasks.sh` (was `sites/tasks/` markdown until 2026-07-02)
 - `bug-tracking` — for the "this is a reproducible bug" subset of observations
 - `growth-marketing` — strong UX issues sometimes warrant a blog post or social comment ("we fixed X based on user feedback") — defer to growth-marketing for that drafting
