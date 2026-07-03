@@ -56,7 +56,7 @@ Step-by-step:
    Fallback to <@U09DC8MB4KB> (Suraj) if Sanket is on leave (check via `is_on_leave`).
 8. On approval ("go" / "approve all" / "approve 1,3,5" / "defer"), the listener re-invokes
    this skill with the thread context. Then APPLY by running each approved tasks.sh
-   command verbatim. Each --notify emits a Slack summary to the same channel.
+   command verbatim. Each --notify posts to `#tasks` (see the rule below).
 9. Update the proposal row: UPDATE tasks_cleanup_proposals SET status='applied' WHERE reply_ts=...
 10. Post a one-line applied-summary reply in the same thread.
 ```
@@ -84,6 +84,14 @@ For ad-hoc requests like *"Assign create banner to @famitha for Aug 8"* or *"Mar
 2. **Tier-check the sender:**
    - Owner / super-admin → apply directly via `tasks.sh add @X DUE "title" --category X --priority X --notify`
    - Teammate → propose in-thread, wait for super-admin approval, then apply
+3. **After a successful `tasks.sh add`, post a short confirmation reply in the ORIGINATING thread** — NOT a second `tasks.sh add` and NOT a channel override. Fetch the task's `slack_message_url` from sqlite so the user can click through:
+   ```bash
+   URL=$(sqlite3 ~/.config/claude/rapidnative-coach.sqlite \
+     "SELECT slack_message_url FROM tasks WHERE id=$NEW_ID;")
+   accountability/routines/slack-post.sh <origin_channel> <origin_thread_ts> \
+     "Assigned T${NEW_ID} → <@${sid}> · due ${due} · ${cat}/${prod} · ${prio}. See ${URL}"
+   ```
+   This preserves the two-write pattern: `--notify` posts to `#tasks` (the ledger), the confirmation goes back to where the user actually is.
 3. **Look up existing tasks first** when the message references an existing task:
    - "mark #42 done" → `tasks.sh done 42 --notify`
    - "reassign #42 to @rishav" → `tasks.sh update 42 assignee=@rishav --notify`
@@ -98,6 +106,8 @@ For ad-hoc requests like *"Assign create banner to @famitha for Aug 8"* or *"Mar
 5. **Don't propose Done without git evidence** for commit-derived done moves. Flag the discrepancy in the proposal if the commit message names a task that has no matching sqlite row.
 6. **Never bypass the leave guard silently.** `tasks.sh` refuses to assign on a leave date (exit 2); if you want to override, pass `--force` and explain in the proposal WHY.
 7. **Never DELETE from sqlite directly.** Cancellation is soft (`status='cancelled'`). Preserves audit trail.
+8. **Never omit `--notify` on a real (non-dry-run) `tasks.sh add`.** Without it, the task lands in sqlite but the `#tasks` ledger doesn't get a post — teammates have no signal. Repeat this for `update / done / rm` when the mutation is user-visible.
+9. **Never pass `--channel` to override `tasks.sh`'s default.** `tasks.sh --notify` defaults to `#tasks` (`C0ASK9520JG`) — that is the CORRECT destination for the task ledger post. Do NOT redirect it to `#rapidnative-coach` (the channel where the user typed the request), even though the request originated there. Instead, use the two-write pattern: `--notify` sends the ledger post to `#tasks`; a separate `slack-post.sh` sends the human confirmation reply to the user's originating thread. The confirmation reply should include the sqlite id and the `slack_message_url` so the user can click through to the ledger post.
 
 ## Migration status (since 2026-07-02)
 

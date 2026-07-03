@@ -127,11 +127,22 @@ case "$CMD" in
     fi
     if [ "$NOTIFY" -eq 1 ]; then
       ID=$(echo "$OUT" | sed -nE 's/^OK · task #([0-9]+) .*/\1/p')
-      # Fetch assignee handle + due for a clean message
-      ROW=$(db_query "SELECT assignee, due_date, priority, title FROM tasks WHERE id=$ID;")
-      IFS='|' read -r sid due prio title <<< "$ROW"
+      # Also fetch product so the notification can carry the [RN]/[AL]/[LDI]
+      # tag when set. Marketing task templates are identical across the 3 products,
+      # so without this tag the assignee has no way to know which brand voice
+      # and account rotation to use.
+      ROW=$(db_query "SELECT assignee, due_date, priority, title, IFNULL(product,'') FROM tasks WHERE id=$ID;")
+      IFS='|' read -r sid due prio title product <<< "$ROW"
       handle=$(lookup_handle "$sid" 2>/dev/null); [ -z "$handle" ] && handle="<@$sid>"
-      MSG_TS=$(notify_slack "New task [T${ID}] → <@${sid}> · due ${due} · ${prio} · ${title}")
+      PRODUCT_TAG=""
+      case "$product" in
+        rapidnative)  PRODUCT_TAG=" [RN]" ;;
+        applighter)   PRODUCT_TAG=" [AL]" ;;
+        letsdeployit) PRODUCT_TAG=" [LDI]" ;;
+        "")           PRODUCT_TAG="" ;;                # skip when unset
+        *)            PRODUCT_TAG=" [$product]" ;;     # unknown slug: surface it verbatim
+      esac
+      MSG_TS=$(notify_slack "New task [T${ID}]${PRODUCT_TAG} → <@${sid}> · due ${due} · ${prio} · ${title}")
       if [ -n "$MSG_TS" ]; then
         MSG_URL=$(slack_permalink "$CHANNEL" "$MSG_TS")
         db_exec "UPDATE tasks SET slack_message_ts='$MSG_TS', slack_message_url='$MSG_URL' WHERE id=$ID;"
