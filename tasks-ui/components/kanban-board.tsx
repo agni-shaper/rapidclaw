@@ -136,7 +136,10 @@ export function KanbanBoard({ initialTasks, initialRoster }: Props) {
       const res = await fetch(`/api/tasks/${activeId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
+        // notify:false — the user just watched the card move on their screen;
+        // spamming #tasks with an "Updated [T<id>] → …" line for every drag
+        // would be pure noise. Only automations + LLM-driven changes notify.
+        body: JSON.stringify({ status: newStatus, notify: false }),
       });
       if (!res.ok) throw new Error("update failed");
       const updated = (await res.json()) as Task;

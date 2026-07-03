@@ -45,7 +45,10 @@ export function TaskFlyout({ task, open, onOpenChange, onSaved, rosterMap }: Pro
       const res = await fetch(`/api/tasks/${task.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(fields),
+        // notify:false — the user is looking right at the flyout. Every inline
+        // edit and every Mark-done/Cancel click already gives them immediate
+        // visual feedback; a Slack notification would just double up.
+        body: JSON.stringify({ ...fields, notify: false }),
       });
       if (!res.ok) throw new Error((await res.json()).error || "Save failed");
       const updated = (await res.json()) as Task;
