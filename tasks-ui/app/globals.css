@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+html,
+body {
+  height: 100%;
+  background-color: #020617;
+  color-scheme: dark;
+}
+
+* {
+  border-color: rgb(30 41 59);
+}
+
+/* Radix Dialog animations — data-state driven */
+[data-state="open"] {
+  animation: fadeSlideIn 180ms ease-out;
+}
+[data-state="closed"] {
+  animation: fadeSlideOut 160ms ease-in;
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(2%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeSlideOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(2%);
+  }
+}
