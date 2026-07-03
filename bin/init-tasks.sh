@@ -25,7 +25,10 @@ CREATE TABLE IF NOT EXISTS tasks (
   due_date TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  metadata TEXT
+  metadata TEXT,
+  slack_message_ts TEXT,           -- Slack ts of the --notify parent post (nullable)
+  slack_message_url TEXT           -- Permalink to the parent post (nullable). Update/done/rm
+                                   -- notifications thread-reply under slack_message_ts.
 );
 CREATE INDEX IF NOT EXISTS idx_tasks_assignee ON tasks(assignee);
 CREATE INDEX IF NOT EXISTS idx_tasks_status   ON tasks(status);

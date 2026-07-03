@@ -70,11 +70,34 @@ extract_global_flags() {
   done
 }
 
-# ─── Notify helper — posts a summary line ───
+# ─── Notify helper — posts a message, echoes the returned ts on stdout.
+#     Usage:  notify_slack "<text>" [thread_ts]
+#     If thread_ts is given, the message posts as a thread reply.
+#     Silent no-op unless NOTIFY=1.
 notify_slack() {
   local text="$1"
+  local thread_ts="${2:-}"
   [ "$NOTIFY" -eq 1 ] || return 0
-  "$HERE/slack-post.sh" "$CHANNEL" "$text" >/dev/null || echo "WARN: slack-post failed" >&2
+  local raw
+  if [ -n "$thread_ts" ]; then
+    raw=$("$HERE/slack-post.sh" "$CHANNEL" "$thread_ts" "$text" 2>/dev/null) || { echo "WARN: slack-post failed" >&2; return 0; }
+  else
+    raw=$("$HERE/slack-post.sh" "$CHANNEL" "$text" 2>/dev/null) || { echo "WARN: slack-post failed" >&2; return 0; }
+  fi
+  # slack-post.sh echoes "OK ts=<ts>"; strip the prefix.
+  echo "${raw#OK ts=}"
+}
+
+# ─── Compute a #tasks permalink from a Slack ts. ───
+#     Format: https://<workspace>.slack.com/archives/<channel>/p<ts_without_dot>
+#     Workspace is hardcoded — update if the team subdomain ever changes.
+SLACK_WORKSPACE="shaper-studio"
+slack_permalink() {
+  local channel="$1"
+  local ts="$2"
+  [ -z "$ts" ] && return
+  local ts_stripped="${ts//./}"
+  echo "https://${SLACK_WORKSPACE}.slack.com/archives/${channel}/p${ts_stripped}"
 }
 
 # ─── Emit a single task as JSON (used after mutations for --json output) ───
@@ -108,7 +131,11 @@ case "$CMD" in
       ROW=$(db_query "SELECT assignee, due_date, priority, title FROM tasks WHERE id=$ID;")
       IFS='|' read -r sid due prio title <<< "$ROW"
       handle=$(lookup_handle "$sid" 2>/dev/null); [ -z "$handle" ] && handle="<@$sid>"
-      notify_slack ":inbox_tray: *new task #${ID}* → <@${sid}> · due ${due} · ${prio} · ${title}"
+      MSG_TS=$(notify_slack "New task [T${ID}] → <@${sid}> · due ${due} · ${prio} · ${title}")
+      if [ -n "$MSG_TS" ]; then
+        MSG_URL=$(slack_permalink "$CHANNEL" "$MSG_TS")
+        db_exec "UPDATE tasks SET slack_message_ts='$MSG_TS', slack_message_url='$MSG_URL' WHERE id=$ID;"
+      fi
     fi
     ;;
 
@@ -185,18 +212,23 @@ case "$CMD" in
       echo "$OUT"
     fi
     if [ "$NOTIFY" -eq 1 ]; then
-      ROW=$(db_query "SELECT assignee, status, due_date, title FROM tasks WHERE id=$ID;")
-      IFS='|' read -r sid stat due title <<< "$ROW"
+      ROW=$(db_query "SELECT assignee, status, due_date, title, slack_message_ts FROM tasks WHERE id=$ID;")
+      IFS='|' read -r sid stat due title parent_ts <<< "$ROW"
       handle=$(lookup_handle "$sid" 2>/dev/null); [ -z "$handle" ] && handle="<@$sid>"
       # Detect reassignment vs. plain edit for a nicer message
+      NOTIFY_TEXT=""
       if [ -n "$OLD" ]; then
         OLD_SID="${OLD%%|*}"
         if [ "$OLD_SID" != "$sid" ]; then
           old_handle=$(lookup_handle "$OLD_SID" 2>/dev/null); [ -z "$old_handle" ] && old_handle="<@$OLD_SID>"
-          notify_slack ":arrows_counterclockwise: *task #${ID} reassigned* → <@${sid}> (was ${old_handle}) · due ${due} · ${stat} · ${title}"
+          NOTIFY_TEXT="Reassigned [T${ID}] → <@${sid}> (was ${old_handle}) · due ${due} · ${stat}"
         else
-          notify_slack ":pencil2: *task #${ID} updated* → <@${sid}> · due ${due} · ${stat} · ${title}"
+          NOTIFY_TEXT="Updated [T${ID}] → <@${sid}> · due ${due} · ${stat}"
         fi
+      fi
+      if [ -n "$NOTIFY_TEXT" ]; then
+        # Thread-reply under the original notify post if we have its ts; else top-level
+        notify_slack "$NOTIFY_TEXT" "$parent_ts" >/dev/null
       fi
     fi
     ;;
@@ -222,10 +254,9 @@ case "$CMD" in
     if [ "$NOTIFY" -eq 1 ]; then
       for id in "$@"; do
         [[ "$id" =~ ^[0-9]+$ ]] || continue
-        ROW=$(db_query "SELECT assignee, title FROM tasks WHERE id=$id;")
-        IFS='|' read -r sid title <<< "$ROW"
-        handle=$(lookup_handle "$sid" 2>/dev/null); [ -z "$handle" ] && handle="<@$sid>"
-        notify_slack ":white_check_mark: *task #${id} done* · <@${sid}> · ${title}"
+        ROW=$(db_query "SELECT assignee, title, slack_message_ts FROM tasks WHERE id=$id;")
+        IFS='|' read -r sid title parent_ts <<< "$ROW"
+        notify_slack "[T${id}] done ✅ · <@${sid}>" "$parent_ts" >/dev/null
       done
     fi
     ;;
@@ -250,10 +281,9 @@ case "$CMD" in
     if [ "$NOTIFY" -eq 1 ]; then
       for id in "$@"; do
         [[ "$id" =~ ^[0-9]+$ ]] || continue
-        ROW=$(db_query "SELECT assignee, title FROM tasks WHERE id=$id;")
-        IFS='|' read -r sid title <<< "$ROW"
-        handle=$(lookup_handle "$sid" 2>/dev/null); [ -z "$handle" ] && handle="<@$sid>"
-        notify_slack ":wastebasket: *task #${id} cancelled* · <@${sid}> · ${title}"
+        ROW=$(db_query "SELECT assignee, title, slack_message_ts FROM tasks WHERE id=$id;")
+        IFS='|' read -r sid title parent_ts <<< "$ROW"
+        notify_slack "[T${id}] cancelled 🗑️ · <@${sid}>" "$parent_ts" >/dev/null
       done
     fi
     ;;
