@@ -29,7 +29,7 @@ fi
 [[ "$END"   =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "ERROR: end_date must be YYYY-MM-DD" >&2; exit 1; }
 [[ "$START" > "$END" ]] && { echo "ERROR: start_date is after end_date" >&2; exit 1; }
 
-NOTE_ESC="${NOTE//\'/\'\'}"
+NOTE_ESC="${NOTE//\'/''}"
 
 db_exec "INSERT INTO leave_entries (slack_id, start_date, end_date, note, status) VALUES ('$SID', '$START', '$END', '$NOTE_ESC', 'active');"
 

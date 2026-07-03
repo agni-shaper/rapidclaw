@@ -16,8 +16,8 @@ REGION="${3:-}"
 
 [[ "$DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "ERROR: date must be YYYY-MM-DD" >&2; exit 1; }
 
-NAME_ESC="${NAME//\'/\'\'}"
-REGION_ESC="${REGION//\'/\'\'}"
+NAME_ESC="${NAME//\'/''}"
+REGION_ESC="${REGION//\'/''}"
 
 db_exec "INSERT INTO holidays (date, name, region, status) VALUES ('$DATE', '$NAME_ESC', NULLIF('$REGION_ESC',''), 'upcoming');"
 echo "OK · $DATE · $NAME${REGION:+ ($REGION)}"

@@ -34,7 +34,7 @@ for arg in "$@"; do
   value="${arg#*=}"
   case "$field" in
     title|description|source|category|product)
-      value_esc="${value//\'/\'\'}"
+      value_esc="${value//\'/''}"
       SET_PARTS+=("$field='$value_esc'")
       ;;
     status)

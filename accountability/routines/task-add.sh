@@ -85,11 +85,11 @@ if ! is_working_day "$DUE"; then
 fi
 
 # ─── insert ───
-TITLE_ESC="${TITLE//\'/\'\'}"
-DESCRIPTION_ESC="${DESCRIPTION//\'/\'\'}"
-SOURCE_ESC="${SOURCE//\'/\'\'}"
-PRODUCT_ESC="${PRODUCT//\'/\'\'}"
-CATEGORY_ESC="${CATEGORY//\'/\'\'}"
+TITLE_ESC="${TITLE//\'/''}"
+DESCRIPTION_ESC="${DESCRIPTION//\'/''}"
+SOURCE_ESC="${SOURCE//\'/''}"
+PRODUCT_ESC="${PRODUCT//\'/''}"
+CATEGORY_ESC="${CATEGORY//\'/''}"
 
 ID=$(db_exec "INSERT INTO tasks (title, description, assignee, status, priority, category, product, source, due_date)
   VALUES ('$TITLE_ESC', '$DESCRIPTION_ESC', '$SID', 'open', '$PRIORITY', '$CATEGORY_ESC', '$PRODUCT_ESC', '$SOURCE_ESC', '$DUE');
