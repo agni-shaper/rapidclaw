@@ -1,16 +1,19 @@
 import { listTasks } from "@/lib/tasks-api";
+import { loadRoster } from "@/lib/roster-server";
 import { KanbanBoard } from "@/components/kanban-board";
 import type { Task } from "@/lib/types";
+import type { RosterEntry } from "@/lib/roster";
 
-// Never cache — every reload should re-query sqlite.
+// Never cache — every reload should re-query sqlite + roster.
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function Home() {
   let tasks: Task[] = [];
+  let roster: RosterEntry[] = [];
   let error: string | null = null;
   try {
-    tasks = await listTasks();
+    [tasks, roster] = await Promise.all([listTasks(), loadRoster()]);
   } catch (e) {
     error = (e as Error).message;
   }
@@ -31,5 +34,5 @@ export default async function Home() {
     );
   }
 
-  return <KanbanBoard initialTasks={tasks} />;
+  return <KanbanBoard initialTasks={tasks} initialRoster={roster} />;
 }

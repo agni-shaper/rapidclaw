@@ -14,6 +14,7 @@ import {
   TASK_PRIORITIES,
   TASK_STATUSES,
 } from "@/lib/types";
+import { assigneeDisplay, type RosterEntry } from "@/lib/roster";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -21,9 +22,10 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved: (task: Task) => void;
+  rosterMap: Map<string, RosterEntry>;
 }
 
-export function TaskFlyout({ task, open, onOpenChange, onSaved }: Props) {
+export function TaskFlyout({ task, open, onOpenChange, onSaved, rosterMap }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,6 +65,8 @@ export function TaskFlyout({ task, open, onOpenChange, onSaved }: Props) {
     }
   })();
 
+  const person = assigneeDisplay(task.assignee, rosterMap);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="overflow-y-auto">
@@ -90,7 +94,27 @@ export function TaskFlyout({ task, open, onOpenChange, onSaved }: Props) {
 
         <div className="grid grid-cols-2 gap-x-4 gap-y-4 text-sm">
           <Field label="Assignee">
-            <span className="font-mono text-slate-300">{task.assignee || "—"}</span>
+            {task.assignee ? (
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    "inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold uppercase",
+                    person.known ? "bg-slate-700 text-slate-100" : "bg-slate-800 text-slate-500"
+                  )}
+                  title={task.assignee}
+                >
+                  {person.initials}
+                </span>
+                <div className="flex flex-col leading-tight">
+                  <span className={cn("text-sm", person.known ? "text-slate-100" : "text-slate-400")}>
+                    {person.name}
+                  </span>
+                  <span className="font-mono text-[10px] text-slate-500">{person.handle}</span>
+                </div>
+              </div>
+            ) : (
+              <span className="text-slate-500">—</span>
+            )}
           </Field>
           <Field label="Due date">
             <span className="font-mono text-slate-300">{task.due_date || "—"}</span>

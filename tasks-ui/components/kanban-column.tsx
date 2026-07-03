@@ -6,14 +6,16 @@ import type { Task, TaskStatus } from "@/lib/types";
 import { STATUS_COLOR, STATUS_LABEL } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { TaskCard } from "./task-card";
+import type { RosterEntry } from "@/lib/roster";
 
 interface Props {
   status: TaskStatus;
   tasks: Task[];
   onCardClick: (task: Task) => void;
+  rosterMap: Map<string, RosterEntry>;
 }
 
-export function KanbanColumn({ status, tasks, onCardClick }: Props) {
+export function KanbanColumn({ status, tasks, onCardClick, rosterMap }: Props) {
   const { setNodeRef, isOver } = useDroppable({
     id: `column-${status}`,
     data: { type: "column", status },
@@ -42,7 +44,9 @@ export function KanbanColumn({ status, tasks, onCardClick }: Props) {
               Drop tasks here
             </div>
           ) : (
-            tasks.map((task) => <TaskCard key={task.id} task={task} onClick={onCardClick} />)
+            tasks.map((task) => (
+              <TaskCard key={task.id} task={task} onClick={onCardClick} rosterMap={rosterMap} />
+            ))
           )}
         </SortableContext>
       </div>

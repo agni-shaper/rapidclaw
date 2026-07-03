@@ -17,13 +17,16 @@ import { KanbanColumn } from "./kanban-column";
 import { TaskCard } from "./task-card";
 import { TaskFlyout } from "./task-flyout";
 import { RefreshCw, Loader2 } from "lucide-react";
+import { assigneeDisplay, toRosterMap, type RosterEntry } from "@/lib/roster";
 
 interface Props {
   initialTasks: Task[];
+  initialRoster: RosterEntry[];
 }
 
-export function KanbanBoard({ initialTasks }: Props) {
+export function KanbanBoard({ initialTasks, initialRoster }: Props) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [roster] = useState<RosterEntry[]>(initialRoster);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [flyoutOpen, setFlyoutOpen] = useState(false);
@@ -31,6 +34,8 @@ export function KanbanBoard({ initialTasks }: Props) {
   const [refreshing, setRefreshing] = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+
+  const rosterMap = useMemo(() => toRosterMap(roster), [roster]);
 
   const filtered = useMemo(() => {
     const today = new Date(new Date().toDateString());
@@ -57,12 +62,17 @@ export function KanbanBoard({ initialTasks }: Props) {
   }, [filtered]);
 
   const assigneeOptions = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const t of tasks) if (t.assignee) map.set(t.assignee, (map.get(t.assignee) || 0) + 1);
-    return Array.from(map.entries())
+    // Aggregate by Slack ID with count; label uses roster's name + handle.
+    const counts = new Map<string, number>();
+    for (const t of tasks) if (t.assignee) counts.set(t.assignee, (counts.get(t.assignee) || 0) + 1);
+    return Array.from(counts.entries())
       .sort((a, b) => b[1] - a[1])
-      .map(([id, n]) => ({ id, label: `${id} (${n})` }));
-  }, [tasks]);
+      .map(([sid, n]) => {
+        const d = assigneeDisplay(sid, rosterMap);
+        const label = d.known ? `${d.name} (${d.handle}) · ${n}` : `${d.handle} · ${n}`;
+        return { id: sid, label };
+      });
+  }, [tasks, rosterMap]);
 
   const categoryOptions = useMemo(() => {
     return Array.from(new Set(tasks.map((t) => t.category).filter((c): c is string => !!c))).sort();
@@ -167,13 +177,27 @@ export function KanbanBoard({ initialTasks }: Props) {
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="flex flex-1 gap-4 overflow-x-auto p-4">
           {TASK_STATUSES.map((s) => (
-            <KanbanColumn key={s} status={s} tasks={byStatus[s]} onCardClick={openTask} />
+            <KanbanColumn
+              key={s}
+              status={s}
+              tasks={byStatus[s]}
+              onCardClick={openTask}
+              rosterMap={rosterMap}
+            />
           ))}
         </div>
-        <DragOverlay>{activeTask ? <TaskCard task={activeTask} onClick={() => {}} /> : null}</DragOverlay>
+        <DragOverlay>
+          {activeTask ? <TaskCard task={activeTask} onClick={() => {}} rosterMap={rosterMap} /> : null}
+        </DragOverlay>
       </DndContext>
 
-      <TaskFlyout task={selectedTask} open={flyoutOpen} onOpenChange={setFlyoutOpen} onSaved={onTaskUpdated} />
+      <TaskFlyout
+        task={selectedTask}
+        open={flyoutOpen}
+        onOpenChange={setFlyoutOpen}
+        onSaved={onTaskUpdated}
+        rosterMap={rosterMap}
+      />
     </div>
   );
 }

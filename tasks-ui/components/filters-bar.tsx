@@ -68,7 +68,10 @@ export function FiltersBar({
         label="Assignee"
         value={filters.assignee}
         onChange={(v) => set("assignee", v)}
-        options={[{ value: "", label: "Any assignee" }, ...assigneeOptions.map((a) => ({ value: a.id, label: a.label }))]}
+        options={[
+          { value: "", label: "Any assignee" },
+          ...assigneeOptions.map((a) => ({ value: a.id, label: a.label })),
+        ]}
       />
 
       <FilterSelect

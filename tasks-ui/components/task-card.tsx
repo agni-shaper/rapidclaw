@@ -5,14 +5,16 @@ import { CSS } from "@dnd-kit/utilities";
 import { CalendarDays, Tag, Package } from "lucide-react";
 import type { Task } from "@/lib/types";
 import { CATEGORY_COLOR, PRIORITY_COLOR, PRIORITY_LABEL, PRODUCT_COLOR } from "@/lib/types";
+import { assigneeDisplay, type RosterEntry } from "@/lib/roster";
 import { cn } from "@/lib/utils";
 
 interface Props {
   task: Task;
   onClick: (task: Task) => void;
+  rosterMap: Map<string, RosterEntry>;
 }
 
-export function TaskCard({ task, onClick }: Props) {
+export function TaskCard({ task, onClick, rosterMap }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
     data: { type: "task", task },
@@ -24,11 +26,9 @@ export function TaskCard({ task, onClick }: Props) {
   } as const;
 
   const overdue = task.due_date && new Date(task.due_date) < new Date(new Date().toDateString());
+  const person = assigneeDisplay(task.assignee, rosterMap);
 
   return (
-    // Whole card is the drag surface. PointerSensor.activationConstraint.distance=6
-    // in KanbanBoard means a real click (no motion) still fires onClick and opens the
-    // flyout; motion >6px starts a drag instead.
     <div
       ref={setNodeRef}
       style={style}
@@ -85,13 +85,20 @@ export function TaskCard({ task, onClick }: Props) {
         )}
       </div>
       <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500">
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-1.5">
           {task.assignee && (
-            <span className="flex items-center gap-1">
-              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-700 text-[9px] font-semibold uppercase text-slate-200">
-                {task.assignee.slice(0, 2)}
+            <>
+              <span
+                title={person.name}
+                className={cn(
+                  "inline-flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-semibold uppercase",
+                  person.known ? "bg-slate-700 text-slate-100" : "bg-slate-800 text-slate-400"
+                )}
+              >
+                {person.initials}
               </span>
-            </span>
+              <span className={cn(person.known ? "text-slate-300" : "text-slate-500")}>{person.handle}</span>
+            </>
           )}
         </span>
         {task.due_date && (
