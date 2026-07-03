@@ -22,6 +22,7 @@ import json
 import os
 import re
 import sqlite3
+import subprocess
 import sys
 import time
 import urllib.parse
@@ -30,9 +31,12 @@ from pathlib import Path
 from typing import Optional
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
-CHANNEL_ID = "C0ASK9520JG"   # #tasks (was #marketing-automation C0BBQ7PV34N until 2026-07-02)
+CHANNEL_ID = "C0ASK9520JG"   # #tasks (was #marketing-automation C0BBQ7PV34N until 2026-07-02).
+                             # Used only for the crew-summary header post; per-task creation
+                             # goes through tasks.sh which uses its own #tasks default.
 TOKEN_PATH = Path.home() / ".config" / "claude" / "rapidnative-coach-slack-bot-token"
 DB_PATH = Path.home() / ".config" / "claude" / "rapidnative-coach.sqlite"
+TASKS_SH = PROJECT_DIR / "accountability" / "routines" / "tasks.sh"
 
 # Product roster (matches products/ dir + strategies/ dir). Order = iteration order.
 PRODUCT_SLUGS = ("rapidnative", "applighter", "letsdeployit")
@@ -320,59 +324,54 @@ def load_recon(date_str: str) -> dict:
     return {}
 
 
-def insert_task_sqlite(task: dict, member: dict, today: str, wlabel: str, task_ts: Optional[str]) -> Optional[int]:
-    """Persist a marketing-morning-generated task row into sqlite `tasks` — the
-    centralized task DB. Every task the helper posts to Slack also lands here as
-    an `open` row so the evening routine (and any other consumer) can query it
-    via `tasks.sh list --category marketing --due <today>`.
+def add_task_via_hook(task: dict, member: dict, today: str, dry_run: bool) -> tuple:
+    """Route a marketing task through the centralized `tasks.sh add` hook.
 
-    Fields:
-      - title:    the human-readable bullet
-      - assignee: crew member's Slack ID
-      - status:   'open'
-      - priority: 'normal' (uniform for now; future: derive from template shape)
-      - category: 'marketing'
-      - product:  the fan-out product tag ('rapidnative' | 'applighter' | 'letsdeployit')
-      - source:   'marketing-morning:<YYYY-MM-DD>:<TPL-ID>'
-      - due_date: today (same-day social distribution)
-      - metadata: JSON — template_id, platform, pool, section, week_label,
-                        slack_thread_ts (for evening reconciliation)
+    tasks.sh is the single write path for the tasks system: it composes the
+    is_on_leave / is_working_day guards, inserts the sqlite row, and posts a
+    notification to #tasks. This function is a thin subprocess wrapper.
 
-    Returns the new row id on success, None on failure. Never raises — Slack
-    posting continues even if sqlite is down.
+    Returns (sqlite_id: Optional[int], ok: bool).
+    In --dry-run mode, prints the intended command and returns (None, True).
     """
-    if not DB_PATH.exists():
-        return None
     product = task.get("product") or "rapidnative"
     if product not in PRODUCT_SLUGS:
         product = "rapidnative"
     tpl_id = task.get("template_id") or "unknown"
-    metadata = {
-        "template_id": tpl_id,
-        "platform": task.get("platform"),
-        "pool": list(task["pool"]) if task.get("pool") else None,
-        "section": task.get("section"),
-        "week_label": wlabel,
-        "slack_thread_ts": task_ts,
-    }
+    cmd = [
+        str(TASKS_SH),
+        "add",
+        member["slack_id"],
+        today,
+        task["bullet"],
+        "--category", "marketing",
+        "--product", product,
+        "--source", f"marketing-morning:{today}:{tpl_id}",
+        "--notify",
+        "--json",
+    ]
+    if dry_run:
+        title_preview = task["bullet"][:70] + ("…" if len(task["bullet"]) > 70 else "")
+        print(f"  [DRY] tasks.sh add {member['handle']} {today} '{title_preview}' --category=marketing --product={product} --notify")
+        return None, True
     try:
-        with sqlite3.connect(DB_PATH) as conn:
-            cur = conn.execute(
-                "INSERT INTO tasks (title, assignee, status, priority, category, product, source, due_date, metadata) "
-                "VALUES (?, ?, 'open', 'normal', 'marketing', ?, ?, ?, ?)",
-                (
-                    task["bullet"],
-                    member["slack_id"],
-                    product,
-                    f"marketing-morning:{today}:{tpl_id}",
-                    today,
-                    json.dumps(metadata),
-                ),
-            )
-            return cur.lastrowid
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+    except subprocess.TimeoutExpired:
+        print(f"  [FAIL] tasks.sh add timed out for {member['handle']}", file=sys.stderr)
+        return None, False
     except Exception as e:
-        print(f"  [sqlite-err] insert failed for {member['handle']}: {e}", file=sys.stderr)
-        return None
+        print(f"  [FAIL] tasks.sh add exception for {member['handle']}: {e}", file=sys.stderr)
+        return None, False
+    if result.returncode != 0:
+        stderr_head = (result.stderr or "").strip().splitlines()[:3]
+        print(f"  [FAIL] tasks.sh add exit={result.returncode} for {member['handle']} :: {' | '.join(stderr_head)}", file=sys.stderr)
+        return None, False
+    try:
+        row = json.loads(result.stdout)
+        return row.get("id"), True
+    except json.JSONDecodeError:
+        print(f"  [FAIL] tasks.sh add returned non-JSON: {result.stdout[:200]}", file=sys.stderr)
+        return None, False
 
 
 def load_blog_cache(date_str: str) -> Optional[dict]:
@@ -852,11 +851,19 @@ def number_tasks(tasks: list) -> list:
 
 
 def post_for_crew(member: dict, tasks: list, wlabel: str, today: str, dry_run: bool) -> dict:
-    """Post header + all tasks (with enrichment) for one crew member; also
-    persist each task to sqlite `tasks` (the centralized DB) so downstream
-    consumers (evening routine, task-list.sh, etc.) can see them.
+    """Post a per-crew summary header, then route every task through `tasks.sh add`.
 
-    Returns {handle, header_ts, tasks: {Tid: ts}, posted, enriched, failed, sqlite_rows}.
+    tasks.sh is the SINGLE write path for the tasks system — it inserts the
+    sqlite row AND posts a #tasks notification. This function is now a thin
+    orchestrator: header (a summary, not a task) via direct slack_post; each
+    task via subprocess to tasks.sh.
+
+    Enrichment thread replies (draft post text / thread suggestions) are
+    intentionally NOT posted from here anymore — the enrichment data still
+    lives in the recon cache and can be attached to tasks in a follow-up
+    phase (via the sqlite metadata column, exposed by `tasks.sh get <id>`).
+
+    Returns {handle, header_ts, task_ids, posted, failed}.
     """
     sid = member["slack_id"]
     handle = member["handle"]
@@ -877,9 +884,8 @@ def post_for_crew(member: dict, tasks: list, wlabel: str, today: str, dry_run: b
     header_body = (
         f"<@{sid}> — {handle} · {total} tasks today ({carry_n} carryover, {new_n} new)\n\n"
         f"{breakdown_line}"
-        f"_Each task is posted as its own top-level message below. "
-        f"Open a task's thread, do the work, then reply 'done' or react :white_check_mark: in that task's thread to mark it complete. "
-        f"The 19:30 IST routine reads each task's thread and rolls unfinished tasks into tomorrow._"
+        f"_Each task is created via `tasks.sh add` and lands as its own top-level "
+        f"post below. Task ids are sqlite row ids — use `tasks.sh get <id>` for full detail._"
     )
 
     if dry_run:
@@ -888,86 +894,23 @@ def post_for_crew(member: dict, tasks: list, wlabel: str, today: str, dry_run: b
     else:
         header_ts = slack_post(header_body)
         if not header_ts:
-            return {"handle": handle, "header_ts": None, "tasks": {}, "posted": 0, "enriched": 0, "failed": 1}
+            return {"handle": handle, "header_ts": None, "task_ids": [], "posted": 0, "failed": 1}
         time.sleep(0.3)
 
-    result = {"handle": handle, "header_ts": header_ts, "tasks": {}, "posted": 0, "enriched": 0, "failed": 0, "sqlite_rows": 0}
+    result = {"handle": handle, "header_ts": header_ts, "task_ids": [], "posted": 0, "failed": 0}
 
     for task in tasks:
-        tid = task["id"]
-        section = task["section"]
-        bullet = task["bullet"]
-        product_tag = PRODUCT_TAG.get(task.get("product", "rapidnative"), "")
-        # Only prepend the tag when >1 product is in play; on RN-only days keep the old shape
-        tag_prefix = f"{product_tag} " if product_tag and len(product_counts) > 1 else ""
-        task_body = (
-            f"{tid} · {tag_prefix}*{bullet}*\n"
-            f"_{section} · {wlabel}_\n\n"
-            f"_Reply 'done' in this thread when complete, or react :white_check_mark:._"
-        )
-        if dry_run:
-            print(f"  [DRY] would post {tid} for {handle}")
-            task_ts = f"DRY-{sid}-{tid}"
+        sqlite_id, ok = add_task_via_hook(task, member, today, dry_run)
+        if ok:
+            result["posted"] += 1
+            if sqlite_id is not None:
+                result["task_ids"].append(sqlite_id)
         else:
-            task_ts = slack_post(task_body)
-            if not task_ts:
-                result["failed"] += 1
-                print(f"  [FAIL] task {tid} for {handle}", file=sys.stderr)
-                continue
-            time.sleep(0.3)
-
-        result["tasks"][tid] = task_ts
-        result["posted"] += 1
-
-        # Persist to sqlite `tasks` (the centralized DB) — skip in dry-run
+            result["failed"] += 1
+        # Space out subprocess + Slack calls so we don't trip slack.com's tier-1 rate limit
         if not dry_run:
-            row_id = insert_task_sqlite(task, member, today, wlabel, task_ts)
-            if row_id:
-                result["sqlite_rows"] += 1
-                task["sqlite_id"] = row_id
-
-        # Enrichment
-        enrichment = build_enrichment(task)
-        if not enrichment:
-            continue
-        chunks = split_for_slack(enrichment)
-        all_ok = True
-        for chunk in chunks:
-            if dry_run:
-                print(f"  [DRY] would post enrichment for {tid} ({len(chunk)} chars)")
-            else:
-                rts = slack_post(chunk, thread_ts=task_ts)
-                if not rts:
-                    print(f"  [FAIL] enrichment chunk for {tid}", file=sys.stderr)
-                    all_ok = False
-                time.sleep(0.3)
-        if all_ok:
-            result["enriched"] += 1
+            time.sleep(0.3)
     return result
-
-
-def build_enrichment(task: dict) -> str:
-    """Pick the right enrichment renderer for the task's template + attached data."""
-    template_id = task["template_id"]
-    tpl = TEMPLATE_DEFS.get(template_id, {})
-    shape = tpl.get("shape")
-
-    # Engagement single-target
-    if shape == "B" and task.get("recon_finding"):
-        return render_enrichment_engagement_single(task["recon_finding"])
-    # Engagement multi-target
-    if shape == "C" and task.get("recon_findings_list"):
-        return render_enrichment_engagement_multi(task["recon_findings_list"])
-    # Personal-account
-    if shape == "D" and task.get("personal_draft"):
-        return render_enrichment_personal(template_id, task["personal_draft"])
-    # Article submission
-    if shape == "A" and task.get("article_draft"):
-        return render_enrichment_article(task["article_draft"])
-    # Blog task
-    if template_id == "BLOG-TASK":
-        return render_enrichment_blog(task)
-    return ""
 
 
 # ─────────────────────────── SNAPSHOT ───────────────────────────
@@ -993,8 +936,8 @@ def write_snapshot(sentinel: dict, today: str, wlabel: str, on_leave: list):
         out.append(f"### {info['handle']}")
         out.append("")
         # We don't easily have the carry/new split here in the sentinel; skip the section markers
-        for tid in sorted(info["tasks"]):
-            out.append(f"- [ ] {tid} · (see Slack thread)")
+        for row_id in info.get("task_ids", []):
+            out.append(f"- [ ] #{row_id} · (see `tasks.sh get {row_id}`)")
         out.append("")
     path = PROJECT_DIR / "marketing" / "morning-tasks.md"
     path.write_text("\n".join(out))
@@ -1085,8 +1028,8 @@ def main():
     for sid in all_tasks_by_crew:
         number_tasks(all_tasks_by_crew[sid])
 
-    # Post
-    sentinel = {"version": 2, "date": today, "crews": {}}
+    # Post — every task routes through tasks.sh (sqlite + #tasks notify) via the hook
+    sentinel = {"version": 3, "date": today, "crews": {}}
     print(f"=== gen-marketing-morning {today} ({wlabel}) ===")
     print(f"working: {[m['handle'] for m in working]}")
     print(f"on leave: {[m['handle'] for m in on_leave]}")
@@ -1094,30 +1037,29 @@ def main():
     print(f"recon products: {list(recon.keys())}, blog: {bool(blog_cache)}")
     print()
     total_posted = 0
-    total_enriched = 0
     total_failed = 0
+    all_task_ids: list = []
     for m in working:
         sid = m["slack_id"]
         tasks = all_tasks_by_crew[sid]
         if not tasks:
             continue
-        print(f">>> posting for {m['handle']} ({len(tasks)} tasks)")
+        print(f">>> posting for {m['handle']} ({len(tasks)} tasks) via tasks.sh add")
         result = post_for_crew(m, tasks, wlabel, today, args.dry_run)
         sentinel["crews"][sid] = {
             "handle": result["handle"],
             "header_ts": result["header_ts"],
-            "tasks": result["tasks"],
+            "task_ids": result["task_ids"],
         }
         total_posted += result["posted"]
-        total_enriched += result["enriched"]
         total_failed += result["failed"]
-        total_sqlite = locals().get("total_sqlite", 0) + result.get("sqlite_rows", 0)
-        print(f"    posted={result['posted']}, enriched={result['enriched']}, sqlite_rows={result.get('sqlite_rows', 0)}, failed={result['failed']}")
+        all_task_ids.extend(result["task_ids"])
+        print(f"    posted={result['posted']}, task_ids captured={len(result['task_ids'])}, failed={result['failed']}")
 
     if args.dry_run:
         print()
         print("=== DRY-RUN SUMMARY ===")
-        print(f"would post: {total_posted} tasks, {total_enriched} with enrichment, {total_failed} failed")
+        print(f"would call tasks.sh add {total_posted} times, {total_failed} would fail")
         return 0
 
     # Write sentinel atomically
@@ -1132,11 +1074,10 @@ def main():
 
     print()
     print("=== RUN SUMMARY ===")
-    print(f"crews posted:  {len(sentinel['crews'])}")
-    print(f"tasks posted:  {total_posted}")
-    print(f"sqlite rows:   {locals().get('total_sqlite', 0)}")
-    print(f"enrichments:   {total_enriched}")
-    print(f"failures:      {total_failed}")
+    print(f"crews posted:      {len(sentinel['crews'])}")
+    print(f"tasks.sh calls OK: {total_posted}")
+    print(f"sqlite ids saved:  {len(all_task_ids)}")
+    print(f"failures:          {total_failed}")
     return 0
 
 
