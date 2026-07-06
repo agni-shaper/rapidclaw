@@ -5,8 +5,9 @@ import type { Task, TaskFilters, TaskStatus, TaskPriority } from "./types";
 const execFileP = promisify(execFile);
 
 // Absolute path — the Next.js server runs from tasks-ui/, but tasks.sh
-// lives in the parent repo's accountability/routines/.
-const TASKS_SH = "/Users/agni/Documents/rapidclaw/accountability/routines/tasks.sh";
+// lives in the parent repo's .claude/skills/tasks/bin/ (moved there in the
+// task-management → tasks skill rename refactor, commit 3591ef9).
+const TASKS_SH = "/Users/agni/Documents/rapidclaw/.claude/skills/tasks/bin/tasks.sh";
 
 async function run(args: string[]): Promise<string> {
   try {
