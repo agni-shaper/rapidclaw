@@ -108,6 +108,49 @@ REPLY_RAW=$("$SLACK_POST" "$CHANNEL" "$SLACK_TS" "$MESSAGE" 2>&1) || {
 }
 REPLY_TS="${REPLY_RAW#OK ts=}"
 
+# ─── 3b. Upload any attachments as thread replies under the task's thread ───
+# For distro-article tasks, gen-task-assistance.py stashes each source-thread
+# file under /tmp/task-assist-T<id>/ and emits a manifest of {path, title, name}.
+# Re-upload each with its Slack-preserved title so the crew sees the same file
+# cards they'd see in #ai-blogs / #applighter-ai-blogs.
+SLACK_UPLOAD="$HERE/slack-upload.sh"
+N_ATTACHMENTS=$(python3 -c "import json,sys; print(len(json.loads(sys.argv[1]).get('attachments',[])))" "$BODY_JSON")
+if [ "$N_ATTACHMENTS" -gt 0 ] 2>/dev/null; then
+  # Emit one line per attachment: "<path>|<title>"
+  # (title contains no |, filenames don't either — safe delimiter here.)
+  # Read manifest into an array first to avoid subshell pipe issues in zsh
+  # (where `python | while read` can eat state and truncate iterations).
+  MANIFEST_LINES=("${(f)$(python3 -c "
+import json, sys
+for a in json.loads(sys.argv[1]).get('attachments', []):
+    print(f\"{a['path']}|{a['title']}\")
+" "$BODY_JSON")}")
+  echo "  attempting $N_ATTACHMENTS attachment upload(s)..." >&2
+  UP_OK=0
+  UP_FAIL=0
+  for LINE in "${MANIFEST_LINES[@]}"; do
+    [ -z "$LINE" ] && continue
+    ATTACH_PATH="${LINE%%|*}"
+    ATTACH_TITLE="${LINE#*|}"
+    if [ ! -f "$ATTACH_PATH" ]; then
+      echo "  WARN: attachment missing on disk: $ATTACH_PATH" >&2
+      UP_FAIL=$((UP_FAIL + 1))
+      continue
+    fi
+    if "$SLACK_UPLOAD" --allow-empty --title "$ATTACH_TITLE" "$CHANNEL" "$ATTACH_PATH" "$SLACK_TS" >/dev/null 2>&1; then
+      UP_OK=$((UP_OK + 1))
+    else
+      echo "  WARN: upload failed for $ATTACH_PATH ($ATTACH_TITLE)" >&2
+      UP_FAIL=$((UP_FAIL + 1))
+    fi
+    sleep 0.5
+  done
+  echo "  attachments: $UP_OK ok, $UP_FAIL failed" >&2
+  # Clean up the per-task /tmp dir (best-effort).
+  ATTACH_DIR="/tmp/task-assist-T${TASK_ID}"
+  [ -d "$ATTACH_DIR" ] && rm -rf "$ATTACH_DIR" 2>/dev/null || true
+fi
+
 # ─── 4. Stash metadata on the task row ───
 # We use json_patch to merge with any existing metadata (recon cache pointers,
 # marketing-morning template info, etc.). If the row's metadata is NULL,

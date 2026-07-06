@@ -241,6 +241,141 @@ def _slack_get(url: str) -> dict:
         return {}
 
 
+def _slack_download_file(url_private: str) -> Optional[str]:
+    """Download a Slack-private file's contents as UTF-8 text using the bot token.
+    Returns None on any failure."""
+    if not SLACK_TOKEN_PATH.exists():
+        return None
+    token = SLACK_TOKEN_PATH.read_text().strip()
+    try:
+        req = urllib.request.Request(url_private, headers={"Authorization": f"Bearer {token}"})
+        with urllib.request.urlopen(req, timeout=15) as r:
+            return r.read().decode("utf-8", errors="replace")
+    except Exception:
+        return None
+
+
+def _fetch_thread_variants_raw(channel_id: str, parent_ts: str) -> list:
+    """Return the raw list of file attachments in the source thread, preserving
+    their Slack-assigned titles + order. Each entry:
+    {name, title, url_private, size, ts_ordinal (for ordering)}.
+    Filter out the parent-message files (there aren't any in practice — files
+    are in reply messages) and skip any files without a title fallback."""
+    api = f"https://slack.com/api/conversations.replies?channel={channel_id}&ts={parent_ts}&limit=30"
+    resp = _slack_get(api)
+    if not resp.get("ok"):
+        return []
+    out: list = []
+    for m in resp.get("messages", []):
+        # skip the parent (it typically has no files anyway, but be defensive)
+        if m.get("ts") == parent_ts and not m.get("files"):
+            continue
+        for f in m.get("files", []):
+            out.append({
+                "name":        f.get("name") or "",
+                "title":       (f.get("title") or f.get("name") or "").strip(),
+                "url_private": f.get("url_private"),
+                "size":        f.get("size", 0),
+                "ts":          m.get("ts", ""),
+            })
+    return out
+
+
+def _fetch_thread_variants(channel_id: str, parent_ts: str, product: str) -> dict:
+    """Fetch source-thread files. Format differs by product:
+
+    - AL / applighter (this bot posts): files named "NN-{canonical,medium,devto,
+      hashnode,seo}.md" — one file per platform variant. Extractor returns
+      {canonical, medium, devto, hashnode, seo}.
+
+    - RN / rapidnative (ContentWriterBot posts): blog is split into
+      "<slug>-section-N.md" (typically 5 sections) plus a
+      "publishing-plan-<date>.md" (SEO/distribution plan). Canonical body =
+      concatenation of section-1..N in order. No per-platform variants; the
+      crew adapts the canonical to each platform themselves. Extractor returns
+      {canonical (a synthesized entry with url_private=None), sections (list),
+      seo (the publishing-plan file, mapped as 'seo' for consistency)}.
+
+    Return shape (both products): dict keyed by variant name → {name, permalink,
+    url_private, size, sections (only for RN canonical: list of section files
+    in order — the caller downloads + concatenates)}.
+    """
+    api = f"https://slack.com/api/conversations.replies?channel={channel_id}&ts={parent_ts}&limit=30"
+    resp = _slack_get(api)
+    if not resp.get("ok"):
+        return {}
+    variants: dict = {}
+
+    if product == "applighter":
+        for m in resp.get("messages", []):
+            for f in m.get("files", []):
+                name = (f.get("name") or "").lower()
+                for token, key in (
+                    ("canonical", "canonical"),
+                    ("medium",    "medium"),
+                    ("devto",     "devto"),
+                    ("dev.to",    "devto"),
+                    ("hashnode",  "hashnode"),
+                    ("seo",       "seo"),
+                ):
+                    if token in name and key not in variants:
+                        variants[key] = {
+                            "name":        f.get("name"),
+                            "permalink":   f.get("permalink"),
+                            "url_private": f.get("url_private"),
+                            "size":        f.get("size", 0),
+                        }
+                        break
+
+    elif product == "rapidnative":
+        section_re = re.compile(r"-section-(\d+)\.md$", re.IGNORECASE)
+        sections: list = []
+        for m in resp.get("messages", []):
+            for f in m.get("files", []):
+                name = f.get("name") or ""
+                lname = name.lower()
+                mm = section_re.search(name)
+                if mm:
+                    sections.append({
+                        "n":           int(mm.group(1)),
+                        "name":        name,
+                        "permalink":   f.get("permalink"),
+                        "url_private": f.get("url_private"),
+                        "size":        f.get("size", 0),
+                    })
+                elif lname.startswith("publishing-plan"):
+                    variants["seo"] = {
+                        "name":        name,
+                        "permalink":   f.get("permalink"),
+                        "url_private": f.get("url_private"),
+                        "size":        f.get("size", 0),
+                    }
+        if sections:
+            sections.sort(key=lambda s: s["n"])
+            total_size = sum(s["size"] for s in sections)
+            variants["canonical"] = {
+                "name":        sections[0]["name"].split("-section-")[0] + "-canonical.md",
+                "permalink":   sections[0]["permalink"],  # link to section-1 as the anchor
+                "url_private": None,  # signal: caller must concat sections, not download a single file
+                "size":        total_size,
+                "sections":    sections,
+            }
+
+    return variants
+
+
+def _download_rn_canonical(sections: list) -> str:
+    """RN's canonical body is spread across section files; download + concat."""
+    parts: list = []
+    for s in sections:
+        if not s.get("url_private"):
+            continue
+        body = _slack_download_file(s["url_private"])
+        if body:
+            parts.append(body)
+    return "\n\n".join(parts)
+
+
 def _slack_permalink(channel_id: str, ts: str) -> str:
     """Compute a stable Slack permalink from channel + ts (no API call)."""
     return f"https://shaper-studio.slack.com/archives/{channel_id}/p{ts.replace('.', '')}"
@@ -285,10 +420,11 @@ def _parse_blog_message(text: str, product: str) -> dict:
 
 
 def fetch_latest_distro_blog(product: str) -> Optional[dict]:
-    """Fetch the latest blog message from the product's source channel. Tries
-    each (text_pattern, blog_type) in preference order; returns the first hit.
+    """Fetch the latest blog message from the product's source channel + thread
+    variants + inline the canonical body.
 
-    Returns {title, canonical_url, blog_type, source_thread_url, generated_date}
+    Returns {title, canonical_url, blog_type, source_thread_url, generated_date,
+             variants: dict, canonical_body: str, canonical_truncated: bool}
     or None if no matching message in the last 20."""
     src = DISTRO_BLOG_SOURCES.get(product)
     if not src:
@@ -304,32 +440,94 @@ def fetch_latest_distro_blog(product: str) -> Optional[dict]:
             text = m.get("text", "")
             if pattern in text:
                 parsed = _parse_blog_message(text, product)
+                parent_ts = m["ts"]
+                raw_variants = _fetch_thread_variants_raw(channel_id, parent_ts)
                 return {
-                    "title": parsed["title"],
-                    "canonical_url": parsed["canonical_url"],
-                    "blog_type": blog_type,
-                    "source_thread_url": _slack_permalink(channel_id, m["ts"]),
-                    "generated_date": parsed["generated_date"],
+                    "title":               parsed["title"],
+                    "canonical_url":       parsed["canonical_url"],
+                    "blog_type":           blog_type,
+                    "source_thread_url":   _slack_permalink(channel_id, parent_ts),
+                    "generated_date":      parsed["generated_date"],
+                    "raw_variants":        raw_variants,
                 }
     return None
 
 
-def fmt_distro_article(blog: dict, product: str) -> str:
-    """Format the Shape F block. `blog` is fetch_latest_distro_blog output."""
-    title = blog.get("title", "(title not parsed)")
-    canonical = blog.get("canonical_url", "")
-    src_thread = blog.get("source_thread_url", "")
-    blog_type = blog.get("blog_type", "")
+_AL_TITLE_MAP = {
+    "canonical":  "Canonical (master)",
+    "medium":     "Medium Adaptation",
+    "devto":      "Dev.to Adaptation",
+    "hashnode":   "Hashnode Adaptation",
+    "seo":        "SEO Brief",
+}
+
+
+def _prettify_title(original_title: str, original_name: str) -> str:
+    """AL's #applighter-ai-blogs files have title=filename (e.g. '01-canonical.md').
+    Map those to descriptive titles. RN's #ai-blogs files already have rich titles
+    ('Section 1: CANONICAL BLOG POST'), so leave those untouched."""
+    if original_title and not re.match(r"^\d+-[a-z\-]+\.md$", original_title, re.IGNORECASE):
+        return original_title
+    lname = (original_name or "").lower()
+    for token, label in _AL_TITLE_MAP.items():
+        if token in lname:
+            return label
+    return original_title or original_name
+
+
+def write_distro_attachments(task_id: int, raw_variants: list) -> list:
+    """Download each variant's content and stash it under
+    /tmp/task-assist-T<id>/<clean-filename> so task-assist.sh can re-upload
+    each to the task's thread with a preserved (or prettified) title.
+    Returns an ordered manifest [{path, title, name, size}, ...]."""
+    # Pin to /tmp explicitly (rather than tempfile.gettempdir() which is
+    # /var/folders/... on macOS) so task-assist.sh's cleanup path matches.
+    tmpdir = Path("/tmp") / f"task-assist-T{task_id}"
+    tmpdir.mkdir(parents=True, exist_ok=True)
+    manifest: list = []
+    for i, v in enumerate(raw_variants, 1):
+        url = v.get("url_private", "")
+        if not url:
+            continue
+        content = _slack_download_file(url)
+        if not content:
+            continue
+        original_name = v.get("name") or f"variant-{i}.md"
+        # Strip any leading "NN-" that's already in the source name so we
+        # don't get double-prefixed filenames like "01-01-canonical.md".
+        clean_name = re.sub(r"^\d{1,3}-", "", original_name)
+        path = tmpdir / f"{i:02d}-{clean_name}"
+        path.write_text(content)
+        manifest.append({
+            "path":  str(path),
+            "title": _prettify_title(v.get("title") or "", original_name),
+            "name":  clean_name,
+            "size":  len(content),
+        })
+    return manifest
+
+
+def fmt_distro_article(blog: dict, product: str, n_attachments: int) -> str:
+    """Concise wrapper. The full blog content lives in the file attachments
+    that task-assist.sh uploads under this same thread — one per platform
+    variant with its original Slack-assigned title preserved."""
+    title       = blog.get("title", "(title not parsed)")
+    canonical   = blog.get("canonical_url", "")
+    src_thread  = blog.get("source_thread_url", "")
+    blog_type   = blog.get("blog_type", "")
+
     lines = [f"📰 *Today's distribution: {title}*", ""]
     if canonical:
-        lines.append(f"Canonical: <{canonical}>")
+        lines.append(f"Canonical URL: <{canonical}>")
     else:
-        lines.append(f"Canonical: _(in review — no public URL yet, {blog_type})_")
+        lines.append(f"Canonical URL: _(in review — external draft only)_")
     if src_thread:
-        lines.append(f"Ready-to-post variants (canonical / Medium / Dev.to / Hashnode / SEO brief) in the source thread:")
-        lines.append(f"  <{src_thread}>")
+        lines.append(f"Source thread: <{src_thread}>")
     lines.append("")
-    lines.append("Pick a platform, grab that variant file, post from your personal account.")
+    if n_attachments:
+        lines.append(f"*Below: {n_attachments} platform variants* — pick the one for your target platform, adapt if needed, post from your personal account.")
+    else:
+        lines.append("_(no platform variants found in the source thread — click through above to grab them manually)_")
     return "\n".join(lines)
 
 
@@ -368,13 +566,18 @@ def find_recon_data(task: dict, cls: dict, recon: dict) -> Tuple[str, dict]:
                 "kind": kind,
                 "product": product,
             }
-        return fmt_distro_article(blog, product), {
-            "kind": "distro-article",
-            "product": product,
-            "blog_type": blog.get("blog_type"),
-            "blog_title": blog.get("title"),
-            "canonical_url": blog.get("canonical_url"),
+        # Download each variant and stash under /tmp so task-assist.sh can
+        # re-upload them into the task's thread, preserving titles.
+        attachments = write_distro_attachments(task["id"], blog.get("raw_variants", []))
+        text = fmt_distro_article(blog, product, len(attachments))
+        return text, {
+            "kind":              "distro-article",
+            "product":           product,
+            "blog_type":         blog.get("blog_type"),
+            "blog_title":        blog.get("title"),
+            "canonical_url":     blog.get("canonical_url"),
             "source_thread_url": blog.get("source_thread_url"),
+            "attachments":       attachments,
         }
 
     if not product:
@@ -438,14 +641,18 @@ def find_recon_data(task: dict, cls: dict, recon: dict) -> Tuple[str, dict]:
 
 
 def build_assistance(task_id: int) -> dict:
-    """Return {'ok': bool, 'text': str, 'metadata': dict, 'reason': str (if empty text)}."""
+    """Return {'ok': bool, 'text': str, 'metadata': dict, 'attachments': list, 'reason': str}."""
     task = load_task(task_id)
     if not task:
-        return {"ok": False, "text": "", "metadata": {}, "reason": f"task {task_id} not found"}
+        return {"ok": False, "text": "", "metadata": {}, "attachments": [], "reason": f"task {task_id} not found"}
 
     cls = classify(task["title"])
     recon = load_recon(today_ist())
     text, meta = find_recon_data(task, cls, recon)
+
+    # Promote attachments to top-level so task-assist.sh doesn't need to spelunk
+    # into metadata to iterate. Leave a copy in metadata for the sqlite stash.
+    attachments = meta.get("attachments", []) or []
 
     meta.update({
         "task_id": task_id,
@@ -454,7 +661,13 @@ def build_assistance(task_id: int) -> dict:
         "generated_at": datetime.datetime.now().isoformat(timespec="seconds"),
     })
 
-    return {"ok": True, "text": text, "metadata": meta, "reason": meta.get("reason", "")}
+    return {
+        "ok":          True,
+        "text":        text,
+        "metadata":    meta,
+        "attachments": attachments,
+        "reason":      meta.get("reason", ""),
+    }
 
 
 def main() -> int:

@@ -13,7 +13,13 @@ set -e
 source "${0:A:h}/_lib.sh"
 
 ALLOW_EMPTY=0
-if [ "${1:-}" = "--allow-empty" ]; then ALLOW_EMPTY=1; shift; fi
+FILE_TITLE=""
+while [ "${1:-}" = "--allow-empty" ] || [ "${1:-}" = "--title" ]; do
+  case "$1" in
+    --allow-empty) ALLOW_EMPTY=1; shift ;;
+    --title)       FILE_TITLE="${2:?--title requires a value}"; shift 2 ;;
+  esac
+done
 
 CHANNEL_ID="${1:?usage: slack-upload.sh [--allow-empty] <channel_id> <file_path> [message] [thread_ts]}"
 FILE_PATH="${2:?usage: slack-upload.sh [--allow-empty] <channel_id> <file_path> [message] [thread_ts]}"
@@ -53,14 +59,15 @@ FILE_ID="$(echo "$GET_RESP" | /usr/bin/python3 -c 'import json,sys; print(json.l
 
 curl -fsS -X POST -F "file=@$FILE_PATH" "$UPLOAD_URL" > /dev/null
 
+DISPLAY_TITLE="${FILE_TITLE:-$FILE_NAME}"
 PAYLOAD="$(/usr/bin/python3 -c '
 import json, sys
-fid, fn, ch, msg, tts = sys.argv[1:6]
-d = {"files": [{"id": fid, "title": fn}], "channel_id": ch}
+fid, fn, ch, msg, tts, title = sys.argv[1:7]
+d = {"files": [{"id": fid, "title": title}], "channel_id": ch}
 if msg: d["initial_comment"] = msg
 if tts: d["thread_ts"] = tts
 print(json.dumps(d))
-' "$FILE_ID" "$FILE_NAME" "$CHANNEL_ID" "$MESSAGE" "$THREAD_TS")"
+' "$FILE_ID" "$FILE_NAME" "$CHANNEL_ID" "$MESSAGE" "$THREAD_TS" "$DISPLAY_TITLE")"
 
 COMPLETE_RESP="$(curl -fsS -X POST \
   -H "Authorization: Bearer $TOKEN" \
