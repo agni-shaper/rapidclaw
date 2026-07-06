@@ -80,9 +80,9 @@ notify_slack() {
   [ "$NOTIFY" -eq 1 ] || return 0
   local raw
   if [ -n "$thread_ts" ]; then
-    raw=$("$HERE/slack-post.sh" "$CHANNEL" "$thread_ts" "$text" 2>/dev/null) || { echo "WARN: slack-post failed" >&2; return 0; }
+    raw=$("$HERE/../../../../accountability/routines/slack-post.sh" "$CHANNEL" "$thread_ts" "$text" 2>/dev/null) || { echo "WARN: slack-post failed" >&2; return 0; }
   else
-    raw=$("$HERE/slack-post.sh" "$CHANNEL" "$text" 2>/dev/null) || { echo "WARN: slack-post failed" >&2; return 0; }
+    raw=$("$HERE/../../../../accountability/routines/slack-post.sh" "$CHANNEL" "$text" 2>/dev/null) || { echo "WARN: slack-post failed" >&2; return 0; }
   fi
   # slack-post.sh echoes "OK ts=<ts>"; strip the prefix.
   echo "${raw#OK ts=}"
