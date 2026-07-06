@@ -114,4 +114,4 @@ Until then, the routine just pings; streak tracking is best-effort.
 ## Related skills
 
 - `leave` — `is_on_leave` is consumed here
-- `task-management` (Phase 2) — bug-report nudges also use this leave-aware pattern
+- `tasks` (Phase 2) — bug-report nudges also use this leave-aware pattern

@@ -1,31 +1,47 @@
 ---
-name: task-management
-description: The bot's task pipeline. Watches Slack channels + git logs, proposes task mutations, and on super-admin approval applies them via `tasks.sh` to the sqlite `tasks` table. Also serves ad-hoc requests ("assign X to @Y", "what's on my plate?", "mark #42 done").
+name: tasks
+description: Owns the tasks CRUD contract (`.claude/skills/tasks/bin/tasks.sh` → sqlite `tasks` table) AND the daily task-cleanup pipeline. All other skills that touch tasks (bug-tracking, user-testing, task-assistance, growth-marketing) go through this skill's `tasks.sh` contract — see §"For skills that call `tasks.sh`".
 when_to_load: |
   Load when ANY of the following:
   - Cron routine `tasks-cleanup` fires (12:15 IST Mon-Fri)
   - User asks "what's on my plate today?" / "show me my tasks" / "what's blocked?"
   - User asks to add / assign / move / close / cancel a task
   - The bot detects a "done #42" / "done T01" claim in a Slack thread reply
+  - Another skill needs to read or mutate the `tasks` table
 voice_source: ../../profile.md
 ---
 
-# task-management
+# tasks
 
-The skill owns the bot's relationship with the **sqlite `tasks` table** (single source of truth for all tasks since 2026-07-02). Two-tier interaction:
+Owns the bot's relationship with the **sqlite `tasks` table** (single source of truth for all tasks since 2026-07-02). Two-tier interaction:
 
 > *Tier A — feeder:* this skill watches the world (Slack channels + git logs) and proposes mutations.
-> *Tier B — DB:* the sqlite `tasks` table at `~/.config/claude/rapidnative-coach.sqlite`, accessed via the dispatcher `accountability/routines/tasks.sh`.
+> *Tier B — DB:* the sqlite `tasks` table at `~/.config/claude/rapidnative-coach.sqlite`, accessed via the dispatcher `.claude/skills/tasks/bin/tasks.sh`.
 
-**All writes go through `tasks.sh`.** Never hand-write SQL. Never edit anything under `sites/tasks/` (that markdown DB is archival — see "Migration" at the bottom).
+**All writes go through `tasks.sh`.** Never hand-write SQL. Never edit anything under `sites/tasks/` (archival — see "Migration" at the bottom).
 
 ## Read these before doing any work
 
-1. **`accountability/routines/tasks.sh help`** — the CRUD API surface. Six subcommands (add / list / get / update / done / rm) plus global flags (`--json` / `--notify` / `--channel` / `--force`).
+1. **`.claude/skills/tasks/bin/tasks.sh help`** — the CRUD API surface. Six subcommands (add / list / get / update / done / rm) plus global flags (`--json` / `--notify` / `--channel` / `--force`).
 2. `definitions/people.md` — Slack ID ↔ @handle lookups. Source of truth.
 3. `definitions/channels.md` — where a proposal should post (default: `#rapidnative-coach` `C0B4HG16QP3`).
 4. `bin/init-tasks.sh` — the sqlite schema (12 columns + CHECK constraints on status/priority). Read to know what fields exist.
 5. `sqlite ~/.config/claude/rapidnative-coach.sqlite` `routine_runs` — last successful `tasks-cleanup` run for idempotency between fires.
+
+## For skills that call `tasks.sh`
+
+Stable anchor for other skills (bug-tracking, user-testing, task-assistance, growth-marketing/social-engagement, etc.). Link here rather than duplicating.
+
+1. **Entry point is `.claude/skills/tasks/bin/tasks.sh`.** Never bare SQL. Never call the sibling `task-<verb>.sh` scripts directly — they're implementation detail.
+2. **`--notify` is mandatory on real writes** (`add` / `update` / `done` / `rm`). Without it the row lands in sqlite but the `#tasks` ledger stays silent, and teammates get no signal. Omit only when the caller explicitly wants a silent write (e.g. batched summary posted separately).
+3. **Never override `--channel`** for the notify destination. Default is `#tasks` (`C0ASK9520JG`) — that IS the correct place for the ledger post, even when the mutation was requested elsewhere. If you also need to confirm back to the user's originating thread, use the **two-write pattern**: `--notify` sends the ledger post to `#tasks`; a separate `slack-post.sh` sends the confirmation reply to the origin thread (include the sqlite id + `slack_message_url` from the row so the user can click through).
+4. **Dedupe with `list` before `add`.** Scope with `--category` and/or `--product`. A same-title open row → update the existing task (append repro/context), don't create a duplicate.
+5. **Roster lookups go through `definitions/people.md`.** Never invent a handle or Slack ID. If a name in a message isn't in the roster, ASK before assigning.
+6. **Respect the leave guard.** `tasks.sh add` refuses (exit 2) to assign a task whose due date lands on a leave day for the assignee. Override with `--force` only when you can explain WHY in the proposal.
+7. **Cancellation is soft.** `tasks.sh rm <id>` sets `status='cancelled'` — never a hard DELETE. Preserves the audit trail.
+8. **Category is the namespace.** Marketing → `--category=marketing`; bugs → `--category=bug`; sprint items → `--category=sprint`; default `adhoc`. Query with `tasks.sh list --category X --status open` to scope.
+9. **Never invent a task ID.** Look one up via `tasks.sh list` (filtered). If the title match is ambiguous, ask which.
+10. **Approval gate applies to teammate-tier senders** for any mutation. Owner / super-admins can apply directly.
 
 ## The daily 12:15 IST cleanup flow
 
@@ -56,7 +72,7 @@ Step-by-step:
    Fallback to <@U09DC8MB4KB> (Suraj) if Sanket is on leave (check via `is_on_leave`).
 8. On approval ("go" / "approve all" / "approve 1,3,5" / "defer"), the listener re-invokes
    this skill with the thread context. Then APPLY by running each approved tasks.sh
-   command verbatim. Each --notify posts to `#tasks` (see the rule below).
+   command verbatim. Each --notify posts to `#tasks` (see §"For skills that call `tasks.sh`").
 9. Update the proposal row: UPDATE tasks_cleanup_proposals SET status='applied' WHERE reply_ts=...
 10. Post a one-line applied-summary reply in the same thread.
 ```
@@ -91,34 +107,19 @@ For ad-hoc requests like *"Assign create banner to @famitha for Aug 8"* or *"Mar
    accountability/routines/slack-post.sh <origin_channel> <origin_thread_ts> \
      "Assigned T${NEW_ID} → <@${sid}> · due ${due} · ${cat}/${prod} · ${prio}. See ${URL}"
    ```
-   This preserves the two-write pattern: `--notify` posts to `#tasks` (the ledger), the confirmation goes back to where the user actually is.
-3. **Look up existing tasks first** when the message references an existing task:
+   This preserves the two-write pattern (see §"For skills that call `tasks.sh`" item 3).
+4. **Look up existing tasks first** when the message references an existing task:
    - "mark #42 done" → `tasks.sh done 42 --notify`
    - "reassign #42 to @rishav" → `tasks.sh update 42 assignee=@rishav --notify`
    - "cancel that banner task" → `tasks.sh list --status open` → find matching → `tasks.sh rm <id> --notify`
 
-## Anti-hallucination guards
+## Cleanup-flow-specific guards
 
-1. **Never invent a handle.** Use `definitions/people.md`. If a name in a message isn't in the roster, ASK before assigning.
-2. **Never invent a task ID.** Run `tasks.sh list` (with appropriate filters) to look one up. If the title match is ambiguous (multiple open tasks match), ask which.
-3. **Don't skip the approval gate for teammate-tier senders.** Even if the mutation looks trivial. The gate exists to prevent unilateral dumps.
-4. **Don't propose Done based on title guesses.** If EOD says "done banner" and there are two open banner tasks, list both and ask before proposing done on either.
-5. **Don't propose Done without git evidence** for commit-derived done moves. Flag the discrepancy in the proposal if the commit message names a task that has no matching sqlite row.
-6. **Never bypass the leave guard silently.** `tasks.sh` refuses to assign on a leave date (exit 2); if you want to override, pass `--force` and explain in the proposal WHY.
-7. **Never DELETE from sqlite directly.** Cancellation is soft (`status='cancelled'`). Preserves audit trail.
-8. **Never omit `--notify` on a real (non-dry-run) `tasks.sh add`.** Without it, the task lands in sqlite but the `#tasks` ledger doesn't get a post — teammates have no signal. Repeat this for `update / done / rm` when the mutation is user-visible.
-9. **Never pass `--channel` to override `tasks.sh`'s default.** `tasks.sh --notify` defaults to `#tasks` (`C0ASK9520JG`) — that is the CORRECT destination for the task ledger post. Do NOT redirect it to `#rapidnative-coach` (the channel where the user typed the request), even though the request originated there. Instead, use the two-write pattern: `--notify` sends the ledger post to `#tasks`; a separate `slack-post.sh` sends the human confirmation reply to the user's originating thread. The confirmation reply should include the sqlite id and the `slack_message_url` so the user can click through to the ledger post.
+Beyond the CRUD contract in §"For skills that call `tasks.sh`", the daily cleanup flow has its own guards:
 
-## Migration status (since 2026-07-02)
-
-- **Old:** `sites/tasks/` markdown DB (aliased-wikilink bullets, task pages, branch + PR per change, `intake/unsent-notifications.md` queue). Replaced.
-- **New:** sqlite `tasks` table + `tasks.sh` dispatcher + `--notify` for Slack. This file.
-- **What happens to `sites/tasks/`:** archival. No new writes. Existing task pages stay in the repo as history but are NOT synced to sqlite. Bulk migration is a possible follow-up.
-- **What went away:**
-  - Task-page markdown scaffolding
-  - Aliased wikilinks (`[[slug|title]]`)
-  - `sites/tasks/intake/unsent-notifications.md` queue (replaced by `--notify`)
-  - Branch + PR per task change (replaced by direct sqlite writes)
+1. **Don't skip the approval gate** for teammate-tier senders. Even for trivial mutations. The gate exists to prevent unilateral dumps.
+2. **Don't propose Done based on title guesses.** If EOD says "done banner" and there are two open banner tasks, list both and ask before proposing done on either.
+3. **Don't propose Done without git evidence** for commit-derived done moves. Flag the discrepancy in the proposal if the commit message names a task that has no matching sqlite row.
 
 ## Sqlite schema quick-reference
 
@@ -138,9 +139,18 @@ tasks table columns:
 
 See `bin/init-tasks.sh` for authoritative schema (with CHECK constraints).
 
+## Migration status (since 2026-07-02)
+
+- **Old:** `sites/tasks/` markdown DB (aliased-wikilink bullets, task pages, branch + PR per change, `intake/unsent-notifications.md` queue). Replaced.
+- **New:** sqlite `tasks` table + `tasks.sh` dispatcher + `--notify` for Slack. This file.
+- **What happens to `sites/tasks/`:** archival. No new writes. Existing task pages stay in the repo as history but are NOT synced to sqlite. Bulk migration is a possible follow-up.
+
 ## Related skills
 
-- `bug-tracking` — `#user-testing` observations that are bugs feed both this skill (as `--category=bug` tasks) and bug-tracking's projection
-- `leave` — used by Step 7 (fallback approver when Sanket is OOO)
-- `eod-nudges` — fires later in the day with leave awareness
-- `weekly-wrap` — pulls "what shipped" from `tasks.sh list --status done --due …` + git logs
+- `bug-tracking` — bug-shaped signals become `--category=bug` rows via `tasks.sh`. Follows §"For skills that call `tasks.sh`".
+- `user-testing` — feeds bug signals; observations that are bugs also flow through `bug-tracking` → `tasks.sh`.
+- `task-assistance` — reads tasks (`tasks.sh get <id> --json`) to help assignees; never mutates.
+- `growth-marketing` (social-engagement) — creates marketing tasks via `tasks.sh add --category=marketing`.
+- `leave` — used by Step 7 above (fallback approver when Sanket is OOO); also enforces the leave guard in `tasks.sh add`.
+- `eod-nudges` — fires later in the day with leave awareness.
+- `weekly-wrap` — pulls "what shipped" from `tasks.sh list --status done --due …` + git logs.

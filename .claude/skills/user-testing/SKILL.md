@@ -83,6 +83,6 @@ The line between "UX issue" and "bug":
 
 ## Related skills
 
-- `task-management` — bugs from this skill become sqlite `tasks` rows with `category='bug'` via `tasks.sh` (was `sites/tasks/` markdown until 2026-07-02)
+- `tasks` — bugs from this skill become sqlite `tasks` rows with `category='bug'` via `tasks.sh` (see `.claude/skills/tasks/SKILL.md` § "For skills that call `tasks.sh`")
 - `bug-tracking` — for the "this is a reproducible bug" subset of observations
 - `growth-marketing` — strong UX issues sometimes warrant a blog post or social comment ("we fixed X based on user feedback") — defer to growth-marketing for that drafting

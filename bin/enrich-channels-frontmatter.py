@@ -42,13 +42,13 @@ ROUTINE_TO_SKILLS = {
     "eod-streak-check":       ["eod-nudges", "leave"],
     "engagement":             [],   # social-engagement skill not yet scaffolded
     "user-testing-capture":   ["user-testing"],
-    "tasks-cleanup":          ["task-management", "bug-tracking", "leave"],
+    "tasks-cleanup":          ["tasks", "bug-tracking", "leave"],
     "blog-internal":          [],   # thin wrapper around generate-blog.sh
     "blog-external":          [],
     "marketing-recon":        ["growth-marketing"],
     "marketing-morning":      ["growth-marketing", "leave"],
     "marketing-evening":      ["growth-marketing"],
-    "gtm-weekly-pick":        ["growth-marketing", "task-management"],
+    "gtm-weekly-pick":        ["growth-marketing", "tasks"],
     "biweekly-shoutouts":     ["growth-marketing"],
     "collabs-tuesday-update": [],   # collabs skill not yet scaffolded
     "resurface-logo-update":  [],   # one-off, retire candidate

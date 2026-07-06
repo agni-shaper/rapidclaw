@@ -36,7 +36,7 @@ CHANNEL_ID = "C0ASK9520JG"   # #tasks (was #marketing-automation C0BBQ7PV34N unt
                              # goes through tasks.sh which uses its own #tasks default.
 TOKEN_PATH = Path.home() / ".config" / "claude" / "rapidnative-coach-slack-bot-token"
 DB_PATH = Path.home() / ".config" / "claude" / "rapidnative-coach.sqlite"
-TASKS_SH = PROJECT_DIR / "accountability" / "routines" / "tasks.sh"
+TASKS_SH = PROJECT_DIR / ".claude" / "skills" / "tasks" / "bin" / "tasks.sh"
 
 # Product roster (matches products/ dir + strategies/ dir). Order = iteration order.
 PRODUCT_SLUGS = ("rapidnative", "applighter", "letsdeployit")

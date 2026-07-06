@@ -45,7 +45,7 @@
 set -e
 SCRIPT_PATH="${0:A}"
 HERE="${SCRIPT_PATH:h}"
-source "$HERE/_lib.sh"
+source "$HERE/../../../../accountability/routines/_lib.sh"
 
 TASK_NOTIFY_CHANNEL="C0ASK9520JG"   # #tasks — default channel for task assignments
 

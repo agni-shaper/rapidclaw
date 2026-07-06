@@ -17,7 +17,7 @@
 # Emits the new row id on success.
 
 set -e
-source "${0:A:h}/_lib.sh"
+source "${0:A:h}/../../../../accountability/routines/_lib.sh"
 
 # ─── args ───
 if [ $# -lt 3 ]; then

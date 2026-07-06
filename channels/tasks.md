@@ -5,7 +5,7 @@ purpose: Task ledger + follow-up conversations. Top-level messages are automated
 voice_source: profile.md
 publish_tier: teammate
 allowed_routines: []
-allowed_skills: [task-management, task-assistance, growth-marketing]
+allowed_skills: [tasks, task-assistance, growth-marketing]
 product: all
 owner: <@U0B4FCJ8Z1Q>
 members: [<@U0B4FCJ8Z1Q>, <@U09DC8L7PCZ>, <@U09DC8MB4KB>, <@U09CXCYV7D1>, <@U09CUJ9ATM1>, <@U09DFJJGS1X>, <@U09LL9JTDM5>, <@U0B467S1VEG>]
@@ -57,7 +57,7 @@ Otherwise, extract `TASK_ID` (a positive integer).
 # Step 3 — Load task context
 
 ```bash
-accountability/routines/tasks.sh get $TASK_ID --json
+.claude/skills/tasks/bin/tasks.sh get $TASK_ID --json
 ```
 
 Fields you care about (all optional except `title` and `assignee`):
@@ -106,7 +106,7 @@ Voice — **concise, iterate, cite when relevant.**
 
 - **Out-of-scope requests** ("book my flight", "summarize yesterday's standup") → *"Not my thing — I'm Task-Assistance-Bot for the marketing pipeline. Ask in `#rapidnative-coach`."*
 - **Task edits** (assignee change, due date, priority, status) → *"I don't edit tasks — I only help with content. Use the Kanban board (localhost:3001) or `tasks.sh update <id> field=value` from CLI. Ping `#rapidnative-coach` if you want the bot to make the change."*
-- **New-task creation** ("also add a task to post on Reddit") → same redirect: use the `task-management` skill via a top-level in `#rapidnative-coach`.
+- **New-task creation** ("also add a task to post on Reddit") → same redirect: use the `tasks` skill via a top-level in `#rapidnative-coach`.
 
 # Voice defaults
 
@@ -121,13 +121,13 @@ Apply `profile.md` defaults, plus:
 1. **Never invent thread URLs, draft passages, brand facts, or product claims.** Everything grounded in the recon cache or the task fields. If asked for something that isn't sourced, say *"I don't have that in today's cache"* — don't fabricate.
 2. **Never respond to a top-level message.** Not even a courtesy note. Stop at Step 1.
 3. **Never post outside this task's thread.** No new top-level messages in `#tasks`; no cross-thread replies.
-4. **Never modify the task row.** Read-only against `tasks.sh get`. All mutations go through `task-management` skill in `#rapidnative-coach`.
+4. **Never modify the task row.** Read-only against `tasks.sh get`. All mutations go through `tasks` skill in `#rapidnative-coach`.
 5. **Never re-invoke `task-assist.sh` from here.** The initial deterministic block is already posted; your job is conversation, not a second first-cut.
 
 # Related
 
 - `.claude/skills/task-assistance/SKILL.md` — the shell tool that produces the initial thread reply (Phase 1)
-- `.claude/skills/task-management/SKILL.md` — the CRUD skill for actual task mutations
+- `.claude/skills/tasks/SKILL.md` — the CRUD skill for actual task mutations
 - `accountability/routines/task-assist.sh` — the shell entry point
-- `accountability/routines/tasks.sh` — the CRUD dispatcher
+- `.claude/skills/tasks/bin/tasks.sh` — the CRUD dispatcher
 - `marketing/.state/recon-<date>.json` — daily recon output that feeds task-assist

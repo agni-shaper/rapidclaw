@@ -8,7 +8,7 @@
 # task is a no-op message (no error).
 
 set -e
-source "${0:A:h}/_lib.sh"
+source "${0:A:h}/../../../../accountability/routines/_lib.sh"
 
 [ $# -gt 0 ] || { echo "usage: task-done.sh <id> [id ...]" >&2; exit 1; }
 

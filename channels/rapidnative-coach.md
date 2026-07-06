@@ -8,7 +8,7 @@ allowed_routines: [daily, noon, friday, sunday, blog-internal, blog-external, us
 product: rapidnative
 owner: <@U0B4FCJ8Z1Q>
 members: [<@U0B4FCJ8Z1Q>, <@U09DC8L7PCZ>, <@U09DC8MB4KB>]
-allowed_skills: [user-testing, task-management, bug-tracking, leave]
+allowed_skills: [user-testing, tasks, bug-tracking, leave]
 
 ---
 

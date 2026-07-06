@@ -15,7 +15,7 @@
 # "#id · @handle · status/priority · due · category[/product] · title"
 
 set -e
-source "${0:A:h}/_lib.sh"
+source "${0:A:h}/../../../../accountability/routines/_lib.sh"
 
 ASSIGNEE=""
 STATUS="open"

@@ -52,7 +52,7 @@ Cross-brand defaults from `profile.md`: no em-dashes, no hashtags-the-user-didn'
 ## What this umbrella does NOT own
 
 - **Brand assets** (banners, logos, social cards) — that's `creator-studio` (Phase 4) + per-site `content-studio*` skills.
-- **Tasks / assignments** — that's `task-management` + `sites/tasks/`.
+- **Tasks / assignments** — that's `tasks` + `sites/tasks/`.
 - **Long-form blog drafting mechanics** — currently in the `blog-internal` / `blog-external` routine bodies + `sites/rapidnative-website/.claude/skills/content-studio-*` skills; blogs sub-skill is a placeholder for future migration.
 
 ## Skill loader note (why the nesting)

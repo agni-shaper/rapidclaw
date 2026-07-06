@@ -38,7 +38,7 @@ DRY_RUN=0
 [[ "$TASK_ID" =~ ^[0-9]+$ ]] || { echo "ERROR: task_id must be a positive integer" >&2; exit 1; }
 
 HERE="${0:A:h}"
-TASKS_SH="$HERE/tasks.sh"
+TASKS_SH="$HERE/../../.claude/skills/tasks/bin/tasks.sh"
 GEN_PY="$HERE/gen-task-assistance.py"
 SLACK_POST="$HERE/slack-post.sh"
 

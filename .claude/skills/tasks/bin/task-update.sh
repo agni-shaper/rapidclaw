@@ -14,7 +14,7 @@
 # `updated_at` is always bumped.
 
 set -e
-source "${0:A:h}/_lib.sh"
+source "${0:A:h}/../../../../accountability/routines/_lib.sh"
 
 ID="${1:?usage: task-update.sh <id> field=value [field=value …]}"
 shift

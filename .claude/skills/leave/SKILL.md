@@ -102,5 +102,5 @@ Soft-delete preserves audit trail. If the user explicitly asks for a hard delete
 
 - `eod-nudges` — reads `is_on_leave` before pinging missing-EOD teammates
 - `growth-marketing` — morning routine silently skips on-leave crew via `is_on_leave`
-- `task-management` — tasks-cleanup skips assignments to anyone on leave
+- `tasks` — tasks-cleanup skips assignments to anyone on leave
 - `scheduler` — owns the `reminders` table in the same DB

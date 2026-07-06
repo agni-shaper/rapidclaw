@@ -1,6 +1,6 @@
 ---
 name: bug-tracking
-description: Capture bug reports from any signal source (Slack channels, user-testing observations, customer DMs surfaced by teammates) as `--category=bug` rows in the sqlite `tasks` table via `tasks.sh`. Lightweight projection — most of the heavy lifting is done by `task-management` and `user-testing`.
+description: Capture bug reports from any signal source (Slack channels, user-testing observations, customer DMs surfaced by teammates) as `--category=bug` rows in the sqlite `tasks` table via `tasks.sh`. Thin projection over the `tasks` skill — this skill defines bug-specific field mapping, priority defaults, and the UX-vs-bug split; the `tasks` skill owns the CRUD contract.
 when_to_load: |
   Load when ANY of the following:
   - User says "report a bug" / "log a bug" / "this is a bug"
@@ -12,14 +12,13 @@ voice_source: ../../profile.md
 
 # bug-tracking
 
-Thin skill. Since 2026-07-02 the actual bug DB is the sqlite `tasks` table (rows with `category='bug'`), accessed via `accountability/routines/tasks.sh`. This skill ensures the right things land there in the right shape and that the right teammate gets pinged.
+Thin skill. Since 2026-07-02 the actual bug DB is the sqlite `tasks` table (rows with `category='bug'`), accessed via the `tasks` skill. This skill defines what "bug-shaped" looks like and how it maps into `tasks` columns.
 
 ## Read these before doing any work
 
-1. **`accountability/routines/tasks.sh help`** — the CRUD API (bugs use `--category=bug`).
-2. `.claude/skills/task-management/SKILL.md` — owns the proposal/approval protocol and sqlite conventions.
-3. `definitions/people.md` — for assignment.
-4. `definitions/products.md` — to map a bug to a product → default lead.
+1. **`.claude/skills/tasks/SKILL.md` § "For skills that call `tasks.sh`"** — the CRUD contract this skill obeys. Do not repeat any of it here.
+2. `definitions/people.md` — for assignment.
+3. `definitions/products.md` — to map a bug to a product → default lead.
 
 ## Bug fields → sqlite columns
 
@@ -46,30 +45,30 @@ If unsure → `normal`. Better to under-rank and let the owner upgrade than over
 
 ## When a new bug is captured
 
-1. **De-dupe first.** Check for a matching open bug:
-   ```bash
-   tasks.sh list --category bug --status open
-   ```
-   If a match is present, DON'T create a new row. Update the existing task's `description` (append repro count + latest source), and post a Slack ping via `--notify` so the owner sees the recurrence.
-   ```bash
-   tasks.sh update <id> description="orig text\n\nRe-reported by @handle on 2026-07-02 (source: slack:…)" --notify
-   ```
-2. **Otherwise, propose a new bug row:**
-   ```bash
-   tasks.sh add @<lead> <due-date> "<title>" \
-     --category bug --priority normal \
-     --product <slug> \
-     --source slack:<ts> \
-     --description "<one-line repro>" \
-     --notify
-   ```
-   For `<lead>`: map product → lead via `definitions/products.md`. If product unclear, leave `--assignee` off and flag "needs triage" in the proposal narrative.
-   For `<due-date>`: default `today + 3 working days` for `normal`, sooner for `high`/`blocker`, `today + 2 weeks` for `low`.
-3. **Approval path** — teammate reporters go through the `task-management` proposal + super-admin approval flow. Owner / super-admin reports can be applied directly.
+Follow the `tasks` skill's dedupe rule (§"For skills that call `tasks.sh`" item 4). The bug-specific query:
+
+```bash
+tasks.sh list --category bug --status open
+```
+
+If a match is present, update the existing row's `description` (append repro count + latest source) via `tasks.sh update <id> --notify`. Otherwise, propose a new row:
+
+```bash
+tasks.sh add @<lead> <due-date> "<title>" \
+  --category bug --priority normal \
+  --product <slug> \
+  --source slack:<ts> \
+  --description "<one-line repro>" \
+  --notify
+```
+
+- **`<lead>`:** map product → lead via `definitions/products.md`. If product unclear, leave `--assignee` off and flag "needs triage" in the proposal narrative.
+- **`<due-date>`:** default `today + 3 working days` for `normal`, sooner for `high`/`blocker`, `today + 2 weeks` for `low`.
+- **Approval:** teammate reporters go through the `tasks` skill's proposal + super-admin approval flow. Owner / super-admin reports apply directly.
 
 ## When the daily scan (tasks-cleanup) finds bug-flavoured signals
 
-Pattern (handled by `task-management` skill, which calls this skill for the bug subset):
+Pattern (handled by the `tasks` skill, which calls this skill for the bug subset):
 
 - `#user-testing` observation classified as bug (per `user-testing` skill's split rule)
 - Slack messages elsewhere containing patterns like "this is broken", "throws an error", "can't <verb>"
@@ -84,13 +83,13 @@ Each becomes a proposed `tasks.sh add ... --category=bug ... --notify` invocatio
 2. If incomplete, ask 1 sharp clarifier: "which product?" or "can you repro from <state>?" Don't ask multiple — annoying.
 3. Confirm the captured row back to the reporter with the sqlite id + assignee handle.
 
-## Anti-hallucination guards
+## Bug-specific guards
+
+The CRUD contract (dedupe, roster lookups, leave guard, `--notify`, etc.) lives in the `tasks` skill's anchor section. Bug-tracking adds these:
 
 1. **Don't classify something as a bug without explicit signal.** "I don't like this color" is not a bug. "This button doesn't fire onClick" is.
 2. **Don't invent a stack trace or error message** to make a bug feel concrete. Quote what the user said.
-3. **Don't assign to anyone not in `definitions/people.md`.**
-4. **Don't dedupe based on superficial similarity.** Two bugs with similar UI but different root causes are two bugs — `--category=bug` rows can coexist for parallel repros of ostensibly the same thing.
-5. **Don't skip `tasks.sh list --category bug --status open` before adding.** That's the dedupe check.
+3. **Don't dedupe based on superficial similarity.** Two bugs with similar UI but different root causes are two bugs — `--category=bug` rows can coexist for parallel repros of ostensibly the same thing.
 
 ## Migration status (since 2026-07-02)
 
@@ -100,6 +99,6 @@ Each becomes a proposed `tasks.sh add ... --category=bug ... --notify` invocatio
 
 ## Related skills
 
-- `task-management` — calls this skill for the bug subset of cleanup proposals
+- `tasks` — owns the CRUD contract this skill obeys; also calls this skill for the bug subset of cleanup proposals
 - `user-testing` — feeds bug signals via its bug-vs-UX split rule
 - `repo-edit` — once a bug is being worked, repo-edit owns the branch + PR mechanics for the code fix (NOT for the bug-tracker row itself)
