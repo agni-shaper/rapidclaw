@@ -29,22 +29,26 @@ else
 fi
 ```
 
-**Sentinel format v2 (current):** JSON written by morning routine. Schema:
+**Sentinel format v3 (current, since 2026-07-02):** JSON written by morning routine. Schema:
 ```json
 {
-  "version": 2,
-  "date": "2026-06-22",
+  "version": 3,
+  "date": "2026-07-06",
   "crews": {
     "U09DC8L7PCZ": {
       "handle": "@sanket",
-      "header_ts": "...",
-      "tasks": {"T01": "...", "T02": "...", ...}
+      "header_ts": "1783328147.062229",
+      "task_ids": [99, 100, 101, ...]
     }
   }
 }
 ```
 
-**Sentinel format v1 (legacy text):** text lines `<slack_id> <ts>` per crew. Used when each crew had one top-level post containing all tasks; done-claims went in that single thread with `done T01, T03` syntax. Still supported for any unmigrated historical days.
+Per-task `slack_message_ts` + `slack_message_url` (which encodes the channel) live on the sqlite `tasks` row now — the sentinel only carries integer row IDs, and the routine looks up the rest from sqlite per task. This decouples the sentinel from the routing rule (marketing-morning currently posts to `#rn-coach-social` `C0B6Q8TUVL2`, but the routine works for any channel encoded in the row).
+
+**Sentinel format v2 (pre-2026-07-02 legacy):** JSON with per-task ts embedded (`tasks: {"T01": "<ts>"}`). All-#tasks era. Read from sqlite is a safe superset — the v3 path handles v2 sentinels too if you fall back to `slack_message_ts` lookup by task_id.
+
+**Sentinel format v1 (very legacy text):** text lines `<slack_id> <ts>` per crew. Used when each crew had one top-level post containing all tasks; done-claims went in that single thread with `done T01, T03` syntax. Still supported for unmigrated historical days.
 
 ## Step 1 — log routine run
 
@@ -54,24 +58,43 @@ RUN_ID=$(log_routine_start marketing-evening)
 
 ## Step 2 — parse threads + compose snapshot + tracker rows
 
-### 2a — fetch threads (per-task in v2, per-crew in v1 legacy)
+### 2a — fetch threads (per-task in v3/v2, per-crew in v1 legacy)
 
-**v2 — per-task threads.** For each crew × each `(task_id, task_ts)` pair in the JSON sentinel:
+**v3 / v2 — per-task threads.** For each crew × each `task_id` in the JSON sentinel:
 
 ```bash
 TOKEN=$(get_bot_token)
 for crew in sentinel.crews:
-    for task_id, task_ts in crew.tasks:
-        OUT="/tmp/marketing-evening-${SLACK_ID}-${task_id}.json"
+    for task_id in crew.task_ids:            # v3
+    # (v2 legacy: iterate crew.tasks.items() → same lookup below)
+        # Look up per-task ts + channel from sqlite. slack_message_url
+        # encodes the channel (…/archives/<CHAN>/p<ts_stripped>).
+        row = db_query("SELECT slack_message_ts, slack_message_url FROM tasks WHERE id=?", task_id)
+        if not row:
+            mark_task_lookup_failed(crew, task_id, reason="not in sqlite")
+            continue
+        task_ts   = row.slack_message_ts
+        task_url  = row.slack_message_url
+        # channel = 'C0…' from '…/archives/C0…/p…'
+        channel = re.search(r"/archives/([^/]+)/", task_url).group(1) if task_url else "C0ASK9520JG"
+        if not task_ts:
+            mark_task_lookup_failed(crew, task_id, reason="no slack_message_ts (was --notify skipped?)")
+            continue
+        OUT="/tmp/marketing-evening-${crew.slack_id}-${task_id}.json"
         curl -fsS -H "Authorization: Bearer $TOKEN" \
-          "https://slack.com/api/conversations.replies?channel=C0ASK9520JG&ts=${task_ts}&limit=50" \
+          "https://slack.com/api/conversations.replies?channel=${channel}&ts=${task_ts}&limit=50" \
           > "$OUT" \
-          || mark_task_lookup_failed(crew, task_id)
+          || mark_task_lookup_failed(crew, task_id, reason="conversations.replies failed")
+        # Also stash channel + task_ts alongside the reply dump — Step 2f uses
+        # them when calling `tasks.sh done <id>` to route the reply correctly.
+        echo "${channel}|${task_ts}" > "/tmp/marketing-evening-${crew.slack_id}-${task_id}.channel"
 ```
+
+**Never hardcode a channel here.** The morning routine's routing rule may change (marketing-morning tasks currently land in `#rn-coach-social`, but that's per §"Task-channel routing" in `.claude/skills/tasks/SKILL.md`, not a fixed constant). Sqlite's `slack_message_url` is the source of truth per task.
 
 If individual task fetch fails, mark that specific T-ID as "lookup failed" — it carries forward and the tracker note explains.
 
-**v1 legacy — per-crew thread.** For each line `<slack_id> <ts>` in the legacy sentinel, fetch the parent's thread once and parse `done T01, T03` style claims from non-bot messages.
+**v1 legacy — per-crew thread.** For each line `<slack_id> <ts>` in the legacy sentinel, fetch the parent's thread once and parse `done T01, T03` style claims from non-bot messages. Assume channel = `#tasks` (v1 predates the routing refactor).
 
 ### 2b — parse completion
 
@@ -123,6 +146,22 @@ For each crew member, partition their tasks:
 If a crew member claimed task IDs that aren't in their list (typo / hallucinated ID), log a warning in the EOD log and ignore those phantom IDs. Don't fabricate tasks.
 
 If a crew member is on leave (`is_on_leave`), they're noted as "on leave" — not ⬜. Their AM tasks all carry over (the morning routine respected leave by not assigning new ones, but anything already in `morning-tasks.md` under their handle carries forward).
+
+### 2f — flip sqlite rows done for detected done set
+
+For each `task_id` in each crew's `done` partition (from Step 2c), call the tasks CRUD dispatcher. Passing `--notify` posts a `[T<id>] done ✅ · <@<sid>>` reply as a thread reply under the task's original ledger post — auto-routed to the same channel the ledger lives in (per the `tasks.sh` channel auto-derive from `slack_message_url`). This updates sqlite `status` from `open` → `done` so the Kanban UI reflects the state.
+
+```bash
+for done_id in done_set:
+    ./.claude/skills/tasks/bin/tasks.sh done "$done_id" --notify \
+        || log_warning "tasks.sh done $done_id failed"
+```
+
+**Skip already-done rows** — check `tasks.sh get <id> --json` first, or trust `task-done.sh`'s idempotency (a second call is a no-op with an "already done" message on stdout, exit 0). Cheapest correct path: just call it; tasks.sh is idempotent.
+
+**Don't call `tasks.sh done` on tasks that failed lookup in Step 2a** — they carry forward instead. The done posts should only reflect real done-signals.
+
+Rate-limit: `time.sleep(0.3)` between calls (or 0.5 for safety) — each triggers a Slack thread-reply post + a sqlite UPDATE.
 
 ### 2d — write `marketing/evening-tasks.md`
 
@@ -184,10 +223,10 @@ echo "DRY_RUN_FLAG='$DRY_RUN_FLAG'"
 
 **If `DRY_RUN_FLAG` is exactly the string `1`:** print the EOD recap to stdout (don't post, don't write tracker rows, don't write `evening-tasks.md`).
 
-**Any other value:** post one top-level EOD recap message to `#tasks` (`C0ASK9520JG`). **Do not hedge** based on time of day or test feel.
+**Any other value:** post one top-level EOD recap message to `#rn-coach-social` (`C0B6Q8TUVL2`) — the same channel where marketing-morning posts today's slate, per §"Task-channel routing" in `.claude/skills/tasks/SKILL.md`. **Do not hedge** based on time of day or test feel.
 
 ```bash
-accountability/routines/slack-post.sh C0ASK9520JG <<EOF
+accountability/routines/slack-post.sh C0B6Q8TUVL2 <<EOF
 *EOD recap — ${TODAY}*
 
 ${TOTAL_DONE}/${TOTAL_ASSIGNED} tasks done · ${CARRYOVER_COUNT} rolling forward · ${ON_LEAVE_COUNT} on leave
@@ -220,13 +259,15 @@ Don't touch `marketing/morning-tasks.md` (tomorrow morning's job). Don't delete 
 
 - Don't read or write outside `marketing/` + `/tmp/`.
 - Don't write to the sqlite `leave_entries` / `holidays` tables from this routine — read-only via `is_on_leave` / `is_holiday`.
-- EOD recap is a single top-level post in `#tasks` (no thread parent — morning routine no longer creates one).
+- EOD recap is a single top-level post in `#rn-coach-social` — the crew's task ledger channel (per `SKILL.md` §"Task-channel routing"). Update the channel constant if the routing rule ever moves. No thread parent — morning routine no longer creates one.
 - The `BOT_USER_ID` for skipping bot replies is in `.env` (auto-sourced via `_lib.sh`). If not set, use `bot_id` field presence as the bot-detection signal.
 
 ## Failure modes
 
 - **No AM sentinel for today**: exit 0 silently (Step 0).
-- **`conversations.replies` fails for one task/crew**: log + treat that task as not-done (carries forward). Tracker note: `slack conversations.replies failed`.
+- **`conversations.replies` fails for one task**: log + treat that task as not-done (carries forward). Tracker note: `slack conversations.replies failed`.
+- **Sqlite row missing / no `slack_message_ts`**: task_id in sentinel doesn't resolve in sqlite (deleted mid-day, or was created without `--notify`). Treat as not-done, carry forward. Tracker note: `sqlite lookup failed for T<id>`.
+- **`tasks.sh done <id>` fails in Step 2f**: log + continue. The evening snapshot still marks the task as done in `evening-tasks.md`; sqlite reconciles on the next successful call. Tracker note: `tasks.sh done failed for T<id>: <error>`.
 - **`marketing/morning-tasks.md` is the empty scaffold** (no run today): exit 0, no snapshot.
 - **Crew member claims a phantom T-ID**: log + ignore, don't crash.
 - **Crew member replied AFTER 19:30**: their claim isn't captured today (routine snapshots at 19:30). Documented limitation, no fix.

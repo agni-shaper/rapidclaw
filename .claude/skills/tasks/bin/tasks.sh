@@ -55,19 +55,37 @@ show_help() {
 
 # ─── Split args: global flags (--json / --notify / --channel) vs subcommand args ───
 extract_global_flags() {
-  # Reads $@; sets globals FORMAT, NOTIFY, CHANNEL; assigns REMAINING array.
+  # Reads $@; sets globals FORMAT, NOTIFY, CHANNEL, CHANNEL_EXPLICIT; assigns REMAINING array.
   FORMAT="text"
   NOTIFY=0
   CHANNEL="$TASK_NOTIFY_CHANNEL"
+  CHANNEL_EXPLICIT=0
   REMAINING=()
   while [ $# -gt 0 ]; do
     case "$1" in
       --json)    FORMAT="json"; shift ;;
       --notify)  NOTIFY=1; shift ;;
-      --channel) CHANNEL="${2:?--channel requires an ID}"; shift 2 ;;
+      --channel) CHANNEL="${2:?--channel requires an ID}"; CHANNEL_EXPLICIT=1; shift 2 ;;
       *)         REMAINING+=("$1"); shift ;;
     esac
   done
+}
+
+# ─── Route mutations to the task's own channel ───
+#     For update/done/rm, when the caller didn't pass --channel explicitly,
+#     derive channel from the row's slack_message_url so the thread reply
+#     lands under the original ledger post. Falls back to the default
+#     #tasks channel if the row has no url (never posted, or old row).
+#     Sets CHANNEL global; safe to call multiple times.
+route_channel_for_row() {
+  local id="$1"
+  [ "$CHANNEL_EXPLICIT" -eq 1 ] && return 0
+  local url
+  url=$(db_query "SELECT IFNULL(slack_message_url,'') FROM tasks WHERE id=$id;" 2>/dev/null || echo "")
+  [ -z "$url" ] && return 0
+  local derived
+  derived=$(echo "$url" | sed -nE 's|.*/archives/([^/]+)/.*|\1|p')
+  [ -n "$derived" ] && CHANNEL="$derived"
 }
 
 # ─── Notify helper — posts a message, echoes the returned ts on stdout.
@@ -238,7 +256,8 @@ case "$CMD" in
         fi
       fi
       if [ -n "$NOTIFY_TEXT" ]; then
-        # Thread-reply under the original notify post if we have its ts; else top-level
+        # Route the reply to the same channel the ledger post lives in.
+        route_channel_for_row "$ID"
         notify_slack "$NOTIFY_TEXT" "$parent_ts" >/dev/null
       fi
     fi
@@ -267,6 +286,8 @@ case "$CMD" in
         [[ "$id" =~ ^[0-9]+$ ]] || continue
         ROW=$(db_query "SELECT assignee, title, slack_message_ts FROM tasks WHERE id=$id;")
         IFS='|' read -r sid title parent_ts <<< "$ROW"
+        # Route the reply to the same channel the ledger post lives in.
+        route_channel_for_row "$id"
         notify_slack "[T${id}] done ✅ · <@${sid}>" "$parent_ts" >/dev/null
       done
     fi
@@ -294,6 +315,8 @@ case "$CMD" in
         [[ "$id" =~ ^[0-9]+$ ]] || continue
         ROW=$(db_query "SELECT assignee, title, slack_message_ts FROM tasks WHERE id=$id;")
         IFS='|' read -r sid title parent_ts <<< "$ROW"
+        # Route the reply to the same channel the ledger post lives in.
+        route_channel_for_row "$id"
         notify_slack "[T${id}] cancelled 🗑️ · <@${sid}>" "$parent_ts" >/dev/null
       done
     fi
