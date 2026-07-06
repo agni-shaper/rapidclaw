@@ -65,6 +65,18 @@ products: [rapidnative, applighter, letsdeployit]
 6. Arthur
 7. Pierre
 
+## @suraj
+
+products: [rapidnative, applighter, letsdeployit]
+
+1. Suraj
+2. Aditya
+3. Priya
+4. Alexandre
+5. Nicolas
+6. Étienne
+7. Gaspard
+
 ---
 
 ## Conventions

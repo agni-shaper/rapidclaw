@@ -204,6 +204,35 @@ One section per day this week (Mon → Sun, IST). The morning routine matches `#
 
 - (off — guard_working_day skips)
 
+## 2026-07-06 (Mon)
+
+### RapidNative
+
+- TPL-GFG-ARTICLE
+- TPL-HN-POST
+- TPL-HN-ENGAGE
+- TPL-DISTRO-6
+- TPL-LINKEDIN-PERSONAL
+- TPL-TWITTER-PERSONAL
+
+### Applighter
+
+- TPL-GFG-ARTICLE
+- TPL-HN-POST
+- TPL-HN-ENGAGE
+- TPL-DISTRO-6
+- TPL-LINKEDIN-PERSONAL
+- TPL-TWITTER-PERSONAL
+
+### LetsDeployIt
+
+- TPL-GFG-ARTICLE
+- TPL-HN-POST
+- TPL-HN-ENGAGE
+- TPL-DISTRO-6
+- TPL-LINKEDIN-PERSONAL
+- TPL-TWITTER-PERSONAL
+
 ---
 
 ## Next week's slate (template — copy + edit dates each Friday)
