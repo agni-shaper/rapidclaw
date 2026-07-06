@@ -237,22 +237,28 @@ One section per day this week (Mon → Sun, IST). The morning routine matches `#
 
 ## Next week's slate (template — copy + edit dates each Friday)
 
+**Since 2026-07-06**, RN + AL blocks include `TPL-DISTRO-ARTICLE` on **M/W/F only** (skipped Tue/Thu — 3×/week cadence). LDI stays on the original platform-specific rotation across all 5 days. See `task-templates.md` §"Shape F" for how the distro task sources today's blog per product.
+
 ```
 ## YYYY-MM-DD (Mon)
 
 ### RapidNative
 - TPL-GFG-ARTICLE
+- TPL-DISTRO-ARTICLE
 - TPL-HN-POST
 - TPL-HN-ENGAGE
 - TPL-DISTRO-6
 - TPL-LINKEDIN-PERSONAL
+- TPL-TWITTER-PERSONAL
 
 ### Applighter
 - TPL-GFG-ARTICLE
+- TPL-DISTRO-ARTICLE
 - TPL-HN-POST
 - TPL-HN-ENGAGE
 - TPL-DISTRO-6
 - TPL-LINKEDIN-PERSONAL
+- TPL-TWITTER-PERSONAL
 
 ### LetsDeployIt
 - TPL-GFG-ARTICLE
@@ -260,6 +266,112 @@ One section per day this week (Mon → Sun, IST). The morning routine matches `#
 - TPL-HN-ENGAGE
 - TPL-DISTRO-6
 - TPL-LINKEDIN-PERSONAL
+- TPL-TWITTER-PERSONAL
+
+## YYYY-MM-DD (Tue)
+
+### RapidNative
+- TPL-MEDIUM-ARTICLE
+- TPL-REDDIT-POST
+- TPL-REDDIT-ENGAGE
+- TPL-DISTRO-6
+- TPL-TWITTER-PERSONAL
+
+### Applighter
+- TPL-MEDIUM-ARTICLE
+- TPL-REDDIT-POST
+- TPL-REDDIT-ENGAGE
+- TPL-DISTRO-6
+- TPL-TWITTER-PERSONAL
+
+### LetsDeployIt
+- TPL-MEDIUM-ARTICLE
+- TPL-REDDIT-POST
+- TPL-REDDIT-ENGAGE
+- TPL-DISTRO-6
+- TPL-TWITTER-PERSONAL
+
+## YYYY-MM-DD (Wed)
+
+### RapidNative
+- TPL-DEVTO-ARTICLE
+- TPL-DISTRO-ARTICLE
+- TPL-QUORA-POST
+- TPL-QUORA-ENGAGE
+- TPL-DISTRO-6
+- TPL-LINKEDIN-PERSONAL
+- TPL-TWITTER-PERSONAL
+
+### Applighter
+- TPL-DEVTO-ARTICLE
+- TPL-DISTRO-ARTICLE
+- TPL-QUORA-POST
+- TPL-QUORA-ENGAGE
+- TPL-DISTRO-6
+- TPL-LINKEDIN-PERSONAL
+- TPL-TWITTER-PERSONAL
+
+### LetsDeployIt
+- TPL-DEVTO-ARTICLE
+- TPL-QUORA-POST
+- TPL-QUORA-ENGAGE
+- TPL-DISTRO-6
+- TPL-LINKEDIN-PERSONAL
+- TPL-TWITTER-PERSONAL
+
+## YYYY-MM-DD (Thu)
+
+### RapidNative
+- TPL-HASHNODE-ARTICLE
+- TPL-FB-POST
+- TPL-COMMUNITY-ENGAGE
+- TPL-DISTRO-6
+- TPL-QUORA-PERSONAL
+- TPL-TWITTER-PERSONAL
+
+### Applighter
+- TPL-HASHNODE-ARTICLE
+- TPL-FB-POST
+- TPL-COMMUNITY-ENGAGE
+- TPL-DISTRO-6
+- TPL-QUORA-PERSONAL
+- TPL-TWITTER-PERSONAL
+
+### LetsDeployIt
+- TPL-HASHNODE-ARTICLE
+- TPL-FB-POST
+- TPL-COMMUNITY-ENGAGE
+- TPL-DISTRO-6
+- TPL-QUORA-PERSONAL
+- TPL-TWITTER-PERSONAL
+
+## YYYY-MM-DD (Fri)
+
+### RapidNative
+- TPL-GFG-ARTICLE
+- TPL-DISTRO-ARTICLE
+- TPL-HN-POST
+- TPL-HN-ENGAGE
+- TPL-DISTRO-6
+- TPL-LINKEDIN-PERSONAL
+- TPL-TWITTER-PERSONAL
+
+### Applighter
+- TPL-GFG-ARTICLE
+- TPL-DISTRO-ARTICLE
+- TPL-HN-POST
+- TPL-HN-ENGAGE
+- TPL-DISTRO-6
+- TPL-LINKEDIN-PERSONAL
+- TPL-TWITTER-PERSONAL
+
+### LetsDeployIt
+- TPL-GFG-ARTICLE
+- TPL-HN-POST
+- TPL-HN-ENGAGE
+- TPL-DISTRO-6
+- TPL-LINKEDIN-PERSONAL
+- TPL-TWITTER-PERSONAL
 ```
 
-(…and so on for Tue–Fri. See `task-templates.md` for the full list of TPL- IDs. Each product block can carry a different template list — copy identical lists only if you want simultaneous per-product coverage.)
+(Each product block can carry a different template list — copy identical lists only if you want simultaneous per-product coverage. See `task-templates.md` for the full list of TPL- IDs.)

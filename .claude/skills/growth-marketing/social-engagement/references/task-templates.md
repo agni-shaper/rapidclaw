@@ -19,6 +19,7 @@ Each template produces **one Slack-ready bullet** in the daily AM post. The morn
 | `{{blog_url}}` | URL of today's blog to amplify | `blog-amplification-YYYY-MM-DD.md` |
 | `{{blog_title}}` | title of today's blog | `blog-amplification-YYYY-MM-DD.md` |
 | `{{blog_caption}}` | bot-drafted social caption for the blog | `blog-amplification-YYYY-MM-DD.md` |
+| `{{blog_source_thread_url}}` | Slack permalink of the source blog message whose thread carries the variant files (canonical / Medium / Dev.to / Hashnode / SEO brief) | `blog-amplification-<product>-<type>-YYYY-MM-DD.md` |
 | `{{personal_draft}}` | bot-drafted original post for `*-PERSONAL` templates | `recon-YYYY-MM-DD.json` → `original_posts` |
 | `{{personal_topic_angle}}` | one-line topic angle the draft is built around | `recon-YYYY-MM-DD.json` → `original_posts` |
 
@@ -91,6 +92,26 @@ If no draft was attached (recon failed for that platform, or no draft for that s
 Write {{quota}} articles for Distribution
 ```
 
+### Shape F — distro of a published blog (no platform, no account)
+
+```
+Distribute today's blog: {{blog_title}}
+```
+
+Unlike Shape A (which asks the crew to draft a NEW article for a specific platform), Shape F asks the crew to **syndicate an already-published blog** to platform(s) of their choice. The canonical + platform-specific variant files (Medium / Dev.to / Hashnode / SEO brief) are attached in the source blog thread — the crew grabs the file matching their target platform and posts from their personal account.
+
+Task-assist thread reply for Shape F emits:
+
+```
+📰 *Today's distribution: {{blog_title}}*
+Canonical: {{blog_url}} (or "in review — no public URL yet")
+Ready-to-post variants (canonical / Medium / Dev.to / Hashnode / SEO brief) in the source thread:
+  {{blog_source_thread_url}}
+Pick a platform, grab that variant, post from your personal account.
+```
+
+`{{blog_source_thread_url}}` is the Slack permalink of the message in `#ai-blogs` (RN) or `#applighter-ai-blogs` (AL) whose thread carries the variant files. Sourced from `blog-amplification-<product>-<type>-<date>.md` (external-first, internal-fallback for RN; external-only for AL).
+
 ---
 
 ## Concrete template IDs
@@ -133,6 +154,10 @@ Write {{quota}} articles for Distribution
 - **TPL-DISTRO-6** — `{{quota}}=6`, action=`Write articles for Distribution`
 - **TPL-DISTRO-3** — `{{quota}}=3`, lighter day
 - **TPL-DISTRO-10** — `{{quota}}=10`, heavy day
+
+### Distro-of-published-blog templates (Shape F)
+
+- **TPL-DISTRO-ARTICLE** — no `{{platform}}` (multi-target), no rotation persona (crew posts from own personal account). Sources today's blog for the task's product from `marketing/.state/blog-amplification-<product>-<type>-<date>.md` (external-first, internal-fallback for RN; external-only for AL). If no cache file exists for that product, the task renders a bare bullet ("Distribute today's blog: (no blog cached for <product>)") and the task-assist thread reply politely says so.
 
 ---
 

@@ -19,13 +19,30 @@ Exit codes:
 import argparse
 import datetime
 import json
+import re
 import sqlite3
 import sys
+import urllib.request
 from pathlib import Path
 from typing import Optional, Tuple
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
 DB_PATH = Path.home() / ".config" / "claude" / "rapidnative-coach.sqlite"
+SLACK_TOKEN_PATH = Path.home() / ".config" / "claude" / "rapidnative-coach-slack-bot-token"
+
+# Blog-source channels per product, for TPL-DISTRO-ARTICLE lookups.
+# Each entry: (channel_id, [(text_pattern, blog_type), ...]) — patterns tried in
+# order; first match wins. `external` preferred over `internal` per user's ask.
+DISTRO_BLOG_SOURCES = {
+    "rapidnative": ("C0AMG7SE1FF", [
+        ("External blog ready for review", "external"),
+        ("Internal blog published",         "internal"),
+    ]),
+    "applighter":  ("C0B24QUSDSA", [
+        ("New blog ready for cross-posting", "external"),
+    ]),
+    # LDI intentionally omitted — no distro-article pipeline yet.
+}
 
 
 def today_ist() -> str:
@@ -60,7 +77,7 @@ def load_recon(date_str: str) -> dict:
 # Detect platform + template kind from the task title.
 # Marketing task titles come from render_bullet in gen-marketing-morning.py.
 def classify(title: str) -> dict:
-    """Return {'kind': 'engagement'|'personal'|'article'|'blog'|'quota'|'unknown',
+    """Return {'kind': 'engagement'|'personal'|'article'|'blog'|'distro-article'|'quota'|'unknown',
                 'platform': str,
                 'template_id': str (only for article),
                 'evidence': str}."""
@@ -69,6 +86,11 @@ def classify(title: str) -> dict:
     # Blog task (synthetic — created by append_blog_task)
     if t.startswith("publish a blog for"):
         return {"kind": "blog", "platform": "Blog", "evidence": "title starts with 'Publish a blog for'"}
+
+    # Distro of published blog (Shape F, TPL-DISTRO-ARTICLE)
+    if t.startswith("distribute today's blog"):
+        return {"kind": "distro-article", "platform": None, "template_id": "TPL-DISTRO-ARTICLE",
+                "evidence": "title starts with 'Distribute today's blog'"}
 
     # Quota — no platform, no target
     if "write" in t and "articles for distribution" in t:
@@ -205,6 +227,112 @@ def fmt_blog_amp(blog: dict, task_title: str) -> str:
 # ─────────────────────────── LOOKUP ───────────────────────────
 
 
+def _slack_get(url: str) -> dict:
+    """Call Slack Web API; return parsed JSON or {}. Silent on failure — the
+    caller renders a graceful fallback."""
+    if not SLACK_TOKEN_PATH.exists():
+        return {}
+    token = SLACK_TOKEN_PATH.read_text().strip()
+    try:
+        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+        with urllib.request.urlopen(req, timeout=6) as r:
+            return json.loads(r.read())
+    except Exception:
+        return {}
+
+
+def _slack_permalink(channel_id: str, ts: str) -> str:
+    """Compute a stable Slack permalink from channel + ts (no API call)."""
+    return f"https://shaper-studio.slack.com/archives/{channel_id}/p{ts.replace('.', '')}"
+
+
+def _parse_blog_message(text: str, product: str) -> dict:
+    """Product-specific extraction of {title, canonical_url, generated_date}
+    from a source-channel message body. Channels use different formats:
+      - RN #ai-blogs (ContentWriterBot): title is on a `:page_facing_up: *<title>*` line;
+        canonical URL only present for 'Internal blog published' (as a bare URL below `:link:`).
+      - AL #applighter-ai-blogs (this bot): title follows 'cross-posting — ' on the
+        header line, OR appears as 'Topic: <title>' below. No canonical URL.
+    """
+    out = {"title": "", "canonical_url": "", "generated_date": ""}
+
+    if product == "rapidnative":
+        title_m = re.search(r":page_facing_up:\s*\*([^*\n]{5,200})\*", text)
+        if title_m:
+            out["title"] = title_m.group(1).strip()
+        # Canonical URL only for 'Internal blog published' — bare rapidnative.com/blogs URL.
+        url_m = re.search(r"https?://[^\s|>]*rapidnative\.com/blogs/[^\s|>)]+", text)
+        if url_m:
+            out["canonical_url"] = url_m.group(0).rstrip(">.,;")
+    elif product == "applighter":
+        # Try header line: "New blog ready for cross-posting — <title>"
+        header_m = re.search(r"cross-posting\s*[—–-]\s*([^\n]{5,200})", text)
+        if header_m:
+            out["title"] = header_m.group(1).strip().rstrip("*")
+        # Fallback: "Topic: <title>" line
+        if not out["title"]:
+            topic_m = re.search(r"^Topic:\s*(.+)$", text, re.MULTILINE)
+            if topic_m:
+                out["title"] = topic_m.group(1).strip()
+        # Applighter posts don't carry a canonical URL (external drafts only).
+
+    gen_m = re.search(r":calendar:\s*(\d{4}-\d{2}-\d{2})", text)
+    if not gen_m:
+        gen_m = re.search(r"^Generated:\s*(\d{4}-\d{2}-\d{2})", text, re.MULTILINE)
+    if gen_m:
+        out["generated_date"] = gen_m.group(1)
+    return out
+
+
+def fetch_latest_distro_blog(product: str) -> Optional[dict]:
+    """Fetch the latest blog message from the product's source channel. Tries
+    each (text_pattern, blog_type) in preference order; returns the first hit.
+
+    Returns {title, canonical_url, blog_type, source_thread_url, generated_date}
+    or None if no matching message in the last 20."""
+    src = DISTRO_BLOG_SOURCES.get(product)
+    if not src:
+        return None
+    channel_id, patterns = src
+    api = f"https://slack.com/api/conversations.history?channel={channel_id}&limit=20"
+    resp = _slack_get(api)
+    if not resp.get("ok"):
+        return None
+    messages = resp.get("messages", [])
+    for pattern, blog_type in patterns:
+        for m in messages:
+            text = m.get("text", "")
+            if pattern in text:
+                parsed = _parse_blog_message(text, product)
+                return {
+                    "title": parsed["title"],
+                    "canonical_url": parsed["canonical_url"],
+                    "blog_type": blog_type,
+                    "source_thread_url": _slack_permalink(channel_id, m["ts"]),
+                    "generated_date": parsed["generated_date"],
+                }
+    return None
+
+
+def fmt_distro_article(blog: dict, product: str) -> str:
+    """Format the Shape F block. `blog` is fetch_latest_distro_blog output."""
+    title = blog.get("title", "(title not parsed)")
+    canonical = blog.get("canonical_url", "")
+    src_thread = blog.get("source_thread_url", "")
+    blog_type = blog.get("blog_type", "")
+    lines = [f"📰 *Today's distribution: {title}*", ""]
+    if canonical:
+        lines.append(f"Canonical: <{canonical}>")
+    else:
+        lines.append(f"Canonical: _(in review — no public URL yet, {blog_type})_")
+    if src_thread:
+        lines.append(f"Ready-to-post variants (canonical / Medium / Dev.to / Hashnode / SEO brief) in the source thread:")
+        lines.append(f"  <{src_thread}>")
+    lines.append("")
+    lines.append("Pick a platform, grab that variant file, post from your personal account.")
+    return "\n".join(lines)
+
+
 def find_recon_data(task: dict, cls: dict, recon: dict) -> Tuple[str, dict]:
     """Return (formatted_text, metadata_dict). Both may be empty if no match."""
     product = (task.get("product") or "").strip()
@@ -212,7 +340,9 @@ def find_recon_data(task: dict, cls: dict, recon: dict) -> Tuple[str, dict]:
     kind = cls["kind"]
     platform = cls.get("platform")
 
-    if not recon:
+    # distro-article bypasses the recon cache — it reads live from Slack
+    # source channels. All other kinds still require recon.
+    if not recon and kind != "distro-article":
         return "", {"reason": "no recon cache for today", "task_id": task["id"]}
 
     if kind == "blog":
@@ -223,6 +353,28 @@ def find_recon_data(task: dict, cls: dict, recon: dict) -> Tuple[str, dict]:
             "kind": "blog",
             "blog_url": blog.get("url"),
             "blog_title": blog.get("title"),
+        }
+
+    if kind == "distro-article":
+        # Bypass recon — fetch live from the product's source blog channel.
+        # Recon isn't the source of truth for distro because the source channels
+        # (#ai-blogs, #applighter-ai-blogs) may be updated after the 06:00 recon fire.
+        if not product:
+            return "", {"reason": "task has no product; can't route distro-article", "kind": kind}
+        blog = fetch_latest_distro_blog(product)
+        if not blog:
+            return "", {
+                "reason": f"no distro blog found in source channel for product={product} (channel may be empty or scope missing)",
+                "kind": kind,
+                "product": product,
+            }
+        return fmt_distro_article(blog, product), {
+            "kind": "distro-article",
+            "product": product,
+            "blog_type": blog.get("blog_type"),
+            "blog_title": blog.get("title"),
+            "canonical_url": blog.get("canonical_url"),
+            "source_thread_url": blog.get("source_thread_url"),
         }
 
     if not product:

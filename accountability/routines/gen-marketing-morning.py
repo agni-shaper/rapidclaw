@@ -436,6 +436,11 @@ TEMPLATE_DEFS = {
     "TPL-DISTRO-6":         {"shape": "E", "quota": 6},
     "TPL-DISTRO-3":         {"shape": "E", "quota": 3},
     "TPL-DISTRO-10":        {"shape": "E", "quota": 10},
+    # Shape F: distro of a published blog. No platform / no persona rotation —
+    # the bullet is intentionally static; task-assist thread reply fetches the
+    # live blog title + source thread URL from #ai-blogs (RN) or
+    # #applighter-ai-blogs (AL) at reply time and posts variants for the crew.
+    "TPL-DISTRO-ARTICLE":   {"shape": "F"},
 }
 
 
@@ -470,6 +475,8 @@ def infer_template_from_bullet(bullet: str) -> Optional[str]:
     if "write 6 articles for distribution" in b: return "TPL-DISTRO-6"
     if "write 3 articles for distribution" in b: return "TPL-DISTRO-3"
     if "write 10 articles for distribution" in b: return "TPL-DISTRO-10"
+    # Distro of published blog (Shape F)
+    if "distribute today's blog" in b: return "TPL-DISTRO-ARTICLE"
     # Blog task (synthetic — matches any product)
     if re.search(r"publish a blog for (rapidnative|applighter|letsdeployit)", b): return "BLOG-TASK"
     return None
@@ -515,6 +522,8 @@ def render_bullet(template_id: str, pool, week_lbl: str, clamped=False) -> str:
         return f"{platform} ({pool_str}) Post from {platform} account (from personal accounts){clamp}"
     if shape == "E":
         return f"Write {tpl['quota']} articles for Distribution"
+    if shape == "F":
+        return "Distribute today's blog to a platform of choice"
     return f"<unknown template {template_id}>"
 
 
@@ -635,7 +644,10 @@ def build_task_list(member: dict, product: str, product_templates: list, account
         if not tpl:
             continue
         shape = tpl["shape"]
-        if shape == "E":
+        if shape in ("E", "F"):
+            # E: quota task (e.g. "Write 6 articles for Distribution")
+            # F: distro of published blog — bullet is static; task-assist fetches
+            #    the live blog title + variants URL at reply time.
             tasks.append({
                 "template_id": tpl_id,
                 "product": product,
