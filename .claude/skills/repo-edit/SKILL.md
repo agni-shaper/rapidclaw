@@ -82,7 +82,6 @@ Each site may have its own additional rules. Read first:
 | `rapidnative-website` | `sites/rapidnative-website/CLAUDE.md` | Main product code; ~30 site skills available |
 | `applighter-website` | `sites/applighter-website/CLAUDE.md` (if present) | Brand canonical pending |
 | `letsdeployit-website` | (not yet wired — see `sites/letsdeployit-website.md` pointer) | |
-| `tasks` | `sites/tasks/CLAUDE.md` | Sprint repo. Use the notification queue at `sites/tasks/intake/unsent-notifications.md`. |
 | `branding` | `sites/branding/AGENTS.md` | **Strict workflow.** Read AGENTS.md before any change. |
 
 ## When the user asks "open a PR fixing X" and the work is non-trivial

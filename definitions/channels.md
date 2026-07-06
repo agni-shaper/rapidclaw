@@ -15,7 +15,7 @@ Registry of every Slack channel the bot operates in. Per-channel persona files (
 | `#bi-reports` | `C0AU48KFVGU` | rapidnative | `@sanket` | superadmin | [bi-reports.md](../channels/bi-reports.md) | BI/analytics reports powered by `sites/rapidnative-website/.claude/skills/bi-*`. |
 | `#seo` | `C0AFSAXMQUR` | rapidnative | `@sanket` | superadmin | [seo.md](../channels/seo.md) | SEO topics, on-page audits, Outrank queue. |
 | `#user-testing` | `C09EU7C87BM` | rapidnative | `@sanket` | superadmin | [user-testing.md](../channels/user-testing.md) | User-testing sessions; daily diff captured by `user-testing-capture`. |
-| `#tasks` | `C0ASK9520JG` | all | `@sanket` | teammate | [tasks.md](../channels/tasks.md) | Sprint/task ops. Companion to `sites/tasks/` repo. Tasks-cleanup approval flow lands here. |
+| `#tasks` | `C0ASK9520JG` | all | `@sanket` | teammate | [tasks.md](../channels/tasks.md) | Sprint/task ops. Tasks-cleanup approval flow lands here. |
 | `#eod-updates` | `C0A8Q9HM5BN` | all | `@sanket` | teammate | [eod-updates.md](../channels/eod-updates.md) | Team EOD posts. `eod-streak-check` nudges no-EOD teammates. |
 | `#collabs-and-partnerships` | `C09EY4E1X9Q` | all | `@sanket` | superadmin | [collabs-and-partnerships.md](../channels/collabs-and-partnerships.md) | Outreach drafts; `collabs-tuesday-update` posts pipeline status. |
 | `#design` | `C09URB6ACCQ` | all | `@famitha` | superadmin | [design.md](../channels/design.md) | Design coordination, brand asset reviews. |

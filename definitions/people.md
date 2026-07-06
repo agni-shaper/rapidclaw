@@ -2,7 +2,7 @@
 
 **Single source of truth for the Shaper Studio Inc roster.** Every other file that references a teammate should link back here. When someone joins, leaves, or changes role, edit this file — nothing else.
 
-> Replaces: `.env TEAM_USERS`, `sites/tasks/roles.md`, auto-memory `project_team_roster.md` (the former `marketing/team.md` was retired in the marketing/ cleanup). Those that still exist should mirror this file.
+> Replaces: `.env TEAM_USERS`, auto-memory `project_team_roster.md` (the former `marketing/team.md` was retired in the marketing/ cleanup). Those that still exist should mirror this file.
 
 ## Roster
 
@@ -22,7 +22,6 @@
 
 - **For actual Slack pings that should notify someone:** use `<@U…>` member-ID form (e.g. `<@U09DC8L7PCZ>`). Plain `@sanket` text won't notify.
 - **In drafts / informal references:** `@handle` text is fine ("ping @riya to review").
-- **Wikilinks** (`[[@sanket]]`) are used inside `sites/tasks/` for Obsidian backlinks. Outside the tasks repo, prefer the `@handle` or `<@U…>` forms.
 - **Don't invent handles or guess Slack IDs.** If someone isn't listed here, ask before referencing them.
 
 ## Tier capabilities

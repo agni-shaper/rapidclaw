@@ -62,7 +62,7 @@ Owns the projection from `#user-testing` (channel `C09EU7C87BM`) → `accountabi
 
 ## When a #user-testing observation also looks like a bug
 
-If the message clearly describes a reproducible bug (not just a UX nit), include it in BOTH this skill's proposal AND the `bug-tracking` skill's proposal. The latter now writes sqlite `tasks` rows with `category='bug'` via `tasks.sh` (was `sites/tasks/intake/bugs.md` until 2026-07-02).
+If the message clearly describes a reproducible bug (not just a UX nit), include it in BOTH this skill's proposal AND the `bug-tracking` skill's proposal. The latter writes sqlite `tasks` rows with `category='bug'` via `tasks.sh`.
 
 The line between "UX issue" and "bug":
 

@@ -91,12 +91,6 @@ The CRUD contract (dedupe, roster lookups, leave guard, `--notify`, etc.) lives 
 2. **Don't invent a stack trace or error message** to make a bug feel concrete. Quote what the user said.
 3. **Don't dedupe based on superficial similarity.** Two bugs with similar UI but different root causes are two bugs — `--category=bug` rows can coexist for parallel repros of ostensibly the same thing.
 
-## Migration status (since 2026-07-02)
-
-- **Old:** `sites/tasks/intake/bugs.md` markdown, with wikilinks and separate task pages.
-- **New:** sqlite `tasks` rows with `category='bug'`. Queryable via `tasks.sh list --category bug`.
-- Archival `sites/tasks/intake/bugs.md` stays for history; NOT synced to sqlite.
-
 ## Related skills
 
 - `tasks` — owns the CRUD contract this skill obeys; also calls this skill for the bug subset of cleanup proposals

@@ -17,7 +17,7 @@ Pull from these sources (in order):
 1. **`sites/rapidnative-website/.claude/skills/content-studio-generate-weekly-wrap/SKILL.md`** — the canonical weekly-wrap skill. Read this first; it documents the exact data sources, format, and brand voice. It lives in a sub-repo so it's not auto-discovered; read the SKILL.md with the `Read` tool and follow its instructions.
 2. **`accountability/published/log.md`** (if present) — what the team has logged as shipped over the last 7 days.
 3. **`sites/rapidnative-website` git log** for the last 7 days — actual code/content shipped, in case `published/log.md` is incomplete.
-4. **`sites/branding`, `sites/applighter-website`, `sites/tasks`** git logs if you find evidence those repos shipped meaningful work too.
+4. **`sites/branding`, `sites/applighter-website`** git logs if you find evidence those repos shipped meaningful work too.
 
 Time window: last 7 calendar days, ending at the moment the routine was invoked.
 

@@ -18,7 +18,7 @@ Owns the bot's relationship with the **sqlite `tasks` table** (single source of 
 > *Tier A — feeder:* this skill watches the world (Slack channels + git logs) and proposes mutations.
 > *Tier B — DB:* the sqlite `tasks` table at `~/.config/claude/rapidnative-coach.sqlite`, accessed via the dispatcher `.claude/skills/tasks/bin/tasks.sh`.
 
-**All writes go through `tasks.sh`.** Never hand-write SQL. Never edit anything under `sites/tasks/` (archival — see "Migration" at the bottom).
+**All writes go through `tasks.sh`.** Never hand-write SQL.
 
 ## Read these before doing any work
 
@@ -172,12 +172,6 @@ tasks table columns:
 ```
 
 See `bin/init-tasks.sh` for authoritative schema (with CHECK constraints).
-
-## Migration status (since 2026-07-02)
-
-- **Old:** `sites/tasks/` markdown DB (aliased-wikilink bullets, task pages, branch + PR per change, `intake/unsent-notifications.md` queue). Replaced.
-- **New:** sqlite `tasks` table + `tasks.sh` dispatcher + `--notify` for Slack. This file.
-- **What happens to `sites/tasks/`:** archival. No new writes. Existing task pages stay in the repo as history but are NOT synced to sqlite. Bulk migration is a possible follow-up.
 
 ## Related skills
 

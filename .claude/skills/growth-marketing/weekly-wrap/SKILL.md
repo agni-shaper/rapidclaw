@@ -24,7 +24,7 @@ Composes the marketing-team weekly recap. Lives at coach-level; *defers brand vo
 
 1. **`accountability/published/log.md`** for the last 7 days, if it exists.
 2. **`sites/rapidnative-website` git log** for last 7 days — actual code/content shipped.
-3. **`sites/branding`, `sites/applighter-website`, `sites/tasks` git logs** if those repos shipped meaningful work too. (LetsDeployIt added once symlinked.)
+3. **`sites/branding`, `sites/applighter-website` git logs** if those repos shipped meaningful work too. (LetsDeployIt added once symlinked.)
 4. **Anything in `drafts/`** flagged as shipped this week.
 5. **Metrics** if the user / channel has them — MRR snapshot, signup count, key launches.
 

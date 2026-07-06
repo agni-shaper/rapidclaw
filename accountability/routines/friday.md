@@ -32,7 +32,7 @@ The team ships things that don't always show up as commits in the owner's `~/pro
 
 1. **`<#C09DF90CQ8Z>` — the standup channel.** Pull the last 7 days of MoMs and standup transcripts. Use these for *intent* (what the team committed to this week) and for cross-checking against what actually landed.
 2. **`<#C0A8Q9HM5BN>` — the EOD channel.** Pull the last 7 days. EOD bullets with verbs like "shipped", "live", "merged", "deployed", "done", "fixed", "closed", "published" are confirmed-shipped work — especially valuable for teammates whose work doesn't live in the owner's local repos (e.g. `@rishav` on marketing, `@famitha` on listings, `@russel` on brand assets).
-3. **Tasks repo — `sites/tasks/planning/sprint.md` `## Done` section.** This is the canonical "what shipped this sprint" list, already vetted by the team. Use it as ground truth — if something's in Done, it shipped.
+3. **Sqlite `tasks` — rows flipped `status='done'` this week.** This is the canonical "what shipped this week" list, already vetted by the team via the tasks-cleanup + marketing-evening routines. Use it as ground truth — if a row's `status='done'` and `updated_at` is within the window, it shipped.
 
 ```bash
 source accountability/routines/_lib.sh
@@ -50,18 +50,20 @@ for CH in C09DF90CQ8Z C0A8Q9HM5BN; do
     > "/tmp/friday-$CH.json"
 done
 
-# Tasks repo Done section (current sprint)
-awk '/^## Done/{flag=1; next} /^## /{flag=0} flag' sites/tasks/planning/sprint.md \
-  | grep '^- \[\['  > /tmp/friday-tasks-done.txt
-# Also check previous sprints if one rolled over this week
-if [ -d sites/tasks/planning/previous-sprints ]; then
-  find sites/tasks/planning/previous-sprints -name 'sprint-*.md' -mtime -7 \
-    -exec awk '/^## Done/{flag=1; next} /^## /{flag=0} flag' {} \; \
-    | grep '^- \[\['  >> /tmp/friday-tasks-done.txt 2>/dev/null
-fi
+# Tasks shipped this week — sqlite via tasks.sh (single source of truth).
+./.claude/skills/tasks/bin/tasks.sh list --status done --json \
+  | python3 -c "
+import json, sys, datetime
+tz = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+cutoff = (datetime.datetime.now(tz) - datetime.timedelta(days=7)).strftime('%Y-%m-%d')
+rows = json.load(sys.stdin)
+for r in rows:
+    if (r.get('updated_at') or '')[:10] >= cutoff:
+        print(f'- T{r[\"id\"]} · [{r.get(\"product\") or \"-\"}/{r.get(\"category\") or \"-\"}] · {r[\"title\"]}')
+" > /tmp/friday-tasks-done.txt
 ```
 
-When a Done bullet, an EOD bullet, and a commit all point at the same thing, that's the strongest signal — lead the wrap with it. When the team shipped something the owner had no commits for (e.g. an AppLighter ad rotation, a marketing post, a support resolution), surface it too — the wrap is the whole team's, not just the owner's.
+When a done row, an EOD bullet, and a commit all point at the same thing, that's the strongest signal — lead the wrap with it. When the team shipped something the owner had no commits for (e.g. an AppLighter ad rotation, a marketing post, a support resolution), surface it too — the wrap is the whole team's, not just the owner's.
 
 ## Video floor check (if applicable)
 

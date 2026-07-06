@@ -111,7 +111,6 @@ When the listener re-invokes this routine with a thread reply from a super-admin
 
 ## What NOT to do
 
-- Never edit `sites/tasks/` markdown. That system is archival — write to sqlite via `tasks.sh` instead.
 - Never call `sqlite3` or write raw SQL. Go through `tasks.sh`.
 - Never bypass Step 3's open-task lookup for done/update proposals — otherwise you'll `done` the wrong id.
 - Never skip the approval gate. Even if the whole batch looks routine.
