@@ -338,6 +338,8 @@ def add_task_via_hook(task: dict, member: dict, today: str, dry_run: bool) -> tu
     if product not in PRODUCT_SLUGS:
         product = "rapidnative"
     tpl_id = task.get("template_id") or "unknown"
+    # Route per §"Task-channel routing" in .claude/skills/tasks/SKILL.md:
+    # marketing-morning:* → #rn-coach-social (C0B6Q8TUVL2), regardless of product.
     cmd = [
         str(TASKS_SH),
         "add",
@@ -348,11 +350,12 @@ def add_task_via_hook(task: dict, member: dict, today: str, dry_run: bool) -> tu
         "--product", product,
         "--source", f"marketing-morning:{today}:{tpl_id}",
         "--notify",
+        "--channel", "C0B6Q8TUVL2",
         "--json",
     ]
     if dry_run:
         title_preview = task["bullet"][:70] + ("…" if len(task["bullet"]) > 70 else "")
-        print(f"  [DRY] tasks.sh add {member['handle']} {today} '{title_preview}' --category=marketing --product={product} --notify")
+        print(f"  [DRY] tasks.sh add {member['handle']} {today} '{title_preview}' --category=marketing --product={product} --channel=C0B6Q8TUVL2 --notify")
         return None, True
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
