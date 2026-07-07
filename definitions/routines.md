@@ -19,6 +19,7 @@ Cron-fired routines, 1:1 with `~/Library/LaunchAgents/com.agni.rapidnative-coach
 | `tasks-cleanup` | 12:15 Mon–Fri | `#rapidnative-coach` (approval flow) | ✅ loads `tasks` + `bug-tracking` + `leave` |
 | `blog-internal` | 12:00 daily | `#marketing-automation` (via $SLACK_CONTENT_CHANNEL_ID) | v1 (thin wrapper around generate-blog.sh; no benefit from v2) |
 | `blog-external` | 11:00 daily | `#ai-blog` | v1 (same) |
+| `sprint-rollover` | 06:30 Mon | (file only — no Slack) | ✅ deterministic Python; auto-appends this week's Mon→Fri sections to `sprint.md` from the standard rotation template. Runs before `marketing-morning` so Mon's fire has today's slate ready. |
 | `marketing-recon` | 06:00 Mon–Fri | (cache file only — no Slack) | ✅ loads `growth-marketing` |
 | `marketing-morning` | 07:00 Mon–Fri | `#marketing-automation` | ✅ loads `growth-marketing` + `leave` |
 | `marketing-evening` | 19:30 Mon–Fri | `#marketing-automation` | ✅ loads `growth-marketing` |
