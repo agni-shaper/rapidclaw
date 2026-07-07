@@ -15,11 +15,14 @@ Crew roles + active flag: see `../../../../definitions/people.md`.
 
 **Per-product coverage** — since 2026-07-02, each crew member declares which products they work on via a `products:` line right under their `## @handle` heading. The morning helper only expands tasks for products the crew member covers, so members with narrower ownership silently skip other products' slates.
 
+**Task proxying** — since 2026-07-07, a crew block can include a `proxy_to: @<handle>` line. When set, that crew's tasks fire with their own persona rotation (Anna/Peter/Camille/… for @sanket, David/Emily/… for @rishav) but the ledger post's **assignee is the proxy target**. Use case: a crew member is no longer actively doing marketing work but their persona pool is still useful — proxy their tasks to whoever's picking up the load. Current proxies: `@sanket → @famitha`, `@rishav → @russel`.
+
 ---
 
 ## @sanket
 
 products: [rapidnative, applighter, letsdeployit]
+proxy_to: @famitha
 
 1. Rishav
 2. Anna
@@ -56,6 +59,7 @@ products: [rapidnative, applighter, letsdeployit]
 ## @rishav
 
 products: [rapidnative, applighter, letsdeployit]
+proxy_to: @russel
 
 1. David
 2. Emily

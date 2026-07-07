@@ -141,15 +141,27 @@ def slack_post(text: str, thread_ts: Optional[str] = None) -> Optional[str]:
 
 
 def parse_team() -> list:
-    """Return [{slack_id, handle, active, products}]. Crew handles come from accounts.md
-    `## @handle` headings; Slack IDs come from definitions/people.md. Each member's
-    `products` list comes from the `products: [slug, slug, ...]` line under their
-    heading; defaults to ['rapidnative'] if the line is absent (backward compat)."""
+    """Return [{slack_id, handle, active, products, proxy_to}]. Crew handles come
+    from accounts.md `## @handle` headings; Slack IDs come from definitions/people.md.
+
+    Each member's `products` list comes from the `products: [slug, slug, ...]` line
+    under their heading; defaults to ['rapidnative'] if the line is absent.
+
+    **Proxy assignment** (new): a crew block may include `proxy_to: @<handle>` under
+    its `## @handle` heading. When set, the ledger post's assignee is the proxy
+    target's Slack ID — the original handle's persona rotation is still used
+    (rotation looks up `handle` in accounts.md), but every task LANDS in the
+    proxy target's inbox. Use case: retiring a crew member's task load onto
+    another crew member without losing their persona pool. E.g. Sanket's
+    persona rotation (Anna, Peter, Camille, …) still fires, but the tasks are
+    assigned to Famitha.
+    """
     accounts_path = PROJECT_DIR / ".claude" / "skills" / "growth-marketing" / "social-engagement" / "references" / "accounts.md"
     people_path = PROJECT_DIR / "definitions" / "people.md"
 
     handles = []
     products_by_handle: dict = {}
+    proxy_by_handle: dict = {}
     current_handle = None
     for line in accounts_path.read_text().splitlines():
         stripped = line.strip()
@@ -163,6 +175,10 @@ def parse_team() -> list:
             if pm:
                 items = [s.strip() for s in pm.group(1).split(",") if s.strip()]
                 products_by_handle[current_handle] = items
+                continue
+            xm = re.match(r"^proxy_to:\s*(@\w+)", stripped)
+            if xm:
+                proxy_by_handle[current_handle] = xm.group(1)
 
     slack_id_by_handle: dict = {}
     for line in people_path.read_text().splitlines():
@@ -176,8 +192,26 @@ def parse_team() -> list:
         if not sid:
             print(f"WARN: {h} in accounts.md has no Slack ID in definitions/people.md — skipping", file=sys.stderr)
             continue
+        # Proxy resolution — if `proxy_to: @target` is set, swap slack_id to the
+        # target's ID so the ledger post lands in their thread. Keep `handle`
+        # as the original so persona rotation still uses the source's account list.
+        proxy_target_handle = proxy_by_handle.get(h)
+        proxy_target_sid = None
+        if proxy_target_handle:
+            proxy_target_sid = slack_id_by_handle.get(proxy_target_handle)
+            if not proxy_target_sid:
+                print(f"WARN: {h} proxy_to={proxy_target_handle} not in people.md — falling back to self", file=sys.stderr)
+            else:
+                sid = proxy_target_sid  # ledger post lands with the proxy target as assignee
         products = products_by_handle.get(h, ["rapidnative"])
-        out.append({"slack_id": sid, "handle": h, "active": True, "products": products})
+        out.append({
+            "slack_id":     sid,
+            "handle":       h,
+            "active":       True,
+            "products":     products,
+            "proxy_to":     proxy_target_handle,        # kept for logging/audit
+            "proxy_target_sid": proxy_target_sid,
+        })
     return out
 
 
