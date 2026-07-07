@@ -31,10 +31,18 @@
 set -e
 source "${0:A:h}/_lib.sh"
 
-TASK_ID="${1:?usage: task-assist.sh <task_id> [--dry-run]}"
+TASK_ID=""
 DRY_RUN=0
-[ "${2:-}" = "--dry-run" ] && DRY_RUN=1
+SILENT_ON_EMPTY=0
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run)         DRY_RUN=1 ;;
+    --silent-on-empty) SILENT_ON_EMPTY=1 ;;
+    *)                 [ -z "$TASK_ID" ] && TASK_ID="$arg" ;;
+  esac
+done
 
+[ -n "$TASK_ID" ] || { echo "usage: task-assist.sh <task_id> [--dry-run] [--silent-on-empty]" >&2; exit 1; }
 [[ "$TASK_ID" =~ ^[0-9]+$ ]] || { echo "ERROR: task_id must be a positive integer" >&2; exit 1; }
 
 HERE="${0:A:h}"
@@ -85,6 +93,11 @@ BODY_REASON=$(python3 -c "import json,sys; print(json.loads(sys.argv[1]).get('re
 if [ -n "$BODY_TEXT" ]; then
   MESSAGE=$(printf ':robot_face: *Task-Assistance-Bot* — for T%s\n\n%s\n\n_%s · %s_' \
     "$TASK_ID" "$BODY_TEXT" "${PRODUCT:-no product}" "${CATEGORY:-adhoc}")
+elif [ "$SILENT_ON_EMPTY" -eq 1 ]; then
+  # Auto-fire path (e.g. from marketing-morning): don't post noise when there's
+  # nothing to say. Exit 0 so the caller records a "no-op enrichment" success.
+  echo "SILENT · no assistance content for T$TASK_ID (reason: ${BODY_REASON:-unknown})"
+  exit 0
 else
   MESSAGE=$(printf ':robot_face: *Task-Assistance-Bot* — for T%s\n\nNo pre-computed assistance available.\n_Reason: %s_' \
     "$TASK_ID" "${BODY_REASON:-unknown}")

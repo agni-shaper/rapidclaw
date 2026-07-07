@@ -1087,12 +1087,43 @@ def main():
     write_snapshot(sentinel, today, wlabel, on_leave)
     print(f"snapshot: {PROJECT_DIR / 'marketing' / 'morning-tasks.md'}")
 
+    # ─── Enrich every task's thread via the task-assistance module ────
+    # Fires task-assist.sh for each sqlite id created above. task-assist reads
+    # the daily recon cache + Slack blog channels and posts platform-specific
+    # thread content (article drafts, HN thread suggestions, personal-post
+    # drafts, distro-article variant files). --silent-on-empty means we don't
+    # post noise when recon has nothing for a given task (e.g. quota tasks
+    # like TPL-DISTRO-6 or platforms with no recon-scraped data).
+    enrich_ok, enrich_silent, enrich_fail = 0, 0, 0
+    task_assist_sh = str(PROJECT_DIR / "accountability" / "routines" / "task-assist.sh")
+    for tid in all_task_ids:
+        try:
+            r = subprocess.run(
+                [task_assist_sh, str(tid), "--silent-on-empty"],
+                capture_output=True, text=True, timeout=45,
+            )
+            if r.returncode == 0:
+                if r.stdout.startswith("SILENT"):
+                    enrich_silent += 1
+                else:
+                    enrich_ok += 1
+            else:
+                enrich_fail += 1
+                print(f"  [enrich-fail] T{tid}: {(r.stderr or '').strip()[:120]}", file=sys.stderr)
+        except Exception as e:
+            enrich_fail += 1
+            print(f"  [enrich-exc] T{tid}: {e}", file=sys.stderr)
+        # Rate limit to stay under Slack tier-1 limits (~1 write/sec).
+        time.sleep(0.5)
+    print(f"task-assist enrichment: {enrich_ok} posted · {enrich_silent} silent (no data) · {enrich_fail} failed")
+
     print()
     print("=== RUN SUMMARY ===")
     print(f"crews posted:      {len(sentinel['crews'])}")
     print(f"tasks.sh calls OK: {total_posted}")
     print(f"sqlite ids saved:  {len(all_task_ids)}")
     print(f"failures:          {total_failed}")
+    print(f"enrichment:        {enrich_ok} posted, {enrich_silent} silent, {enrich_fail} failed")
     return 0
 
 
