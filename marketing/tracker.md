@@ -7,4 +7,8 @@ Append-only. One row per (date, person). Written by the evening routine. **Never
 | Date | Person | Done | Carried | Skipped (leave) | Skipped (no acct) | Total | Notes |
 |---|---|---|---|---|---|---|---|
 
+| 2026-07-06 | @sanket | 0 | 18 | 0 | 0 | 18 | no reply |
+| 2026-07-06 | @russel | 0 | 19 | 0 | 0 | 19 | no reply |
+| 2026-07-06 | @rishav | 0 | 18 | 0 | 0 | 18 | no reply |
+| 2026-07-06 | @suraj | 0 | 18 | 0 | 0 | 18 | no reply |
 <!-- evening routine appends rows above this line -->

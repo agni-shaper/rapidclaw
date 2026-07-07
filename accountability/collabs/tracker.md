@@ -61,6 +61,8 @@ Canonical list of every active and recently-closed collab. The `collabs-tuesday-
 - Deadline: **2026-07-15** (submission window closes)
 - 2026-06-26 — Sanket forwarded the ET email to the channel and looped in @famitha
 - 2026-06-29 — @famitha asked @sanket for the registered ET microsite credentials so she can complete the form
+- 2026-06-29 — @famitha posted the full ET Now AI Innovation Award form (heavier: revenue bands, employee headcount, technical benchmarks). Bot drafted paste-ready answers for narrative/product fields; entity + financials tagged for @sanket, technical benchmarks + certifications tagged for @suraj
+- 2026-07-01 — @sanket asked in-channel what's pending; still blocked on same three inputs (ET microsite credentials, entity/financials, technical benchmarks). @famitha agreed to sync. **Deadline: 2026-07-15 (8 days out)**
 
 
 ### Taha Anwar (BleedAI / BleedConnections) — dropped 2026-06-18
