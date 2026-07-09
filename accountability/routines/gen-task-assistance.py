@@ -30,17 +30,19 @@ PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
 DB_PATH = Path.home() / ".config" / "claude" / "rapidnative-coach.sqlite"
 SLACK_TOKEN_PATH = Path.home() / ".config" / "claude" / "rapidnative-coach-slack-bot-token"
 
-# Blog-source channels per product, for TPL-DISTRO-ARTICLE lookups.
-# Each entry: (channel_id, [(text_pattern, blog_type), ...]) — patterns tried in
-# order; first match wins. `external` preferred over `internal` per user's ask.
+# Blog-source directories per product for TPL-DISTRO-ARTICLE lookups.
+# Since 2026-07-09 we read blog content from the linked-site's local `output/`
+# dir (populated by the blog-prep routine at 06:45 IST Mon–Fri) instead of
+# scraping the retired #ai-blogs / #applighter-ai-blogs Slack channels.
 DISTRO_BLOG_SOURCES = {
-    "rapidnative": ("C0AMG7SE1FF", [
-        ("External blog ready for review", "external"),
-        ("Internal blog published",         "internal"),
-    ]),
-    "applighter":  ("C0B24QUSDSA", [
-        ("New blog ready for cross-posting", "external"),
-    ]),
+    "rapidnative": {
+        "site":       PROJECT_DIR / "sites" / "rapidnative-website",
+        "output_dir": PROJECT_DIR / "sites" / "rapidnative-website" / "scripts" / "blog-automation" / "output",
+    },
+    "applighter": {
+        "site":       PROJECT_DIR / "sites" / "applighter-website",
+        "output_dir": PROJECT_DIR / "sites" / "applighter-website" / "scripts" / "blog-automation" / "output",
+    },
     # LDI intentionally omitted — no distro-article pipeline yet.
 }
 
@@ -419,37 +421,171 @@ def _parse_blog_message(text: str, product: str) -> dict:
     return out
 
 
-def fetch_latest_distro_blog(product: str) -> Optional[dict]:
-    """Fetch the latest blog message from the product's source channel + thread
-    variants + inline the canonical body.
-
-    Returns {title, canonical_url, blog_type, source_thread_url, generated_date,
-             variants: dict, canonical_body: str, canonical_truncated: bool}
-    or None if no matching message in the last 20."""
+def _find_latest_local_blog(product: str) -> Optional[dict]:
+    """Locate the most recent blog files on disk for `product`. Returns a dict
+    with the raw-body file, its date, and the per-variant files (or the raw
+    file to split for RN's separator-based format)."""
     src = DISTRO_BLOG_SOURCES.get(product)
     if not src:
         return None
-    channel_id, patterns = src
-    api = f"https://slack.com/api/conversations.history?channel={channel_id}&limit=20"
-    resp = _slack_get(api)
-    if not resp.get("ok"):
+    output_dir = src["output_dir"]
+    if not output_dir.exists():
         return None
-    messages = resp.get("messages", [])
-    for pattern, blog_type in patterns:
-        for m in messages:
-            text = m.get("text", "")
-            if pattern in text:
-                parsed = _parse_blog_message(text, product)
-                parent_ts = m["ts"]
-                raw_variants = _fetch_thread_variants_raw(channel_id, parent_ts)
-                return {
-                    "title":               parsed["title"],
-                    "canonical_url":       parsed["canonical_url"],
-                    "blog_type":           blog_type,
-                    "source_thread_url":   _slack_permalink(channel_id, parent_ts),
-                    "generated_date":      parsed["generated_date"],
-                    "raw_variants":        raw_variants,
-                }
+
+    # AL uses per-variant files under `blog-<YYYYMMDD>-<HHMMSS>-sections/`
+    # (01-canonical.md, 02-medium.md, …). RN uses a single `blog-<YYYY-MM-DD>_HH-MM-SS.md`
+    # with `━━━` separators between sections.
+    if product == "applighter":
+        sect_dirs = sorted(
+            (p for p in output_dir.iterdir()
+             if p.is_dir() and p.name.startswith("blog-") and p.name.endswith("-sections")),
+            key=lambda p: p.name,
+            reverse=True,
+        )
+        for d in sect_dirs:
+            section_files = sorted(d.glob("*.md"))
+            if section_files:
+                return {"kind": "sections-dir", "dir": d, "section_files": section_files}
+        return None
+
+    if product == "rapidnative":
+        raw_files = sorted(
+            (p for p in output_dir.iterdir()
+             if p.is_file() and p.name.startswith("blog-") and p.name.endswith(".md")
+                and p.stat().st_size > 1024),  # skip empty/incomplete files
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+        for f in raw_files:
+            return {"kind": "raw-separators", "raw_file": f}
+        return None
+
+    return None
+
+
+_RN_SECTION_HEADER_RE = re.compile(
+    r"^━+[ \t]*\n"      # opening border line
+    r"(.+?)\n"          # heading text (single line, capture)
+    r"^━+[ \t]*\n",     # closing border line
+    re.MULTILINE,
+)
+
+
+def _split_rn_raw_by_separators(raw_body: str) -> list:
+    """RN raw blog file has sections divided by a ━━━ border → heading → ━━━ border
+    block, followed by the section body. Detect each header block, use the
+    captured heading as the section title, and take the text up to the next
+    header block (or end of file) as the body."""
+    matches = list(_RN_SECTION_HEADER_RE.finditer(raw_body))
+    if not matches:
+        return []
+    out: list = []
+    for i, hdr in enumerate(matches):
+        title = hdr.group(1).strip()
+        body_start = hdr.end()
+        body_end = matches[i + 1].start() if i + 1 < len(matches) else len(raw_body)
+        body = raw_body[body_start:body_end].strip()
+        if not body or len(body) < 200:
+            # Skip tiny artifacts — real sections have substantial content
+            continue
+        out.append({"index": len(out) + 1, "title": title, "body": body})
+    return out
+
+
+def _extract_blog_title(text: str) -> str:
+    """Extract the blog's actual title from a raw markdown body.
+    Skips 'Section N:' style headings and looks for the first plain `# Title`."""
+    for line in text.splitlines()[:60]:
+        line = line.strip()
+        if not line.startswith("#"):
+            continue
+        heading = line.lstrip("#").strip()
+        if not heading or heading.lower().startswith("section"):
+            continue
+        return heading
+    return ""
+
+
+def _extract_canonical_url(text: str) -> str:
+    """Look for the first rapidnative.com/blogs or applighter.com URL in the body."""
+    m = re.search(r"https?://[^\s\)>|]+(rapidnative\.com|applighter\.com)[^\s\)>|]*", text)
+    return m.group(0) if m else ""
+
+
+def fetch_latest_distro_blog(product: str) -> Optional[dict]:
+    """Find the latest local blog for `product` on disk and shape it into the
+    variant manifest task-assist expects. Since 2026-07-09 this reads from
+    `sites/<product>/scripts/blog-automation/output/` — populated by the
+    blog-prep routine — instead of the retired #ai-blogs / #applighter-ai-blogs
+    Slack channels.
+
+    Returns {title, canonical_url, blog_type, source_thread_url, generated_date,
+             raw_variants: [{name, title, local_path, size}, ...]} or None."""
+    local = _find_latest_local_blog(product)
+    if not local:
+        return None
+
+    if local["kind"] == "sections-dir":
+        # AL: files are already per-variant (01-canonical.md, 02-medium.md, …)
+        d = local["dir"]
+        # Read the canonical to infer the title
+        title = ""
+        canonical_url = ""
+        for f in local["section_files"]:
+            if "canonical" in f.name.lower():
+                body = f.read_text()
+                title = _extract_blog_title(body)
+                canonical_url = _extract_canonical_url(body)
+                break
+        raw_variants = []
+        for f in local["section_files"]:
+            raw_variants.append({
+                "name":       f.name,
+                "title":      f.name,  # AL section titles = filenames; task-assist pretty-prints them
+                "local_path": str(f),
+                "size":       f.stat().st_size,
+            })
+        return {
+            "title":             title or "(title not parsed)",
+            "canonical_url":     canonical_url,
+            "blog_type":         "external",
+            "source_thread_url": "",  # no Slack thread to link to anymore
+            "generated_date":    d.name.split("-")[1] if "-" in d.name else "",
+            "raw_variants":      raw_variants,
+        }
+
+    if local["kind"] == "raw-separators":
+        # RN: single raw file with ━━━ separators. Split, write each section
+        # to /tmp so task-assist has real files to re-upload.
+        raw_file = local["raw_file"]
+        raw_body = raw_file.read_text()
+        title = _extract_blog_title(raw_body)
+        canonical_url = _extract_canonical_url(raw_body)
+        sections = _split_rn_raw_by_separators(raw_body)
+        if not sections:
+            return None
+        # Cache the split into a peer directory so we don't re-split on every call.
+        split_dir = raw_file.parent / f"{raw_file.stem}-sections-cache"
+        split_dir.mkdir(exist_ok=True)
+        raw_variants = []
+        for s in sections:
+            fname = f"{s['index']:02d}-section-{s['index']}.md"
+            fpath = split_dir / fname
+            fpath.write_text(s["body"])
+            raw_variants.append({
+                "name":       fname,
+                "title":      s["title"],
+                "local_path": str(fpath),
+                "size":       fpath.stat().st_size,
+            })
+        return {
+            "title":             title or "(title not parsed)",
+            "canonical_url":     canonical_url,
+            "blog_type":         "external",
+            "source_thread_url": "",
+            "generated_date":    "",
+            "raw_variants":      raw_variants,
+        }
     return None
 
 
@@ -476,21 +612,27 @@ def _prettify_title(original_title: str, original_name: str) -> str:
 
 
 def write_distro_attachments(task_id: int, raw_variants: list) -> list:
-    """Download each variant's content and stash it under
-    /tmp/task-assist-T<id>/<clean-filename> so task-assist.sh can re-upload
-    each to the task's thread with a preserved (or prettified) title.
-    Returns an ordered manifest [{path, title, name, size}, ...]."""
+    """Copy each variant file into /tmp/task-assist-T<id>/ so task-assist.sh
+    can re-upload it to the task's thread with a preserved (or prettified) title.
+    Returns an ordered manifest [{path, title, name, size}, ...].
+
+    Since 2026-07-09 each `raw_variant` has `local_path` pointing at a file in
+    the linked site's `output/` directory (previously it was `url_private` for
+    a Slack file download)."""
     # Pin to /tmp explicitly (rather than tempfile.gettempdir() which is
     # /var/folders/... on macOS) so task-assist.sh's cleanup path matches.
     tmpdir = Path("/tmp") / f"task-assist-T{task_id}"
     tmpdir.mkdir(parents=True, exist_ok=True)
     manifest: list = []
     for i, v in enumerate(raw_variants, 1):
-        url = v.get("url_private", "")
-        if not url:
+        local_path = v.get("local_path", "")
+        if not local_path:
             continue
-        content = _slack_download_file(url)
-        if not content:
+        src = Path(local_path)
+        if not src.exists():
+            continue
+        content = src.read_text(errors="replace")
+        if not content.strip():
             continue
         original_name = v.get("name") or f"variant-{i}.md"
         # Strip any leading "NN-" that's already in the source name so we
