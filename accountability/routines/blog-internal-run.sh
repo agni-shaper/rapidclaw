@@ -40,10 +40,21 @@ LOG="/tmp/rapidnative-coach-blog-internal.log"
   cat > "$SHIM_DIR/curl" <<'CURL_SHIM'
 #!/bin/bash
 # curl shim — intercept Slack API calls, pass through everything else.
+# Emits trailing HTTP status ONLY when curl was invoked with -w — matches
+# the mix of response parsers generate-blog.sh uses (bash + tail, jq,
+# python json.load). See blog-prep-run.sh for the full explanation.
+has_w=0
+for arg in "$@"; do
+  if [ "$arg" = "-w" ] || [ "$arg" = "--write-out" ]; then
+    has_w=1
+    break
+  fi
+done
 for arg in "$@"; do
   case "$arg" in
     *slack.com*|*hooks.slack.com*)
       echo '{"ok":true,"ts":"1783500000.000000","channel":"CBLOGSHIM","message":{"ts":"1783500000.000000","bot_id":"BBLOGSHIM"},"file":{"id":"FBLOGSHIM","permalink":"https://shim/file"},"upload_url":"https://shim/upload","file_id":"FBLOGSHIM"}'
+      [ "$has_w" -eq 1 ] && echo '200'
       exit 0
       ;;
   esac

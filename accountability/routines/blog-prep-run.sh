@@ -31,10 +31,32 @@ LOG="/tmp/rapidnative-coach-blog-prep.log"
 # curl shim — intercept Slack API calls, pass through everything else.
 # Returns synthetic success JSON so generate-blog.sh proceeds normally
 # without actually posting anything to Slack.
+#
+# Three response-format cases in generate-blog.sh:
+#   1. `curl -w "\n%{http_code}"` (RN's chat.postMessage) → expects
+#      JSON body + newline + HTTP status code. Bash then reads status
+#      via `tail -1` and body via `sed '$d'`.
+#   2. `curl` without -w (files.getUploadURLExternal path) → pipes
+#      raw response to jq, which chokes on any trailing status line.
+#   3. AL's script wraps curl output through Python's `json.load`,
+#      which raises "Extra data" if there's anything after the JSON.
+#
+# Solution: emit the HTTP status suffix ONLY when curl was called with
+# -w. Otherwise emit pure JSON so jq/json.load parse cleanly.
+
+has_w=0
+for arg in "$@"; do
+  if [ "$arg" = "-w" ] || [ "$arg" = "--write-out" ]; then
+    has_w=1
+    break
+  fi
+done
+
 for arg in "$@"; do
   case "$arg" in
     *slack.com*|*hooks.slack.com*)
       echo '{"ok":true,"ts":"1783500000.000000","channel":"CBLOGSHIM","message":{"ts":"1783500000.000000","bot_id":"BBLOGSHIM"},"file":{"id":"FBLOGSHIM","permalink":"https://shim/file"},"upload_url":"https://shim/upload","file_id":"FBLOGSHIM"}'
+      [ "$has_w" -eq 1 ] && echo '200'
       exit 0
       ;;
   esac
@@ -54,6 +76,13 @@ CURL_SHIM
     set +o allexport
   fi
 
+  # generate-blog.sh's required_vars check demands SLACK_CONTENT_BOT_TOKEN.
+  # AL's site .env doesn't have it (unlike RN's), so we set it here — even
+  # though the shim intercepts every Slack call and the token is never
+  # actually sent. Kept as the rapidnative-coach bot token for the
+  # documented "single-bot rule" invariant.
+  export SLACK_CONTENT_BOT_TOKEN="$(tr -d '[:space:]' < ~/.config/claude/rapidnative-coach-slack-bot-token)"
+
   TODAY=$(TZ=Asia/Kolkata date +%Y-%m-%d)
   mkdir -p "$COACH_DIR/marketing/.state"
   OVERALL_RC=0
@@ -61,8 +90,18 @@ CURL_SHIM
   # ─── Product loop ─────────────────────────────────────────────
   for product in rapidnative applighter; do
     case "$product" in
-      rapidnative)  SITE_DIR="$COACH_DIR/sites/rapidnative-website"; SHORT="rn" ;;
-      applighter)   SITE_DIR="$COACH_DIR/sites/applighter-website"; SHORT="al" ;;
+      rapidnative)
+        SITE_DIR="$COACH_DIR/sites/rapidnative-website"
+        SHORT="rn"
+        export NEXT_PUBLIC_SITE_URL="https://www.rapidnative.com"
+        ;;
+      applighter)
+        SITE_DIR="$COACH_DIR/sites/applighter-website"
+        SHORT="al"
+        # AL's generate-blog.sh requires NEXT_PUBLIC_SITE_URL. The retired
+        # applighter-blog-external-run.sh used to set it explicitly here.
+        export NEXT_PUBLIC_SITE_URL="https://www.applighter.com"
+        ;;
     esac
     SENTINEL="$COACH_DIR/marketing/.state/blog-prep-${SHORT}-${TODAY}.sentinel"
 
