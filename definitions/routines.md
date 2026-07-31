@@ -23,7 +23,6 @@ Cron-fired routines, 1:1 with `~/Library/LaunchAgents/com.agni.rapidnative-coach
 | `marketing-recon` | 06:00 Mon–Fri | (cache file only — no Slack) | ✅ loads `growth-marketing` |
 | `marketing-morning` | 07:00 Mon–Fri | `#marketing-automation` | ✅ loads `growth-marketing` + `leave` |
 | `marketing-evening` | 19:30 Mon–Fri | `#marketing-automation` | ✅ loads `growth-marketing` |
-| `gtm-weekly-pick` | 09:00 Mon (+ Fri 17:00 recap) | `#marketing` | ✅ loads `growth-marketing` + `tasks` |
 | `biweekly-shoutouts` | 18:00 every other Fri | `#marketing` | ✅ loads `growth-marketing` |
 | `collabs-tuesday-update` | 09:00 Tue | `#collabs-and-partnerships` | ✅ no dedicated collabs skill yet; thin orchestrator |
 | `resurface-logo-update` | 10:03 daily (one-off — already shipped) | `#design` | v1 (retire candidate) |
@@ -45,7 +44,7 @@ The listener (`accountability/listener/listener.js`) is a separate launchd job �
 
 Team-facing routines call `guard_working_day <name>` from `accountability/routines/_lib.sh`, which skips runs on weekends + holidays. The owner-facing routines (`daily`, `noon`, `sunday`) deliberately run regardless — personal accountability doesn't take holidays.
 
-Currently guarded: `eod-streak-check`, `tasks-cleanup`, `friday`, `biweekly-shoutouts`, `collabs-tuesday-update`, `gtm-weekly-pick`.
+Currently guarded: `eod-streak-check`, `tasks-cleanup`, `friday`, `biweekly-shoutouts`, `collabs-tuesday-update`.
 
 ## Conventions
 
