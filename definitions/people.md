@@ -33,6 +33,16 @@
 | `teammate` | Can request drafts/reads/plans. Cannot self-approve privileged actions — must be approved by owner or a superadmin in the same Slack thread. |
 | `unknown` | Refused. Pointed to owner. |
 
+## EOD nudge exemptions
+
+Teammates who should NOT be pinged by the `eod-streak-check` routine (in addition to the bot owner and `@bot-god`, which are always excluded). Roles / working patterns where a daily EOD isn't expected.
+
+| Slack ID | Handle | Reason | Added |
+|---|---|---|---|
+| `U0B467S1VEG` | `@gracey` | Community Intern — role doesn't require daily EOD in `#eod-updates` | 2026-08-06 by @sanket |
+
+The `eod-nudges` skill reads this table at Step 1 and silently skips any listed ID. Remove a row here to re-enable nudges for that person.
+
 ## Leave
 
 Day-by-day OOO entries and team-wide holidays live in the sqlite DB at `~/.config/claude/rapidnative-coach.sqlite` (tables `leave_entries` and `holidays`). Helpers `is_on_leave <@SLACK_ID>`, `is_holiday`, and `is_working_day` in [`../accountability/routines/_lib.sh`](../accountability/routines/_lib.sh) query the DB.

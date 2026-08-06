@@ -31,7 +31,7 @@ Capture `$RUN_ID` for step 4.
 
 Follow `.claude/skills/eod-nudges/SKILL.md` exactly. Quick reminders for this routine:
 
-- Expected teammates = humans from `definitions/people.md`, **EXCEPT** the bot owner (`U0B4FCJ8Z1Q`) and any agent rows (`@bot-god`). Don't hardcode names — read the file.
+- Expected teammates = humans from `definitions/people.md`, **EXCEPT** the bot owner (`U0B4FCJ8Z1Q`), any agent rows (`@bot-god`), and any ID listed in the `## EOD nudge exemptions` table in `definitions/people.md`. Don't hardcode names — read the file.
 - Use `sqlite_is_on_leave "<@U…>"` (sqlite-backed, Phase 3 LIVE) — same exit-code contract as `is_on_leave`. Either works; sqlite is preferred.
 - Channel id: `C0A8Q9HM5BN` (also in `definitions/channels.md`).
 - Window: 4 working days back via `n_working_days_ago 4` (cutoff + 1 safety margin). Stale = no top-level post in the last 3 working days (use `n_working_days_ago 3` as the cutoff date string).
