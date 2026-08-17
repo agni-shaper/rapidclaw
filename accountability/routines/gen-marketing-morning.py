@@ -475,6 +475,13 @@ TEMPLATE_DEFS = {
     # live blog title + source thread URL from #ai-blogs (RN) or
     # #applighter-ai-blogs (AL) at reply time and posts variants for the crew.
     "TPL-DISTRO-ARTICLE":   {"shape": "F"},
+    # Shape G: crew-filtered creative task. Static bullet; task-assist is
+    # silent-by-design (crew ideates the tool themselves). `crew_filter`
+    # limits which crew handles this template fires for — checked against
+    # member["handle"] (not slack_id), so proxies don't leak the task to
+    # unintended assignees.
+    "TPL-FREE-TOOL":        {"shape": "G", "action": "Create a Free Tool",
+                             "crew_filter": ["@famitha"]},
 }
 
 
@@ -511,6 +518,8 @@ def infer_template_from_bullet(bullet: str) -> Optional[str]:
     if "write 10 articles for distribution" in b: return "TPL-DISTRO-10"
     # Distro of published blog (Shape F)
     if "distribute today's blog" in b: return "TPL-DISTRO-ARTICLE"
+    # Free-tool creation (Shape G)
+    if "create a free tool" in b: return "TPL-FREE-TOOL"
     # Blog task (synthetic — matches any product)
     if re.search(r"publish a blog for (rapidnative|applighter|letsdeployit)", b): return "BLOG-TASK"
     return None
@@ -558,6 +567,8 @@ def render_bullet(template_id: str, pool, week_lbl: str, clamped=False) -> str:
         return f"Write {tpl['quota']} articles for Distribution"
     if shape == "F":
         return "Distribute today's blog to a platform of choice"
+    if shape == "G":
+        return tpl.get("action", "Create a Free Tool")
     return f"<unknown template {template_id}>"
 
 
@@ -677,11 +688,17 @@ def build_task_list(member: dict, product: str, product_templates: list, account
         tpl = TEMPLATE_DEFS.get(tpl_id)
         if not tpl:
             continue
+        # Crew-filter gate: skip this template for anyone not in the whitelist.
+        # Checked against member["handle"] (not slack_id) so proxied assignees
+        # only trigger this when the source handle matches.
+        crew_filter = tpl.get("crew_filter")
+        if crew_filter and handle not in crew_filter:
+            continue
         shape = tpl["shape"]
-        if shape in ("E", "F"):
-            # E: quota task (e.g. "Write 6 articles for Distribution")
-            # F: distro of published blog — bullet is static; task-assist fetches
-            #    the live blog title + variants URL at reply time.
+        if shape in ("E", "F", "G"):
+            # E: quota task ("Write 6 articles for Distribution")
+            # F: distro of published blog (task-assist fetches live at reply time)
+            # G: crew-filtered creative task ("Create a Free Tool") — silent enrichment
             tasks.append({
                 "template_id": tpl_id,
                 "product": product,

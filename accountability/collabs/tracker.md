@@ -62,8 +62,21 @@ Canonical list of every active and recently-closed collab. The `collabs-tuesday-
 - 2026-06-26 — Sanket forwarded the ET email to the channel and looped in @famitha
 - 2026-06-29 — @famitha asked @sanket for the registered ET microsite credentials so she can complete the form
 - 2026-06-29 — @famitha posted the full ET Now AI Innovation Award form (heavier: revenue bands, employee headcount, technical benchmarks). Bot drafted paste-ready answers for narrative/product fields; entity + financials tagged for @sanket, technical benchmarks + certifications tagged for @suraj
-- 2026-07-01 — @sanket asked in-channel what's pending; still blocked on same three inputs (ET microsite credentials, entity/financials, technical benchmarks). @famitha agreed to sync. **Deadline: 2026-07-15 (8 days out)**
+- 2026-07-01 — @sanket asked in-channel what's pending; still blocked on same three inputs (ET microsite credentials, entity/financials, technical benchmarks). @famitha agreed to sync. **Deadline: 2026-07-15 (1 day out)**
 
+### TCS (Tata Consultancy Services) — 12 seat license
+- Type: enterprise licensing — 12 seat license proposal
+- Amount: not disclosed in channel
+- Status: **proposal sent — awaiting response**
+- Owner: @sanket
+- 2026-07-07 — @sanket posted in-channel: "Sent a proposal to TCS for 12 seat license"
+
+### Performance marketer hire (16-year-old)
+- Type: performance-marketing engagement — negotiation in progress
+- Amount: TBD (proposals under review)
+- Status: **finalizing — working through proposals + legalities**
+- Owner: @sanket
+- 2026-07-07 — @sanket posted in-channel: "Finalizing the 16-year-old performance marketer, working through the proposals / legalities"
 
 ### Taha Anwar (BleedAI / BleedConnections) — dropped 2026-06-18
 - Type: cold outbound campaign — funded-founder targeting; PRD-style strategy doc delivered

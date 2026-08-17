@@ -98,6 +98,11 @@ def classify(title: str) -> dict:
     if "write" in t and "articles for distribution" in t:
         return {"kind": "quota", "platform": None, "evidence": "quota template"}
 
+    # Free-tool creation (Shape G, TPL-FREE-TOOL) — crew ideates, no data source
+    if t.startswith("create a free tool"):
+        return {"kind": "free-tool", "platform": None,
+                "evidence": "TPL-FREE-TOOL — silent by design"}
+
     # Article submission templates (Shape A) — matches BOTH the marketing-morning
     # canonical form ("Submit 1 article to Hashnode from …") AND the natural-
     # language variants the LLM Slack listener produces ("Write a blog on
@@ -680,9 +685,10 @@ def find_recon_data(task: dict, cls: dict, recon: dict) -> Tuple[str, dict]:
     kind = cls["kind"]
     platform = cls.get("platform")
 
-    # distro-article bypasses the recon cache — it reads live from Slack
-    # source channels. All other kinds still require recon.
-    if not recon and kind != "distro-article":
+    # distro-article bypasses recon (reads Slack source channels live).
+    # free-tool bypasses recon (silent-by-design — no data source needed).
+    # All other kinds still require recon.
+    if not recon and kind not in ("distro-article", "free-tool"):
         return "", {"reason": "no recon cache for today", "task_id": task["id"]}
 
     if kind == "blog":
@@ -721,6 +727,11 @@ def find_recon_data(task: dict, cls: dict, recon: dict) -> Tuple[str, dict]:
             "source_thread_url": blog.get("source_thread_url"),
             "attachments":       attachments,
         }
+
+    # free-tool doesn't scope to a product's recon block — return the
+    # silent-by-design reason before the recon guards can swallow it.
+    if kind == "free-tool":
+        return "", {"reason": "free-tool tasks are silent by design — crew ideates the tool", "kind": kind}
 
     if not product:
         return "", {"reason": "task has no product; can't scope recon", "kind": kind}
@@ -774,6 +785,9 @@ def find_recon_data(task: dict, cls: dict, recon: dict) -> Tuple[str, dict]:
 
     if kind == "quota":
         return "", {"reason": "quota tasks don't get thread suggestions (write in your own voice)", "kind": kind}
+
+    if kind == "free-tool":
+        return "", {"reason": "free-tool tasks are silent by design — crew ideates the tool", "kind": kind}
 
     # kind == "unknown"
     return "", {"reason": "title didn't match any known platform pattern", "kind": kind, "evidence": cls.get("evidence")}

@@ -159,6 +159,10 @@ Pick a platform, grab that variant, post from your personal account.
 
 - **TPL-DISTRO-ARTICLE** — no `{{platform}}` (multi-target), no rotation persona (crew posts from own personal account). Sources today's blog for the task's product from `marketing/.state/blog-amplification-<product>-<type>-<date>.md` (external-first, internal-fallback for RN; external-only for AL). If no cache file exists for that product, the task renders a bare bullet ("Distribute today's blog: (no blog cached for <product>)") and the task-assist thread reply politely says so.
 
+### Crew-filtered creative templates (Shape G)
+
+- **TPL-FREE-TOOL** — bullet: `Create a Free Tool`. No platform, no persona rotation, no recon lookup. Silent enrichment (task-assist posts nothing — crew ideates the tool themselves). **Crew filter**: `["@famitha"]` — only fires for @famitha's crew block, skipped for everyone else (checked against `member["handle"]`, so proxies don't accidentally route it to a proxy target). Currently scheduled Mon + Thu under RapidNative to yield ~2 tasks/week.
+
 ---
 
 ## Example expansion (today, 2026-06-19, w3-June, @famitha)
