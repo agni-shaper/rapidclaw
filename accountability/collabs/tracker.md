@@ -54,15 +54,16 @@ Canonical list of every active and recently-closed collab. The `collabs-tuesday-
 ### ET Most Innovative AI Product Awards 2026 (Times Internet / Economic Times)
 - Type: awards nomination — Economic Times AI Product Awards 2026 (digital showcase + jury evaluation)
 - Amount: no fee mentioned; cost is internal time to complete the form
-- Status: **nomination form in progress — Famitha blocked on ET site credentials from Sanket**
+- Status: **both forms submitted — confirmation email sent to Rishima 2026-07-14, awaiting reply**
 - Owner: @sanket → handed to @famitha on 2026-06-26
 - Contacts: Rishima Sharma <rishima.sharma@timesinternet.in>, Shruti Aggarwal <shruti.aggarwal1@timesinternet.in>, Prashant Vashishtha <prashant.vashishtha@timesinternet.in>
 - Microsite: https://economictimes.indiatimes.com/et-spotlight/et-ai-awards-2026
-- Deadline: **2026-07-15** (submission window closes)
+- Deadline: **2026-07-15** (submission window — met)
 - 2026-06-26 — Sanket forwarded the ET email to the channel and looped in @famitha
 - 2026-06-29 — @famitha asked @sanket for the registered ET microsite credentials so she can complete the form
 - 2026-06-29 — @famitha posted the full ET Now AI Innovation Award form (heavier: revenue bands, employee headcount, technical benchmarks). Bot drafted paste-ready answers for narrative/product fields; entity + financials tagged for @sanket, technical benchmarks + certifications tagged for @suraj
-- 2026-07-01 — @sanket asked in-channel what's pending; still blocked on same three inputs (ET microsite credentials, entity/financials, technical benchmarks). @famitha agreed to sync. **Deadline: 2026-07-15 (1 day out)**
+- 2026-07-01 — @sanket asked in-channel what's pending; still blocked on same three inputs (ET microsite credentials, entity/financials, technical benchmarks). @famitha agreed to sync
+- 2026-07-14 — @sanket asked @famitha to check ET status. @famitha confirmed both required forms (ET microsite nomination + Google Digital Showcase form) were already filled — the "three blocked inputs" from prior week were not actually required by ET. Drafted confirmation email to Rishima; @sanket greenlit; @famitha sent
 
 ### TCS (Tata Consultancy Services) — 12 seat license
 - Type: enterprise licensing — 12 seat license proposal
