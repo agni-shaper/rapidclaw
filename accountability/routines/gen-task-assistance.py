@@ -46,6 +46,18 @@ DISTRO_BLOG_SOURCES = {
     # LDI intentionally omitted — no distro-article pipeline yet.
 }
 
+# Fallback subreddit lists per product — used when Reddit recon fails
+# (Reddit blocks the bot machine IP as of 2026-07, so `findings.Reddit`
+# is `status=fail` every day). Without this fallback the daily REDDIT-POST
+# and REDDIT-ENGAGE tasks would ship with no assistance context at all.
+# Source: .claude/skills/growth-marketing/social-engagement/references/strategies/<product>.md
+REDDIT_SUBS_PER_PRODUCT = {
+    "rapidnative":  ["r/reactnative", "r/expo", "r/indiedev", "r/iOSProgramming", "r/Frontend"],
+    "applighter":   ["r/SaaS", "r/Entrepreneur", "r/indiehackers", "r/webdev"],
+    "letsdeployit": ["r/reactnative", "r/iOSProgramming", "r/androiddev"],
+    "tinbase":      ["r/PostgreSQL", "r/Supabase", "r/selfhosted", "r/webdev", "r/indiehackers"],
+}
+
 
 def today_ist() -> str:
     tz = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
@@ -678,6 +690,31 @@ def fmt_distro_article(blog: dict, product: str, n_attachments: int) -> str:
     return "\n".join(lines)
 
 
+def fmt_reddit_recon_fallback(product: str, task_title: str, reason: str) -> str:
+    """When Reddit recon has status=fail, emit a curated subreddit list so the
+    crew still has *something* actionable in the task thread."""
+    subs = REDDIT_SUBS_PER_PRODUCT.get(product, [])
+    if not subs:
+        return ""
+    is_engagement = "engagement" in task_title.lower()
+    verb = "engage on" if is_engagement else "post to"
+    reason_short = (reason[:120] + "…") if len(reason) > 120 else reason
+    lines = [
+        f"⚠️ *Reddit recon unavailable today* — {reason_short or 'no findings from recon'}",
+        "",
+        f"Suggested subreddits to browse manually and {verb}:",
+    ]
+    for sub in subs:
+        slug = sub[2:] if sub.startswith("r/") else sub.lstrip("/")
+        lines.append(f"  • {sub} — https://www.reddit.com/r/{slug}/new/")
+    lines.append("")
+    if is_engagement:
+        lines.append("_Pick 1–2 threads matching our space; leave substantive comments (no drive-by promo)._")
+    else:
+        lines.append("_Pick a subreddit whose rules allow product posts; write a genuine post in your own voice._")
+    return "\n".join(lines)
+
+
 def find_recon_data(task: dict, cls: dict, recon: dict) -> Tuple[str, dict]:
     """Return (formatted_text, metadata_dict). Both may be empty if no match."""
     product = (task.get("product") or "").strip()
@@ -742,9 +779,30 @@ def find_recon_data(task: dict, cls: dict, recon: dict) -> Tuple[str, dict]:
     if kind == "engagement":
         block = prod_block.get("findings", {}).get(platform, {})
         if block.get("status") != "ok":
+            # Reddit-specific fallback: recon is IP-blocked daily, so we emit
+            # a curated subreddit list instead of leaving the task silent.
+            if platform == "Reddit":
+                fb = fmt_reddit_recon_fallback(product, task.get("title", ""), block.get("reason", ""))
+                if fb:
+                    return fb, {
+                        "kind":     "engagement-fallback",
+                        "platform": "Reddit",
+                        "product":  product,
+                        "reason":   (block.get("reason") or "")[:200],
+                    }
             return "", {"reason": f"findings.{platform} not ok", "status": block.get("status"), "kind": kind}
         findings = block.get("findings", [])
         if not findings:
+            # Same fallback for empty findings on Reddit
+            if platform == "Reddit":
+                fb = fmt_reddit_recon_fallback(product, task.get("title", ""), "recon returned zero threads")
+                if fb:
+                    return fb, {
+                        "kind":     "engagement-fallback",
+                        "platform": "Reddit",
+                        "product":  product,
+                        "reason":   "empty findings",
+                    }
             return "", {"reason": f"findings.{platform} empty", "kind": kind}
         return fmt_engagement_findings(findings, platform), {
             "kind": "engagement",

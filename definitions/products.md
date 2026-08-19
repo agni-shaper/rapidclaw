@@ -1,6 +1,6 @@
 # Products
 
-The 3 products Shaper Studio Inc ships. Every product-aware skill, routine, channel, and growth strategy keys off this file.
+The 4 products Shaper Studio Inc ships. Every product-aware skill, routine, channel, and growth strategy keys off this file.
 
 ## RapidNative (primary)
 
@@ -47,6 +47,24 @@ The 3 products Shaper Studio Inc ships. Every product-aware skill, routine, chan
 | Primary channels | `#marketing` (cross-product) |
 | Per-site skills today | none |
 
+## Tinbase
+
+| Field | Value |
+|---|---|
+| Slug | `tinbase` |
+| Domain | https://tinbase.dev |
+| What it is | Local-Postgres / Supabase-without-Docker: single ~58 MB executable, real Postgres 17 + auth + realtime + edge functions + webhooks + cron, works with `supabase-js` unchanged, ~100 MB RAM (vs Docker Supabase's ~1.6 GB). MIT open source. |
+| GitHub | TBD — pending owner handover |
+| Local clone | not yet cloned |
+| Coach pointer | none yet (no `sites/tinbase-website` linked project). Content production lives in the coach's shared drafting for now. |
+| Brand canonical | not yet |
+| Lead | `@famitha` (interim — day-to-day marketing owner; social handles + GitHub / mailbox provisioning pending from owner) |
+| Social handles | X: TBD · LinkedIn: TBD (owner will provide) |
+| Primary channels | `#rn-coach-social` (daily marketing tasks), `#marketing` (cross-product coordination) |
+| Marketing crew opted in | `@famitha`, `@russel` only (per `accounts.md` `products:` line). `@sanket` + `@rishav` skip Tinbase. |
+| Daily task volume | 10 templates/day × 2 crew = 20 tasks/day (twice the per-product template count of RN/AL/LDI because only 2 crews cover it) |
+| Per-site skills today | none |
+
 ## Shared / cross-product
 
 | Repo | Purpose |
@@ -61,18 +79,19 @@ Quick lookup — which channel maps to which product? See [`channels.md`](channe
 |---|---|
 | `#rapidnative-coach` | rapidnative (bot home; also catch-all) |
 | `#ai-blogs`, `#bi-reports`, `#seo`, `#user-testing` | rapidnative |
-| `#marketing` | all 3 (general coordination) |
-| `#marketing-automation` | all 3 (daily distribution crew — Growth Squad v2) |
+| `#marketing` | all 4 (general coordination) |
+| `#marketing-automation` | all 4 (daily distribution crew — Growth Squad v2) |
 | `#affiliate-marketing` | applighter, rapidnative (where affiliates make sense) |
-| `#collabs-and-partnerships` | all 3 |
-| `#community-building`, `#design`, `#eod-updates`, `#tasks`, `#lead-magnets`, `#rn-coach-social` | cross-product / company-wide |
+| `#collabs-and-partnerships` | all 4 |
+| `#rn-coach-social` | all 4 (daily marketing task ledger — cross-product) |
+| `#community-building`, `#design`, `#eod-updates`, `#tasks`, `#lead-magnets` | cross-product / company-wide |
 
 ## How skills + routines should use this
 
 A skill that operates on a specific product (e.g. growth-marketing) should:
 
-1. Read this file to know which 3 brands exist
+1. Read this file to know which 4 brands exist
 2. For each brand, load `references/strategies/<slug>.md` inside the skill
 3. For brand-specific output, defer to the site's `sites/<slug>-website/DESIGN.md` (and the per-site `.claude/skills/creator-studio/` if present)
 
-A routine fired in `#marketing-automation` should iterate over all 3 products in turn; one fired in `#bi-reports` should only consider `rapidnative`.
+A routine fired in `#marketing-automation` should iterate over all 4 products in turn; one fired in `#bi-reports` should only consider `rapidnative`.

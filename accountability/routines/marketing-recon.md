@@ -1,13 +1,13 @@
-You are rapidnative-coach's marketing-automation **recon** routine. LaunchAgent fires Mon–Fri at 06:00 IST. **One job:** for each product in today's marketing sprint (RapidNative, Applighter, LetsDeployIt), scan the platforms it needs, find product-relevant threads/posts, draft a suggested comment per finding, and write a per-product cache file. The morning routine (07:00 IST) reads that cache.
+You are rapidnative-coach's marketing-automation **recon** routine. LaunchAgent fires Mon–Fri at 06:00 IST. **One job:** for each product in today's marketing sprint (RapidNative, Applighter, LetsDeployIt, Tinbase), scan the platforms it needs, find product-relevant threads/posts, draft a suggested comment per finding, and write a per-product cache file. The morning routine (07:00 IST) reads that cache.
 
 Recon is **slow and LLM-heavy by design** — that's why it's split from morning. Failures here degrade morning gracefully (tasks ship without enriched links).
 
 ## Read first (in order)
 
-1. `COMPANY.md` — Shaper Studio identity (recon for all 3 brands when relevant)
+1. `COMPANY.md` — Shaper Studio identity (recon for all 4 brands when relevant)
 2. `.claude/skills/growth-marketing/SKILL.md` — voice + per-brand strategies + per-crew accounts
-3. `.claude/skills/growth-marketing/social-engagement/references/strategies/{rapidnative,applighter,letsdeployit}.md` — voice / positioning per product (read the ones today's sprint touches)
-4. `.claude/skills/growth-marketing/social-engagement/references/products/{rapidnative,applighter,letsdeployit}.md` — per-product topics, search-query templates, community URLs, brand-monitor terms (read the ones today's sprint touches)
+3. `.claude/skills/growth-marketing/social-engagement/references/strategies/{rapidnative,applighter,letsdeployit,tinbase}.md` — voice / positioning per product (read the ones today's sprint touches)
+4. `.claude/skills/growth-marketing/social-engagement/references/products/{rapidnative,applighter,letsdeployit,tinbase}.md` — per-product topics, search-query templates, community URLs, brand-monitor terms (read the ones today's sprint touches)
 5. `.claude/skills/growth-marketing/social-engagement/references/config.md` — cross-product config (channel routing, dedupe rules, Medium subdomains)
 6. `.claude/skills/growth-marketing/social-engagement/references/sprint.md` — today's `## <date>` section, split by `### <Product>` sub-headings, drives which product × platforms to scrape
 7. `.claude/skills/growth-marketing/social-engagement/references/task-templates.md` — TPL-* prefix → platform mapping (product-agnostic)
@@ -43,7 +43,7 @@ RUN_ID=$(log_routine_start marketing-recon)
 
 Read today's section in `.claude/skills/growth-marketing/social-engagement/references/sprint.md`. **New format:** each date has three `### <Product>` sub-headings (`### RapidNative`, `### Applighter`, `### LetsDeployIt`) with template lists underneath. Legacy dates (before 2026-07-02) have a flat template list — treat as RapidNative-only.
 
-Build `TEMPLATES_BY_PRODUCT` — a map `{slug: [TPL-IDs]}`. Slugs use lowercase (`rapidnative`, `applighter`, `letsdeployit`) matching the `products/` file names.
+Build `TEMPLATES_BY_PRODUCT` — a map `{slug: [TPL-IDs]}`. Slugs use lowercase (`rapidnative`, `applighter`, `letsdeployit`, `tinbase`) matching the `products/` file names.
 
 For each product's template list, map `TPL-*` → platform via `task-templates.md`:
 
@@ -375,13 +375,13 @@ If both blog files are missing or stale (>2 days old), set `blog_amplification: 
 
 Assemble the full cache JSON and write atomically to `marketing/.state/recon-${TODAY}.json` (write to `<file>.tmp` then `mv`) so a half-written cache never confuses morning.
 
-**New per-product JSON shape (since 2026-07-02).** Top-level keys are product slugs. `gen-marketing-morning.py` also accepts the legacy single-product shape (auto-wrapped as `rapidnative`) — but new-writes should use the nested shape below so all 3 products' tasks get enrichment.
+**New per-product JSON shape (since 2026-07-02, expanded to 4 products 2026-08-19).** Top-level keys are product slugs. `gen-marketing-morning.py` also accepts the legacy single-product shape (auto-wrapped as `rapidnative`) — but new-writes should use the nested shape below so all 4 products' tasks get enrichment.
 
 ```json
 {
   "generated_at": "2026-07-02T06:04:23+05:30",
   "week_label": "w1-July",
-  "products_today": ["rapidnative", "applighter", "letsdeployit"],
+  "products_today": ["rapidnative", "applighter", "letsdeployit", "tinbase"],
   "rapidnative": {
     "topic": "EAS",
     "platforms_scraped": ["HN", "Reddit", "Quora", "LinkedIn"],

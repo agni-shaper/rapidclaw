@@ -15,6 +15,8 @@ Crew roles + active flag: see `../../../../definitions/people.md`.
 
 **Per-product coverage** — since 2026-07-02, each crew member declares which products they work on via a `products:` line right under their `## @handle` heading. The morning helper only expands tasks for products the crew member covers, so members with narrower ownership silently skip other products' slates.
 
+**Tinbase scope (added 2026-08-19).** Tinbase is opted-in for `@famitha` + `@russel` only (the two crews actually shipping marketing work — @sanket proxies to @famitha and @rishav proxies to @russel, but Tinbase stays scoped to the direct opt-ins). Tinbase gets 10 templates/day per crew (double the normal 5-per-product count) to hit ~20 Tinbase tasks/day, keeping parity with the other 3 products' daily volume.
+
 **Task proxying** — since 2026-07-07, a crew block can include a `proxy_to: @<handle>` line. When set, that crew's tasks fire with their own persona rotation (Anna/Peter/Camille/… for @sanket, David/Emily/… for @rishav) but the ledger post's **assignee is the proxy target**. Use case: a crew member is no longer actively doing marketing work but their persona pool is still useful — proxy their tasks to whoever's picking up the load. Current proxies: `@sanket → @famitha`, `@rishav → @russel`.
 
 ---
@@ -34,7 +36,7 @@ proxy_to: @famitha
 
 ## @famitha
 
-products: [rapidnative, applighter, letsdeployit]
+products: [rapidnative, applighter, letsdeployit, tinbase]
 
 1. Chris
 2. Nikolas
@@ -46,7 +48,7 @@ products: [rapidnative, applighter, letsdeployit]
 
 ## @russel
 
-products: [rapidnative, applighter, letsdeployit]
+products: [rapidnative, applighter, letsdeployit, tinbase]
 
 1. Russell
 2. Riya

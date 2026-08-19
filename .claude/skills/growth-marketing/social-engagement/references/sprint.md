@@ -2,7 +2,7 @@
 
 One section per day this week (Mon → Sun, IST). The morning routine matches `## YYYY-MM-DD` against today and expands the listed template IDs via `task-templates.md` × `rotation.md` × `accounts.md`, fanned out across the products listed in the day's section.
 
-**Per-product structure (since 2026-07-02).** Each day has three product sub-headings — `### RapidNative`, `### Applighter`, `### LetsDeployIt`. Templates listed under a product fire for crew members whose `accounts.md` `products:` line includes that product. Empty product sections silently produce no tasks (useful for RN-only days or ramp-up).
+**Per-product structure (since 2026-07-02, expanded to Tinbase 2026-08-19).** Each day has four product sub-headings — `### RapidNative`, `### Applighter`, `### LetsDeployIt`, `### Tinbase`. Templates listed under a product fire for crew members whose `accounts.md` `products:` line includes that product. Empty product sections silently produce no tasks. Tinbase is currently opted-in for @famitha + @russel only, and gets 10 templates/day (double the normal 5) to hit ~20 Tinbase tasks/day.
 
 **Legacy flat format.** Dates before 2026-07-02 use a flat template list under the date heading — no product sub-headings. The morning helper treats those as RapidNative-only (matches pre-refactor behavior). Kept for history.
 
@@ -1228,6 +1228,18 @@ One section per day this week (Mon → Sun, IST). The morning routine matches `#
 - TPL-LINKEDIN-PERSONAL
 - TPL-TWITTER-PERSONAL
 
+### Tinbase
+- TPL-HN-POST
+- TPL-HN-ENGAGE
+- TPL-MEDIUM-ARTICLE
+- TPL-DEVTO-ARTICLE
+- TPL-REDDIT-POST
+- TPL-REDDIT-ENGAGE
+- TPL-TWITTER-PERSONAL
+- TPL-LINKEDIN-PERSONAL
+- TPL-DISTRO-3
+- TPL-QUORA-POST
+
 ## YYYY-MM-DD (Tue)
 
 ### RapidNative
@@ -1250,6 +1262,18 @@ One section per day this week (Mon → Sun, IST). The morning routine matches `#
 - TPL-REDDIT-ENGAGE
 - TPL-DISTRO-6
 - TPL-TWITTER-PERSONAL
+
+### Tinbase
+- TPL-MEDIUM-ARTICLE
+- TPL-HASHNODE-ARTICLE
+- TPL-REDDIT-POST
+- TPL-REDDIT-ENGAGE
+- TPL-HN-POST
+- TPL-HN-ENGAGE
+- TPL-TWITTER-ENGAGE
+- TPL-QUORA-ENGAGE
+- TPL-DISTRO-3
+- TPL-LINKEDIN-ENGAGE
 
 ## YYYY-MM-DD (Wed)
 
@@ -1279,6 +1303,18 @@ One section per day this week (Mon → Sun, IST). The morning routine matches `#
 - TPL-LINKEDIN-PERSONAL
 - TPL-TWITTER-PERSONAL
 
+### Tinbase
+- TPL-DEVTO-ARTICLE
+- TPL-GFG-ARTICLE
+- TPL-QUORA-POST
+- TPL-QUORA-ENGAGE
+- TPL-HN-POST
+- TPL-HN-ENGAGE
+- TPL-LINKEDIN-PERSONAL
+- TPL-TWITTER-PERSONAL
+- TPL-DISTRO-3
+- TPL-REDDIT-POST
+
 ## YYYY-MM-DD (Thu)
 
 ### RapidNative
@@ -1305,6 +1341,18 @@ One section per day this week (Mon → Sun, IST). The morning routine matches `#
 - TPL-DISTRO-6
 - TPL-QUORA-PERSONAL
 - TPL-TWITTER-PERSONAL
+
+### Tinbase
+- TPL-HASHNODE-ARTICLE
+- TPL-SUBSTACK-POST
+- TPL-REDDIT-POST
+- TPL-REDDIT-ENGAGE
+- TPL-QUORA-ENGAGE
+- TPL-HN-ENGAGE
+- TPL-COMMUNITY-ENGAGE
+- TPL-TWITTER-PERSONAL
+- TPL-DISTRO-3
+- TPL-LINKEDIN-ENGAGE
 
 ## YYYY-MM-DD (Fri)
 
@@ -1333,6 +1381,18 @@ One section per day this week (Mon → Sun, IST). The morning routine matches `#
 - TPL-DISTRO-6
 - TPL-LINKEDIN-PERSONAL
 - TPL-TWITTER-PERSONAL
+
+### Tinbase
+- TPL-GFG-ARTICLE
+- TPL-DEVTO-ARTICLE
+- TPL-HN-POST
+- TPL-HN-ENGAGE
+- TPL-REDDIT-POST
+- TPL-REDDIT-ENGAGE
+- TPL-QUORA-POST
+- TPL-TWITTER-PERSONAL
+- TPL-DISTRO-3
+- TPL-LINKEDIN-PERSONAL
 ```
 
 (Each product block can carry a different template list — copy identical lists only if you want simultaneous per-product coverage. See `task-templates.md` for the full list of TPL- IDs.)

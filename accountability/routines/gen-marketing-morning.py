@@ -39,9 +39,9 @@ DB_PATH = Path.home() / ".config" / "claude" / "rapidnative-coach.sqlite"
 TASKS_SH = PROJECT_DIR / ".claude" / "skills" / "tasks" / "bin" / "tasks.sh"
 
 # Product roster (matches products/ dir + strategies/ dir). Order = iteration order.
-PRODUCT_SLUGS = ("rapidnative", "applighter", "letsdeployit")
-PRODUCT_DISPLAY = {"rapidnative": "RapidNative", "applighter": "Applighter", "letsdeployit": "LetsDeployIt"}
-PRODUCT_TAG = {"rapidnative": "[RN]", "applighter": "[AL]", "letsdeployit": "[LDI]"}
+PRODUCT_SLUGS = ("rapidnative", "applighter", "letsdeployit", "tinbase")
+PRODUCT_DISPLAY = {"rapidnative": "RapidNative", "applighter": "Applighter", "letsdeployit": "LetsDeployIt", "tinbase": "Tinbase"}
+PRODUCT_TAG = {"rapidnative": "[RN]", "applighter": "[AL]", "letsdeployit": "[LDI]", "tinbase": "[TB]"}
 # Normalized sprint sub-heading → product slug
 SPRINT_HEADING_TO_PRODUCT = {
     "rapidnative": "rapidnative",
@@ -49,6 +49,7 @@ SPRINT_HEADING_TO_PRODUCT = {
     "letsdeployit": "letsdeployit",
     "lets deploy it": "letsdeployit",
     "lets deployit": "letsdeployit",
+    "tinbase": "tinbase",
 }
 
 
@@ -339,7 +340,7 @@ def parse_carryover(crew_by_handle: dict) -> dict:
 
 def load_recon(date_str: str) -> dict:
     """Return {product_slug: recon_block}. Handles two shapes:
-    - New (per-product): top-level keys are product slugs (rapidnative / applighter / letsdeployit),
+    - New (per-product): top-level keys are product slugs (rapidnative / applighter / letsdeployit / tinbase),
       each value is {findings, original_posts, article_drafts}.
     - Legacy (single-product): {findings, original_posts, article_drafts} at top level —
       wrapped as {'rapidnative': <data>} for backward compat.
@@ -521,7 +522,7 @@ def infer_template_from_bullet(bullet: str) -> Optional[str]:
     # Free-tool creation (Shape G)
     if "create a free tool" in b: return "TPL-FREE-TOOL"
     # Blog task (synthetic — matches any product)
-    if re.search(r"publish a blog for (rapidnative|applighter|letsdeployit)", b): return "BLOG-TASK"
+    if re.search(r"publish a blog for (rapidnative|applighter|letsdeployit|tinbase)", b): return "BLOG-TASK"
     return None
 
 
@@ -824,7 +825,7 @@ def distribute_engagement_findings(all_tasks_by_crew: dict, recon_by_product: di
                     t["recon_findings_list"] = findings
 
 
-def attach_personal_drafts(all_tasks_by_crew: dict, recon_by_product: dict):
+def attach_personal_drafts(all_tasks_by_crew: dict, recon_by_product: dict, working: list):
     """Per (crew × product × personal template), attach matching original_posts draft."""
     template_to_platform_key = {
         "TPL-LINKEDIN-PERSONAL": "LinkedIn",
@@ -841,7 +842,11 @@ def attach_personal_drafts(all_tasks_by_crew: dict, recon_by_product: dict):
             for d in block.get("drafts", []):
                 draft_map[(product, plat_key, d["intended_for"])] = d
 
-    for sid, tasks in all_tasks_by_crew.items():
+    # all_tasks_by_crew is keyed by handle (post-2026-08-19 proxy-fix), but
+    # recon's `intended_for` is the crew's slack_id, so map handle→sid via working.
+    handle_to_sid = {m["handle"]: m["slack_id"] for m in working}
+    for handle, tasks in all_tasks_by_crew.items():
+        sid = handle_to_sid.get(handle)
         for t in tasks:
             tpl_id = t["template_id"]
             if tpl_id not in template_to_platform_key:
@@ -852,7 +857,7 @@ def attach_personal_drafts(all_tasks_by_crew: dict, recon_by_product: dict):
                 t["personal_draft"] = d
 
 
-def attach_article_drafts(all_tasks_by_crew: dict, recon_by_product: dict):
+def attach_article_drafts(all_tasks_by_crew: dict, recon_by_product: dict, working: list):
     """Per (crew × product × article template), attach matching article_drafts."""
     # Build {(product, tpl_id, sid): draft}
     draft_map: dict = {}
@@ -864,7 +869,9 @@ def attach_article_drafts(all_tasks_by_crew: dict, recon_by_product: dict):
             for d in block.get("drafts", []):
                 draft_map[(product, tpl_id, d["intended_for"])] = d
 
-    for sid, tasks in all_tasks_by_crew.items():
+    handle_to_sid = {m["handle"]: m["slack_id"] for m in working}
+    for handle, tasks in all_tasks_by_crew.items():
+        sid = handle_to_sid.get(handle)
         for t in tasks:
             product = t.get("product", "rapidnative")
             if d := draft_map.get((product, t["template_id"], sid)):
@@ -892,8 +899,8 @@ def append_blog_task(all_tasks_by_crew: dict, working: list, blog_cache: Optiona
     if not assignee:
         return
     # If assignee doesn't cover this product, silently promote — blogs are cross-crew work
-    sid = assignee["slack_id"]
-    all_tasks_by_crew[sid].append({
+    handle = assignee["handle"]
+    all_tasks_by_crew.setdefault(handle, []).append({
         "template_id": "BLOG-TASK",
         "product": product,
         "bullet": f"Publish a blog for {product} — {blog_cache['title']}",
@@ -998,7 +1005,7 @@ def write_snapshot(sentinel: dict, today: str, wlabel: str, on_leave: list):
     out.append("")
     out.append("---")
     out.append("")
-    for sid, info in sentinel["crews"].items():
+    for _key, info in sentinel["crews"].items():
         out.append(f"### {info['handle']}")
         out.append("")
         # We don't easily have the carry/new split here in the sentinel; skip the section markers
@@ -1069,30 +1076,36 @@ def main():
     W = week_of_month(today)
     wlabel = week_label(today)
 
-    # Build per-crew task lists — fan out across (member × product × template)
+    # Build per-crew task lists — fan out across (member × product × template).
+    # Key by HANDLE, not slack_id: proxied crews share their target's sid
+    # (e.g. @sanket→@famitha both have Famitha's sid), and keying by sid caused
+    # the second crew to silently overwrite the first, then the post loop
+    # replayed the surviving list once per member → every daily fire double-posted
+    # tasks under the proxy target's Slack thread. Fixed 2026-08-19.
     all_tasks_by_crew: dict = {}
     for m in working:
         sid = m["slack_id"]
+        handle = m["handle"]
         member_products = set(m.get("products") or ["rapidnative"])
         new_tasks: list = []
         for product, product_templates in today_templates_by_product.items():
             if product not in member_products:
                 continue
             new_tasks.extend(build_task_list(m, product, product_templates, accounts, offsets, W, wlabel))
-        full_list = attach_carryover(new_tasks, carryover_by_sid.get(sid, []), accounts, m["handle"], offsets, W, wlabel)
-        all_tasks_by_crew[sid] = full_list
+        full_list = attach_carryover(new_tasks, carryover_by_sid.get(sid, []), accounts, handle, offsets, W, wlabel)
+        all_tasks_by_crew[handle] = full_list
 
     # Append blog task to one crew (russel preferred)
     append_blog_task(all_tasks_by_crew, working, blog_cache, wlabel)
 
     # Attach enrichment from recon (product-aware)
     distribute_engagement_findings(all_tasks_by_crew, recon)
-    attach_personal_drafts(all_tasks_by_crew, recon)
-    attach_article_drafts(all_tasks_by_crew, recon)
+    attach_personal_drafts(all_tasks_by_crew, recon, working)
+    attach_article_drafts(all_tasks_by_crew, recon, working)
 
     # Number tasks T01, T02, ...
-    for sid in all_tasks_by_crew:
-        number_tasks(all_tasks_by_crew[sid])
+    for handle in all_tasks_by_crew:
+        number_tasks(all_tasks_by_crew[handle])
 
     # Post — every task routes through tasks.sh (sqlite + #tasks notify) via the hook
     sentinel = {"version": 3, "date": today, "crews": {}}
@@ -1106,16 +1119,21 @@ def main():
     total_failed = 0
     all_task_ids: list = []
     for m in working:
-        sid = m["slack_id"]
-        tasks = all_tasks_by_crew[sid]
+        handle = m["handle"]
+        tasks = all_tasks_by_crew.get(handle) or []
         if not tasks:
             continue
-        print(f">>> posting for {m['handle']} ({len(tasks)} tasks) via tasks.sh add")
+        print(f">>> posting for {handle} ({len(tasks)} tasks) via tasks.sh add")
         result = post_for_crew(m, tasks, wlabel, today, args.dry_run)
-        sentinel["crews"][sid] = {
-            "handle": result["handle"],
+        # Sentinel is keyed by handle (not slack_id): proxied crews share their
+        # target's sid, and keying by sid caused the second crew's sentinel
+        # entry to silently overwrite the first. marketing-evening iterates
+        # values, not keys, so this is a safe change. (Fix landed 2026-08-19.)
+        sentinel["crews"][handle] = {
+            "handle":    result["handle"],
+            "slack_id":  m["slack_id"],
             "header_ts": result["header_ts"],
-            "task_ids": result["task_ids"],
+            "task_ids":  result["task_ids"],
         }
         total_posted += result["posted"]
         total_failed += result["failed"]
