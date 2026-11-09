@@ -10,13 +10,20 @@
 |---|---|---|---|---|---|---|
 | `@agni` | Agni | Bot operator, builder | human | `U0B4FCJ8Z1Q` | agni@shaper.studio | owner |
 | `@sanket` | Sanket Sahu | CEO | human | `U09DC8L7PCZ` | sanket@rapidnative.com | superadmin |
-| `@suraj` | Suraj Ahmed | CTO | human | `U09DC8MB4KB` | suraj@rapidnative.com | superadmin |
 | `@riya` | Riya Sharma | Developer | human | `U09CXCYV7D1` | riya@rapidnative.com | teammate |
 | `@rishav` | Rishav Kumar | Developer | human | `U09CUJ9ATM1` | rishav@rapidnative.com | teammate |
 | `@russel` | Russel | Video Editor | human | `U09DFJJGS1X` | russel@rapidnative.com | teammate |
 | `@famitha` | Famitha | Designer | human | `U09LL9JTDM5` | famitha@rapidnative.com | teammate |
 | `@gracey` | Gracey | Community Intern | human | `U0B467S1VEG` | — | teammate |
 | `@bot-god` | Bot God | AI agent — full Slack/code/PR/tasks-API access | agent | — | bot-god@rapidnative.com | (n/a — bot) |
+
+## Former members
+
+Not on the active roster. Routines must not nudge, ping, or route approvals to these IDs.
+
+| Handle | Name | Former role | Slack ID | Left | Note |
+|---|---|---|---|---|---|
+| `@suraj` | Suraj Ahmed | CTO (was superadmin) | `U09DC8MB4KB` | by 2026-11-09 | Removed per @sanket approval in #eod-updates thread `1794231022.400949`. `.env SUPERADMIN_USERS` still needs updating by owner. |
 
 ## Conventions
 
