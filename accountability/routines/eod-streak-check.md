@@ -13,8 +13,9 @@ You are rapidnative-coach's EOD streak check. The LaunchAgent fires Mon-Fri at 1
 From the roster, the humans expected to post EODs are everyone EXCEPT:
 - the owner (`U0B4FCJ8Z1Q` — Agni, runs the bot itself)
 - AI agents (`@bot-god`, this bot)
+- anyone under *Former members* in `definitions/people.md` (e.g. `@suraj`, left 2026-11)
 
-That currently leaves: `@sanket`, `@suraj`, `@riya`, `@rishav`, `@russel`, `@famitha`, `@gracey`.
+That currently leaves: `@sanket`, `@riya`, `@rishav`, `@russel`, `@famitha`, `@gracey`.
 
 If the roster has changed, use whatever is in the memory file — do not hardcode names.
 
