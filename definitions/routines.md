@@ -19,8 +19,7 @@ Cron-fired routines, 1:1 with `~/Library/LaunchAgents/com.agni.rapidnative-coach
 | `tasks-cleanup` | 12:15 Mon–Fri | `#rapidnative-coach` (approval flow) | ✅ **v2 in cron** — loads `task-management` + `bug-tracking` + `leave` |
 | `blog-internal` | 12:00 daily | `#marketing-automation` (via $SLACK_CONTENT_CHANNEL_ID) | v1 (thin wrapper around generate-blog.sh; no benefit from v2) |
 | `blog-external` | 11:00 daily | `#ai-blog` | v1 (same) |
-| `marketing-recon` | 06:00 Mon–Fri | (cache file only — no Slack) | ✅ **v2 in cron** — loads `growth-marketing` |
-| `marketing-morning` | 07:00 Mon–Fri | `#marketing-automation` | ✅ **v2 in cron** — loads `growth-marketing` + `leave` |
+| `daily-tasks` | 06:00 Mon–Fri (skips holidays) | `#rn-coach-social` | ✅ live recon (X / LinkedIn / Reddit / Quora / HN via bot Chrome) → 30 tasks/member + Task-Assistance-Bot threads. Crew in `marketing/daily-tasks-crew.md`. Replaces marketing-recon + marketing-morning (retired 2026-11-05) |
 | `marketing-evening` | 19:30 Mon–Fri | `#marketing-automation` | ✅ **v2 in cron** — loads `growth-marketing` |
 | `gtm-weekly-pick` | 09:00 Mon (+ Fri 17:00 recap) | `#marketing` | ✅ **v2 in cron** — loads `growth-marketing` + `task-management` |
 | `biweekly-shoutouts` | 18:00 every other Fri | `#marketing` | ✅ **v2 in cron** — loads `growth-marketing` |

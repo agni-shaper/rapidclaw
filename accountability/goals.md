@@ -19,3 +19,7 @@ See `profile.md` for the canonical list.
 
 ## Weekly review
 <!-- Newest at top. Quick: what shipped, what stalled, what to ship next week -->
+
+## 2026-11-08
+
+No review: weekly floor is still all TBD and `published/log.md` doesn't exist. Nothing to measure. Owner prompted in #rapidnative-coach to set numeric targets.
