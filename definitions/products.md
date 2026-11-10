@@ -52,7 +52,7 @@ The 3 products Shaper Studio Inc ships. Every product-aware skill, routine, chan
 | Repo | Purpose |
 |---|---|
 | `sites/branding` → `~/Documents/branding/` | Cross-brand source of truth for logos, palette, type. Per-site `DESIGN.md` files reference this. Strict workflow in its own `AGENTS.md`. |
-| `sites/tasks` → `~/Documents/tasks/` | Team-wide sprint repo (planning/, intake/, epics/, programs/). Has its own `CLAUDE.md` + `roles.md` + notification queue (`intake/unsent-notifications.md`). Two-tier interaction: this bot feeds data in; the tasks repo's own scripts (`bin/send-notifications.py`) emit Slack notifications. |
+| Tasker — https://tasks.rapidnative.com (not a repo) | The team's tracker for all products: projects `RapidNative` (also Applighter and company-wide work) and `LetsDeployIt`. The coach reads and writes it through `accountability/routines/tasker.sh` as tasker member Agni; see the `task-management` skill. Replaced the markdown sprint repo `sites/tasks` (RapidNative/tasks, archived 2026-11-10). |
 
 ## Bot ↔ product channel mapping
 

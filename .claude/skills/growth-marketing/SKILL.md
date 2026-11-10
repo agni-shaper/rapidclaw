@@ -33,7 +33,7 @@ The skill itself is a thin orchestrator. Real content lives in scoped reference 
 ## What this skill does NOT do
 
 - It does not generate brand assets (banners, logos, social cards). That's the `creator-studio` skill (Phase 4). When growth-marketing needs an artifact, it delegates by Reading the relevant site repo's `creator-studio` skill — or invokes a one-shot subagent (`render-html.sh` / `gen-image.sh`) for ad-hoc images.
-- It does not manage tasks or task assignments. Tasks-related ops live in the `task-management` skill + `sites/tasks/` repo.
+- It does not manage tasks or task assignments. Tasks-related ops live in the `task-management` skill, which works in tasker (tasks.rapidnative.com).
 - It does not draft long-form blog content. Internal blogs flow through `blog-internal` / `blog-external` routines + `sites/rapidnative-website/.claude/skills/content-studio-*` skills.
 
 ## Daily distribution cycle (the spine)

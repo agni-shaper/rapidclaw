@@ -1,6 +1,6 @@
 # User testing workflow
 
-How raw user-testing observations flow into the tasks repo.
+How raw user-testing observations flow into tasker (tasks.rapidnative.com, the team's tracker).
 
 ## Three layers
 
@@ -10,11 +10,11 @@ How raw user-testing observations flow into the tasks repo.
 2. **Rolling priority issues log** → `accountability/user-testing/issues-log.md` (this folder)
    - One row per *distinct* issue. Dedup happens here.
    - Tracks: first seen date, testers hit (count + initials), priority, status, linked task slug.
-3. **Tasks repo** (`sites/tasks/`) — when an issue crosses the promotion threshold, it gets a task page + bullet there. The log row keeps the wikilink as a backlink.
+3. **Tasker** — when an issue crosses the promotion threshold, it becomes a tasker item (bugs in the RapidNative Inbox, UX issues in track "User testing"). The log row keeps the item link.
 
 ## Promotion threshold
 
-Promote a row to the tasks repo when **either**:
+Promote a row to tasker when **either**:
 
 - **2+ testers hit it** (recurring = higher signal), or
 - **P0 or P1 priority on first occurrence** (severe enough to act on a single observation).
@@ -32,9 +32,9 @@ After a session, in `drafts/user-testing/<date>-<slug>/notes.md`:
    - **Match** → increment `testers hit` count, append the tester's initials, re-evaluate priority.
    - **No match** → add a new row with `status: raw`, `task: —`.
 3. For any row that just crossed the promotion threshold:
-   - In `sites/tasks/`, run `/add-bug` (bug-shaped), `/add-feedback` (qualitative quote), or `/new-task` (direct task).
-   - Tag the new task `#user-testing` and the appropriate type tag (`#bug`, etc.).
-   - Paste the returned `[[slug|description]]` wikilink into the log row's `task` column.
+   - Search tasker for it first; if it exists, comment the new sighting on it.
+   - Otherwise create the item per the coach's `task-management` / `bug-tracking` skills (or by hand in tasker).
+   - Paste the item link (`https://tasks.rapidnative.com/items/<id>`) into the log row's `task` column.
    - Update log row `status: tasked`.
 4. When the task ships, update log row `status: shipped`.
 
@@ -46,7 +46,7 @@ The `user-testing-capture` routine (see `accountability/routines/user-testing-ca
 - Diffs against this log.
 - Posts a proposal (new rows / count bumps / threshold-crossings) to #rapidnative-coach for one-line confirmation before writing.
 
-Never writes to the log or the tasks repo unattended — owner confirms each batch.
+Never writes to the log or to tasker unattended — owner confirms each batch.
 
 ## Privacy
 

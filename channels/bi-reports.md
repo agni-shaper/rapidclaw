@@ -7,7 +7,7 @@ publish_tier: superadmin
 allowed_routines: []
 product: rapidnative
 owner: <@U09DC8L7PCZ>
-members: [<@U0B4FCJ8Z1Q>, <@U09DC8L7PCZ>, <@U09DC8MB4KB>]
+members: [<@U0B4FCJ8Z1Q>, <@U09DC8L7PCZ>]
 allowed_skills: []
 
 ---

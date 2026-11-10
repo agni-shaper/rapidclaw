@@ -24,7 +24,8 @@ Composes the marketing-team weekly recap. Lives at coach-level; *defers brand vo
 
 1. **`accountability/published/log.md`** for the last 7 days, if it exists.
 2. **`sites/rapidnative-website` git log** for last 7 days — actual code/content shipped.
-3. **`sites/branding`, `sites/applighter-website`, `sites/tasks` git logs** if those repos shipped meaningful work too. (LetsDeployIt added once symlinked.)
+3. **`sites/branding`, `sites/applighter-website` git logs** if those repos shipped meaningful work too. (LetsDeployIt added once symlinked.)
+   **Tasker:** items the coach marked `done` this week, from the `tasks-cleanup` run records (see `accountability/routines/friday.md` → Team signals, item 3).
 4. **Anything in `drafts/`** flagged as shipped this week.
 5. **Metrics** if the user / channel has them — MRR snapshot, signup count, key launches.
 
@@ -43,7 +44,7 @@ This skill is *invoked from* the cross-channel routine `accountability/routines/
 3. **Draft in the source thread, not the target channel.** Use `slack-post.sh <SOURCE_CHANNEL> <THREAD_TS>` with the rendered wrap.
 4. **Ask for explicit approval.** Pattern from the cross-channel routine:
    ```
-   <@U09DC8L7PCZ> or <@U09DC8MB4KB> or <@U0B4FCJ8Z1Q> — approve to post to #marketing?
+   <@U09DC8L7PCZ> or <@U0B4FCJ8Z1Q> — approve to post to #marketing?
    ```
 5. **WAIT for approval.** Don't auto-post. Approval = `<@OWNER_OR_SUPERADMIN>` saying "go" / "approve" / "ship" / "post" / "yes ship it" in the source thread. Sender's own approval doesn't count (no self-approval).
 6. **On approval:** post to `#marketing` (`C09F377FGFK`). Top-level post, no thread_ts. Voice rules from `channels/marketing.md` (em-dashes ARE allowed there, overriding profile.md).

@@ -13,6 +13,8 @@ For any question about who/what/where, read the matching `definitions/<X>.md` fi
 - [`definitions/skills.md`](definitions/skills.md) — coach + per-site skills registry (the "skills that load more skills" index)
 - [`definitions/routines.md`](definitions/routines.md) — all cron routines (schedule, target channel, owning skill)
 
+**Work tracking lives in tasker** (https://tasks.rapidnative.com), the team's tracker for RapidNative and LetsDeployIt. Read and write it only through `accountability/routines/tasker.sh` and the [`task-management`](.claude/skills/task-management/SKILL.md) skill; never keep tasks in a local file or sqlite. (The markdown sprint repo `sites/tasks` was retired on 2026-11-10.)
+
 Helpers in [`accountability/routines/_lib.sh`](accountability/routines/_lib.sh) wrap these for shell use: `lookup_handle <SLACK_ID>`, `lookup_slack_id @handle`, `product_for_channel <id>`, `skill_path <name>`, `is_on_leave`, `is_holiday`, `is_working_day`, `guard_working_day`.
 
 Voice / personality / pillars stay in [`profile.md`](profile.md) (apply during drafting, not after).

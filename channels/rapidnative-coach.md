@@ -7,7 +7,7 @@ publish_tier: superadmin
 allowed_routines: [daily, noon, friday, sunday, blog-internal, blog-external, user-testing-capture, tasks-cleanup]
 product: rapidnative
 owner: <@U0B4FCJ8Z1Q>
-members: [<@U0B4FCJ8Z1Q>, <@U09DC8L7PCZ>, <@U09DC8MB4KB>]
+members: [<@U0B4FCJ8Z1Q>, <@U09DC8L7PCZ>]
 allowed_skills: [user-testing, task-management, bug-tracking, leave]
 
 ---
@@ -19,7 +19,7 @@ This is the home channel for `rapidnative-coach`. The bot lives here primarily a
 - **Daily/weekly check-ins** (`accountability/routines/daily.md`, `noon.md`, `friday.md`, `sunday.md`)
 - **Content drafting** — when the owner has an idea, drafts go into `drafts/<YYYY-MM-DD-slug>/` here for iteration before publication
 - **Goal accountability** — honest reads against `accountability/goals.md` and `published/log.md`
-- **Cron-fired routine reports** — blog-internal, blog-external, the scheduled accountability routines, `user-testing-capture` (daily diff of #user-testing against `accountability/user-testing/issues-log.md`), and `tasks-cleanup` (12:15 IST Mon–Fri — proposes sprint-repo changes pulled from <#C09DF90CQ8Z> standup MoMs + <#C0A8Q9HM5BN> EODs, applies on `<@U09DC8L7PCZ>` approval, then notifies the standup channel) all post their output here
+- **Cron-fired routine reports** — blog-internal, blog-external, the scheduled accountability routines, `user-testing-capture` (daily diff of #user-testing against `accountability/user-testing/issues-log.md`), all post their output here. (`tasks-cleanup` posts its daily `*Tasks update*` digest to <#C0ASK9520JG> instead; only its failure notes come here.)
 
 Social engagement scans no longer post here — they now land in `#rn-coach-social` (see `channels/rn-coach-social.md`).
 
@@ -35,4 +35,5 @@ Anything the owner asks. This is the bot's catch-all channel. For channel-specif
 
 - The owner is `<@U0B4FCJ8Z1Q>` (Agni). Teammates also have access via `TEAM_USERS` in `.env`; tier-based permission gating applies per `bootstrap-prompt.md` Step 0.
 - Cross-channel posting from here to another channel: only if the bot is invited there AND that channel has its own persona file AND a cross-channel routine declares the target (a future capability — not enabled yet).
-- **`tasks-cleanup` thread continuations:** if the thread parent message starts with `*Tasks clean up*`, you're inside the daily tasks-cleanup approval flow. Before parsing the reply, read `accountability/routines/tasks-cleanup.md` (Step 8 — apply approved changes) and fetch the structured proposal from sqlite: `db_query "SELECT proposal_json FROM tasks_cleanup_proposals WHERE reply_ts='<reply_ts>';"`. The reply will be from a super-admin (`<@U09DC8L7PCZ>` or `<@U09DC8MB4KB>`) and contain an approval verb (`go`, `approve all`, `approve 1,3,5`, `defer`, etc.).
+- **Old `*Tasks clean up*` threads** (proposals from before 2026-11-10): that approval flow is retired. If someone replies in one, don't apply anything from it; point them to the daily `*Tasks update*` digest in <#C0ASK9520JG> and offer to make the specific change in tasker now via the `task-management` skill.
+- **`tasks-cleanup` failure notes** land here when tasker is unreachable; the digest itself goes to <#C0ASK9520JG>.

@@ -115,4 +115,4 @@ This system **reuses** the existing rapidnative-coach plumbing — no new infras
 - Team roster: `~/.claude/projects/-Users-agni-Documents-rapidclaw/memory/project_team_roster.md`
 - Scheduler: launchd plists in `launchd/`, auto-loaded by `launchd/install.sh`
 
-The marketing crew is intentionally **separate from `sites/tasks/`** (the team's canonical tracker). Daily rotation tasks are high-volume and ephemeral; routing each one into `sites/tasks/` would drown the signal. If a marketing task gets escalated (blocked > 1 day, needs PR-level accountability), create a tasks-repo entry by hand.
+The marketing crew is intentionally **separate from tasker** (tasks.rapidnative.com, the team's canonical tracker; confirmed by Sanket 2026-11-10). Daily rotation tasks are high-volume and ephemeral; routing each one into tasker would drown the signal. If a marketing task gets escalated (blocked > 1 day, needs real accountability), create a tasker item for it through the `task-management` skill.

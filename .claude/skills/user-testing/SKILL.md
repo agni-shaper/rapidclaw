@@ -48,9 +48,9 @@ Owns the projection from `#user-testing` (channel `C09EU7C87BM`) → `accountabi
    - <CLOSE> rows to mark resolved (if a teammate explicitly said "fixed in X")
 
 5. Save proposal JSON to accountability/state/user-testing-proposal-<reply_ts>.json
-6. WAIT for approval. Approval semantics same as tasks-cleanup: super-admin only.
-7. On approval, edit issues-log.md + commit on the coach repo (not tasks repo — the log
-   lives in the coach repo).
+6. WAIT for approval: super-admin or owner only (the log is this repo's own record).
+7. On approval, edit issues-log.md + commit on the coach repo, and create / comment the
+   tasker items for promoted rows (task-management skill); paste their links into the log.
 ```
 
 ## When the user asks "what are the top user-testing issues?"
@@ -62,7 +62,7 @@ Owns the projection from `#user-testing` (channel `C09EU7C87BM`) → `accountabi
 
 ## When a #user-testing observation also looks like a bug
 
-If the message clearly describes a reproducible bug (not just a UX nit), include it in BOTH this skill's proposal AND the `bug-tracking` skill's proposal. The latter feeds `sites/tasks/intake/bugs.md`.
+If the message clearly describes a reproducible bug (not just a UX nit), include it in BOTH this skill's proposal AND the `bug-tracking` skill's proposal. The latter files the bug in tasker.
 
 The line between "UX issue" and "bug":
 
@@ -83,6 +83,6 @@ The line between "UX issue" and "bug":
 
 ## Related skills
 
-- `task-management` — bugs from this skill become tasks in `sites/tasks/`
+- `task-management` — promoted rows become tasker items
 - `bug-tracking` — for the "this is a reproducible bug" subset of observations
 - `growth-marketing` — strong UX issues sometimes warrant a blog post or social comment ("we fixed X based on user feedback") — defer to growth-marketing for that drafting

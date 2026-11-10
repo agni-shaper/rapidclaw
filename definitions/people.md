@@ -6,16 +6,16 @@
 
 ## Roster
 
-| Handle | Name | Role | Kind | Slack ID | Email | Tier |
-|---|---|---|---|---|---|---|
-| `@agni` | Agni | Bot operator, builder | human | `U0B4FCJ8Z1Q` | agni@shaper.studio | owner |
-| `@sanket` | Sanket Sahu | CEO | human | `U09DC8L7PCZ` | sanket@rapidnative.com | superadmin |
-| `@riya` | Riya Sharma | Developer | human | `U09CXCYV7D1` | riya@rapidnative.com | teammate |
-| `@rishav` | Rishav Kumar | Developer | human | `U09CUJ9ATM1` | rishav@rapidnative.com | teammate |
-| `@russel` | Russel | Video Editor | human | `U09DFJJGS1X` | russel@rapidnative.com | teammate |
-| `@famitha` | Famitha | Designer | human | `U09LL9JTDM5` | famitha@rapidnative.com | teammate |
-| `@gracey` | Gracey | Community Intern | human | `U0B467S1VEG` | — | teammate |
-| `@bot-god` | Bot God | AI agent — full Slack/code/PR/tasks-API access | agent | — | bot-god@rapidnative.com | (n/a — bot) |
+| Handle | Name | Role | Kind | Slack ID | Email | Tier | Tasker |
+|---|---|---|---|---|---|---|---|
+| `@agni` | Agni | Bot operator, builder | human | `U0B4FCJ8Z1Q` | agni@shaper.studio | owner | `person-agni` (the bot acts as this) |
+| `@sanket` | Sanket Sahu | CEO | human | `U09DC8L7PCZ` | sanket@rapidnative.com | superadmin | `person-sanket` |
+| `@riya` | Riya Sharma | Developer | human | `U09CXCYV7D1` | riya@rapidnative.com | teammate | `person-riya` |
+| `@rishav` | Rishav Kumar | Developer | human | `U09CUJ9ATM1` | rishav@rapidnative.com | teammate | `person-rishav` |
+| `@russel` | Russel | Video Editor | human | `U09DFJJGS1X` | russel@rapidnative.com | teammate | `person-russel` |
+| `@famitha` | Famitha | Designer | human | `U09LL9JTDM5` | famitha@rapidnative.com | teammate | `person-famitha` |
+| `@gracey` | Gracey | Community Intern | human | `U0B467S1VEG` | — | teammate | `person-gracey` |
+| `@bot-god` | Bot God | AI agent — full Slack/code/PR/tasks-API access | agent | — | bot-god@rapidnative.com | (n/a — bot) | — |
 
 ## Former members
 
@@ -23,13 +23,13 @@ Not on the active roster. Routines must not nudge, ping, or route approvals to t
 
 | Handle | Name | Former role | Slack ID | Left | Note |
 |---|---|---|---|---|---|
-| `@suraj` | Suraj Ahmed | CTO (was superadmin) | `U09DC8MB4KB` | by 2026-11-09 | Removed per @sanket approval in #eod-updates thread `1794231022.400949`. `.env SUPERADMIN_USERS` still needs updating by owner. |
+| `@suraj` | Suraj Ahmed | CTO (was superadmin) | `U09DC8MB4KB` | by 2026-11-09 | Removed per @sanket approval in #eod-updates thread `1794231022.400949`. Dropped from `.env` `TEAM_USERS` / `SUPERADMIN_USERS` on 2026-11-10. |
 
 ## Conventions
 
 - **For actual Slack pings that should notify someone:** use `<@U…>` member-ID form (e.g. `<@U09DC8L7PCZ>`). Plain `@sanket` text won't notify.
 - **In drafts / informal references:** `@handle` text is fine ("ping @riya to review").
-- **Wikilinks** (`[[@sanket]]`) are used inside `sites/tasks/` for Obsidian backlinks. Outside the tasks repo, prefer the `@handle` or `<@U…>` forms.
+- **Tasker** is the person id on tasks.rapidnative.com (the team's tracker). Use it as `owner` in `tasker.sh` calls; a teammate without one is not on tasker, so leave the item unassigned and name them in the body. Tasker's own roster (`tasker.sh list_members`) also lists people the coach doesn't track here.
 - **Don't invent handles or guess Slack IDs.** If someone isn't listed here, ask before referencing them.
 
 ## Tier capabilities

@@ -23,7 +23,6 @@ CHANNELS_DIR = PROJECT / "channels"
 TEAM = {
     "agni":    "<@U0B4FCJ8Z1Q>",   # bot owner
     "sanket":  "<@U09DC8L7PCZ>",   # CEO superadmin
-    "suraj":   "<@U09DC8MB4KB>",   # CTO superadmin
     "riya":    "<@U09CXCYV7D1>",
     "rishav":  "<@U09CUJ9ATM1>",
     "russel":  "<@U09DFJJGS1X>",
@@ -31,7 +30,7 @@ TEAM = {
     "gracey":  "<@U0B467S1VEG>",
 }
 ALL_TEAM = list(TEAM.values())
-SUPERADMINS = [TEAM["sanket"], TEAM["suraj"]]
+SUPERADMINS = [TEAM["sanket"]]   # @suraj left 2026-11 (definitions/people.md → Former members)
 
 # Routine → skill mapping (Phase 2 scaffolds). Source: definitions/skills.md
 ROUTINE_TO_SKILLS = {
@@ -74,12 +73,12 @@ ENRICH = {
     "ai-blogs": {
         "product": "rapidnative",
         "owner":   TEAM["sanket"],
-        "members": [TEAM["agni"], TEAM["sanket"], TEAM["suraj"], TEAM["rishav"]],
+        "members": [TEAM["agni"], TEAM["sanket"], TEAM["rishav"]],
     },
     "bi-reports": {
         "product": "rapidnative",
         "owner":   TEAM["sanket"],
-        "members": [TEAM["agni"], TEAM["sanket"], TEAM["suraj"]],
+        "members": [TEAM["agni"], TEAM["sanket"]],
     },
     "seo": {
         "product": "rapidnative",
@@ -104,7 +103,7 @@ ENRICH = {
     "collabs-and-partnerships": {
         "product": "all",
         "owner":   TEAM["sanket"],
-        "members": [TEAM["agni"], TEAM["sanket"], TEAM["suraj"]],
+        "members": [TEAM["agni"], TEAM["sanket"]],
     },
     "design": {
         "product": "all",

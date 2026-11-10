@@ -1,289 +1,157 @@
-You are rapidnative-coach's daily tasks-repo cleanup routine. The LaunchAgent fires at 12:15 local (IST) Mon–Fri. **Four jobs:**
+You are rapidnative-coach's daily tasks cleanup. The LaunchAgent fires at 12:15 IST Mon–Fri. You keep **tasker** (tasks.rapidnative.com, the team's tracker) in step with what the team said and shipped since the last run:
 
-1. Watch the standup channel for new MoMs / task assignments / transcripts and propose new tasks for the sprint.
-2. Watch the EOD channel for "done" signals and propose moves to the sprint's Done section.
-3. Walk `git log` on every linked site under `sites/` for new commits since the last run and propose Done moves (or new tasks) when commit messages map to sprint bullets.
-4. Watch the #user-testing channel for new observations and propose new bug/UX tasks for the sprint or backlog.
+1. **Standup** (`C09DF90CQ8Z`): MoMs, assignments, bugs, decisions → new items and comments.
+2. **#eod-updates** (`C0A8Q9HM5BN`): done / started signals → status changes and comments.
+3. **Merged PRs** across the team's GitHub orgs → `done` with the PR as evidence.
+4. **#user-testing** (`C09EU7C87BM`): bugs and UX papercuts → new items.
 
-You **propose** in #rapidnative-coach (`C0B4HG16QP3`) and wait for the on-call super-admin to approve in-thread — `<@U09DC8L7PCZ>` (Sanket) by default, or `<@U09DC8MB4KB>` (Suraj) when Sanket is OOO (check `is_on_leave`, sqlite-backed). You only mutate the tasks repo after approval. The thread reply hits the listener, which re-invokes you with the thread context — at that point you apply approved changes, push, and post a sync notification to the standup channel.
+You **apply** what the evidence supports directly in tasker (Sanket's decision, 2026-11-10: tasker has undo and an activity log, so there is no approval step), then post **one** digest to `#tasks` (`C0ASK9520JG`) that says what changed and lists what needs a human. Teammates correct you by replying in the digest thread.
 
 ## Read first (in order)
 
-1. `channels/rapidnative-coach.md` — this routine posts here; check `allowed_routines` includes `tasks-cleanup`
-2. `profile.md` — voice
-3. `CLAUDE.md` — Slack stack (bot-only), sites-prepare for `tasks` symlink, voice defaults
-4. `~/Documents/tasks/CLAUDE.md` — tasks-repo conventions (sprint sections, bullet format, task-page rule, super admins)
-5. Auto-memory `project_team_roster.md` — handle ↔ Slack ID mapping
+1. `.claude/skills/task-management/SKILL.md` — tasker calls, the model, and the **apply directly vs. leave for a human** rules. Authoritative.
+2. `.claude/skills/bug-tracking/SKILL.md` — bug items.
+3. `definitions/people.md` — Slack ID ↔ tasker id, and *Former members* (never assign or ping).
+4. `profile.md` — voice.
 
-## Step 0 — working-day guard
+## Step 0 — guards
 
 ```bash
 source accountability/routines/_lib.sh
 guard_working_day tasks-cleanup
+RUN_ID=$(log_routine_start tasks-cleanup)
+TK=accountability/routines/tasker.sh
+$TK find_nodes '{"query":"tasker","limit":1}' >/dev/null || { echo "tasker unreachable"; log_routine_end "$RUN_ID" 1 "tasker unreachable"; exit 1; }
+DRY_RUN_FLAG="${TASKS_CLEANUP_DRY_RUN:-}"; echo "DRY_RUN_FLAG='$DRY_RUN_FLAG'"
 ```
 
-Exits silently if today is a weekend or a holiday (sqlite `holidays`). Cron already restricts to Mon–Fri, but this catches national holidays. (Skip this step entirely when the routine is re-invoked by the listener with a thread reply — the listener path starts at Step 8 anyway, so the guard only fires on the cron-triggered first run.)
+If tasker is unreachable, post one line to `#rapidnative-coach` (`C0B4HG16QP3`) saying the cleanup skipped and why, and stop. Don't advance the last-run time.
 
-## Step 1 — read last-run timestamp and compute window
+**Dry run** (`DRY_RUN_FLAG` is exactly `1`): do every read, decide every change, but make **no** tasker writes and **no** Slack posts. Print the digest to stdout, save the record as `accountability/state/tasks-cleanup-DRY-<unix-ts>.json`, don't touch the last-run file, exit 0. Check the variable; don't infer dry-run from context.
+
+## Step 1 — window
 
 ```bash
-STATE_DIR="$PROJECT_DIR/accountability/state"
-mkdir -p "$STATE_DIR"
-STATE_FILE="$STATE_DIR/tasks-cleanup-last-run.txt"
+STATE_FILE="$PROJECT_DIR/accountability/state/tasks-cleanup-last-run.txt"
 NOW=$(date +%s)
-if [ -f "$STATE_FILE" ]; then
-  LAST=$(cat "$STATE_FILE")
-else
-  LAST=$((NOW - 36*3600))  # first run: look back 36h to catch yesterday's standup + EODs
-fi
-# Safety cap — never look back more than 7 days
-MIN_CAP=$((NOW - 7*86400))
-[ "$LAST" -lt "$MIN_CAP" ] && LAST=$MIN_CAP
+LAST=$( [ -f "$STATE_FILE" ] && cat "$STATE_FILE" || echo $((NOW - 36*3600)) )
+MIN_CAP=$((NOW - 7*86400)); [ "$LAST" -lt "$MIN_CAP" ] && LAST=$MIN_CAP
+SINCE_DATE=$(date -r "$LAST" +%Y-%m-%d)
 ```
 
-The standup channel is `C09DF90CQ8Z`. The EOD channel is `C0A8Q9HM5BN`. The user-testing channel is `C09EU7C87BM`. Fetch all three:
+## Step 2 — gather signals
 
 ```bash
-source accountability/routines/_lib.sh
 TOKEN=$(get_bot_token)
 for CH in C09DF90CQ8Z C0A8Q9HM5BN C09EU7C87BM; do
-  curl -fsS -G \
-    -H "Authorization: Bearer $TOKEN" \
-    --data-urlencode "channel=$CH" \
-    --data-urlencode "oldest=$LAST" \
-    --data-urlencode "limit=200" \
-    https://slack.com/api/conversations.history \
-    > "/tmp/tasks-cleanup-$CH.json"
+  curl -fsS -G -H "Authorization: Bearer $TOKEN" \
+    --data-urlencode "channel=$CH" --data-urlencode "oldest=$LAST" --data-urlencode "limit=200" \
+    https://slack.com/api/conversations.history > "/tmp/tasks-cleanup-$CH.json"
 done
+# Threads with replies: accountability/routines/slack-read-thread.sh <channel> <thread_ts>
+
+for ORG in RapidNative tinbase lifo-sh; do
+  gh search prs --owner "$ORG" --merged-at ">=$SINCE_DATE" --limit 100 \
+    --json number,title,url,repository,author,closedAt,body
+done > /tmp/tasks-cleanup-prs.json
 ```
 
-Also walk git log on each linked site:
+Drop PRs merged before `$LAST` (the date filter is whole days). If `gh` fails (expired login), carry on with the Slack signals and put "merged PRs not read: gh is not logged in on the Mac mini" under *Needs a human*.
+
+If every source is empty, exit silently and advance the last-run time (Step 6), but only if every read succeeded.
+
+## Step 3 — match against tasker and decide
+
+For each signal, find the item it refers to: an explicit `item-…` id or tasker link wins; otherwise `find_nodes` with 2-3 distinctive words (try the project the channel/repo belongs to first; `definitions/products.md`). Read the candidate with `get_node` before acting on it.
+
+**Standup:**
+- A MoM bullet under a person, or `<@U…> please …` → if an item exists, comment with the quote + permalink; if not, create one in the product's Inbox, owner = that person (tasker id), P2 unless the standup says otherwise.
+- Bug reports → `bug-tracking` skill.
+- Decisions ("going with X", "killing Y") → *Decisions heard* in the digest only.
+
+**EOD bullets** (top-level messages starting `EOD`): match each bullet to the author's open items.
+- High-confidence restatement + done verb (shipped / live / merged / deployed / fixed / published / done) → `done` + comment quoting the bullet with its permalink.
+- Started verb (working on / started / picked up / PR up) on a `todo` item → `doing` + comment.
+- Clear mention without a status signal → comment only.
+- Medium/low confidence, or the item belongs to someone else → *Needs a human*.
+- Untaggable bullets ("Support.", "Standup.") → skip.
+
+**Merged PRs:**
+- PR body or title names an item id, or clearly restates an open item → `done` + comment `Merged: <url>`. If the item lists more work than the PR covers, comment only and don't close.
+- A substantial PR with no matching item → *Shipped without an item* in the digest (title + link). Don't create items for finished work.
+- Skip dependency bumps, chores, and the bot's own PRs.
+
+**#user-testing:** dedupe against `accountability/user-testing/issues-log.md` (that routine owns logging). Reproducible bugs → `bug-tracking`. UX papercuts past the promotion threshold → item in track "User testing" (`find_nodes`), else RapidNative Inbox.
+
+**Leave:** `is_on_leave "<@U…>"` before assigning new work; if they're out, assign anyway but note it under *Needs a human*.
+
+## Step 4 — apply (skip in dry run)
+
+Make the writes with `$TK`: `create_item` (via stdin, `--project`), `update_node`, `add_comment`. One comment per item per run, summarising all of today's evidence for it. Keep a list of every change with the item id, title, project, owner and evidence; the digest and the record are built from it. If a write fails, keep going and list the failure under *Needs a human*.
+
+## Step 5 — post the digest to #tasks
+
+One top-level message to `C0ASK9520JG`. Header exactly `*Tasks update*` (the channel persona routes thread replies on it). Slack mrkdwn; one line per row; item titles link to `https://tasks.rapidnative.com/items/<id>`; owners as `<@U…>` (that ping is how people hear about it in Slack; skip former members).
+
+```
+*Tasks update* <date> · <n> changes in tasker, <m> need a human
+> From <#C09DF90CQ8Z>, <#C0A8Q9HM5BN>, <#C09EU7C87BM> and merged PRs since <last run, IST>. Reply here to correct anything, e.g. *undo 3* or *5 is Riya's*.
+
+*Done* (n)
+1. <link|title> · <@owner> · <PR url | "EOD quote">
+*Started* (n)
+2. <link|title> · <@owner> · "<EOD quote>"
+*New* (n)
+3. <link|title> · P2 · <@owner or unassigned> · <project> <track> · <source permalink>
+*Updated with a comment* (n)
+4. <link|title> · <one-line gist>
+*Needs a human* (n)
+5. <what and why> · <@who decides>
+*Shipped without an item* (n)
+- <PR title> <url>
+*Decisions heard* (n)
+- <decision> · <permalink>
+```
+
+Number rows continuously across sections so corrections can cite them. Leave out empty sections. Over ~40 rows: collapse *Updated with a comment* to a count. Sanket (`<@U09DC8L7PCZ>`) is tagged only on *Needs a human* rows that are his call.
 
 ```bash
-for SITE in sites/*; do
-  [ -L "$SITE" ] || continue                    # symlinks only; skip pointer .md files
-  REAL=$(readlink "$SITE")
-  [ -d "$REAL/.git" ] || continue
-  NAME=$(basename "$SITE")
-  git -C "$REAL" log --since=@$LAST --pretty=format:'%h %s%n  files: %an %ad' --date=short --name-only \
-    > "/tmp/tasks-cleanup-git-$NAME.txt" 2>/dev/null || true
-done
-```
-
-If all four signal sources (3 Slack channels + git logs) are empty, exit silently — **do not post**. Do **not** update the state file (next run will retry the same window).
-
-## Step 2 — prepare the tasks worktree
-
-The `sites/tasks` symlink points at `~/Documents/tasks`. Before any edit, prep a per-thread worktree (idempotent):
-
-```bash
-accountability/routines/sites-prepare.sh tasks
-# Worktree at ~/rapidclaw-site-worktrees/<thread_ts>/tasks/
-```
-
-For this routine the thread ts is **the reply ts of the message you're about to post** — but at proposal time you don't need to write anything yet. Reads against `sites/tasks` are fine without prep. Only prep on the approval-apply pass.
-
-Read the current state of the tasks repo:
-- `sites/tasks/planning/sprint.md` — current sprint sections
-- `sites/tasks/planning/backlog.md` — backlog
-- `sites/tasks/roles.md` — handle ↔ name mapping (also tells you super admins)
-
-## Step 3 — analyze the standup channel (C09DF90CQ8Z)
-
-Walk every new message. Look for:
-
-- **MoMs / standup transcripts** — usually Sanket posts a structured block with `*High-Level Themes*` and per-person bullets prefixed `<@Uxxx>`. Each bullet is a candidate task for the assignee.
-- **Bug reports** — anything starting "X is broken", "found a bug", "the Y page is throwing", screenshots described as errors.
-- **Direct task assignments** — `<@Uxxx> please <do something>`, "let's add X to the backlog", "we need to do Y".
-- **Decisions** — "going with X", "killing Y" — surface as a `## Decisions` note in the proposal but don't auto-create tasks.
-
-For each candidate task, **dedupe** against existing bullets in `sprint.md` (To Do / In Progress / Review) and `backlog.md` — grep for keyword overlap, not just exact match. If a candidate fuzzy-matches an existing bullet, skip it (don't propose).
-
-For each net-new candidate, build a row: `{title, suggested_slug, priority, assignee, section (sprint / backlog), source-link}`. Priority hints: standup explicit "P0" / "drop everything" / "ship today" → P0; bug-with-paid-user-impact → P0; new feature work → P1; spike / nice-to-have → P2.
-
-## Step 4 — analyze the EOD channel (C0A8Q9HM5BN)
-
-EODs are top-level messages starting with `EOD:` / `EOD -` / `*EOD Update:*`. Each EOD typically has a bulleted list of bullets like:
-- `Apk download feature is live.`
-- `Fixed drawer and other issues in bundler.`
-- `Support.`
-
-For each EOD bullet, **fuzzy-match** against bullets in `sprint.md` (To Do, In Progress, Review). Matching rules:
-
-- Strong signal verbs: "shipped", "live", "merged", "deployed", "done", "fixed", "closed", "published" → propose move to Done.
-- Soft signal verbs: "working on", "started", "picked up" → propose move To Do → In Progress.
-- "ready for review", "PR up", "review pending" → propose move to Review (ask for reviewer handle in the proposal).
-- Untaggable bullets (e.g. "Support.", "Standup.") → skip silently.
-
-For each match, build a row: `{eod-author, eod-bullet, matched-task-slug, current-section, proposed-section, confidence (high/medium/low)}`.
-
-Confidence:
-- **high** — bullet is a direct restatement of the task title with a done-signal verb.
-- **medium** — bullet shares 2+ keywords with the task title and a done-signal verb.
-- **low** — partial match; flag as "needs human confirmation".
-
-Per tasks-repo CLAUDE.md: when moving to Done, the **reviewer** moves it, not the assignee. Super admins (`@sanket`, `@suraj`) can override. Surface this in the proposal (e.g. "needs reviewer-or-super-admin to approve"). Since the on-call super-admin is approving the proposal in-thread, their approval IS the super-admin override.
-
-For items moving to Review, the EOD author must name a reviewer. If the EOD bullet doesn't name one, flag "reviewer needed" and ask in the proposal.
-
-## Step 4.5 — analyze git logs on linked sites (sites/*)
-
-For each linked site you walked in Step 1, parse the commit list. For each commit, look at the subject line + touched files:
-
-- **Strong done-signal subjects** ("ship", "release", "merge", "fix X", "close #N", "resolves slug-like-this") → fuzzy-match against open sprint bullets (To Do / In Progress / Review). Match by keyword overlap with the task title or by an explicit `slug` token in the subject. Propose Move to Done with confidence based on overlap strength.
-- **In-progress signals** ("wip", "draft", "prototype X", "starting on Y") → propose Move To Do → In Progress on matched bullets.
-- **Net-new work surfaced in commits but absent from sprint/backlog** (e.g. a meaningful refactor with no matching ticket) → propose as a new low-priority backlog task tagged `#from-git`. Be conservative — most commits map to existing tickets; only surface genuinely-new scope.
-
-For each match build a row: `{site, commit-hash, subject, matched-task-slug (or null), proposed-section, confidence}`. Skip merge commits, dependency bumps, and chore-only commits unless they explicitly close a task.
-
-## Step 4.6 — analyze the user-testing channel (C09EU7C87BM)
-
-Walk every new top-level message and its replies (use `accountability/routines/slack-read-thread.sh C09EU7C87BM <thread_ts>` for threads). Look for:
-
-- **Bug observations** — "couldn't X", "error when Y", "blank screen on Z", screenshots described as broken UI → propose a new sprint task (`#bug`) if not already covered.
-- **UX papercuts** — "this is confusing", "I expected X but got Y", "would be nice if Z" → propose a backlog task (`#ux`).
-- **Repeat patterns** — if 2+ testers hit the same issue, bump the proposed priority by one tier.
-
-Dedupe rigorously against existing sprint + backlog bullets and against `accountability/user-testing/issues-log.md` (the user-testing-capture routine's own log). If an issue is already logged there, skip it — that routine owns it.
-
-For each candidate, build a row: `{title, suggested_slug, priority, assignee (guess from area: app crash → @riya/@suraj, AI flow → @suraj, marketing/blog → @rishav), section, source-link (Slack permalink to the user-testing message)}`. If unsure who owns it, leave `assignee` blank and flag "owner TBD" in the proposal.
-
-## Step 5 — early-exit if nothing to propose
-
-If Steps 3, 4, 4.5, and 4.6 all produced zero rows, exit silently:
-
-```bash
-echo "$NOW" > "$STATE_FILE"
-exit 0
-```
-
-(Update the state file even on empty — there genuinely was nothing.)
-
-## Step 6 — post the proposal to #rapidnative-coach
-
-Pick the on-call super-admin to tag — Sanket by default, Suraj when Sanket is on leave:
-
-```bash
-source accountability/routines/_lib.sh
-APPROVER_ID="U09DC8L7PCZ"       # @sanket
-APPROVER_HANDLE="@sanket"
-if is_on_leave "<@U09DC8L7PCZ>"; then
-  APPROVER_ID="U09DC8MB4KB"     # @suraj
-  APPROVER_HANDLE="@suraj"
-fi
-```
-
-Single top-level message in `C0B4HG16QP3`. Title is exactly `*Tasks clean up*`. Tag `<@$APPROVER_ID>` and list the proposed changes grouped by type. Keep it scannable — one line per change, with the matched task slug or proposed slug. Use Slack mrkdwn (single `*`, `>` blockquote, `<url|text>` links).
-
-Template:
-
-```
-*Tasks clean up* — proposals for <date range>
-
-> Pulled from <#C09DF90CQ8Z> + <#C0A8Q9HM5BN> + <#C09EU7C87BM> + git logs on linked sites since last run.
-
-*New tasks to add* (N)
-1. `<slug>` — <title> · P<n> · <@assignee> · <sprint|backlog> · <source>
-2. ...
-
-*Move to Done* (N)
-1. `<slug>` (currently <section>) — matches <author>'s EOD bullet "<bullet>" · confidence <high|medium|low>
-2. `<slug>` (currently <section>) — matches commit `<hash>` in <site> "<subject>" · confidence <high|medium|low>
-3. ...
-
-*Move to In Progress / Review* (N)
-1. `<slug>` — <author> said "<bullet>" · proposed: <new-section>[ — needs reviewer]
-2. ...
-
-*Decisions surfaced* (N) — captured as notes only, no task changes
-1. <decision summary> — <source>
-
-<@$APPROVER_ID> reply *go* / *approve all* / *approve 1,3,5* / *skip 2* / *all except moves* etc. to apply. Reply *defer* to skip this batch.
-```
-
-Tag each row with its source emoji for scanability: 📋 standup · ✅ EOD · 🧪 user-testing · 🔧 git.
-
-Cap the message at ~250 lines of Slack mrkdwn. If there are more changes than that, prioritize: all P0/P1 new tasks + all high-confidence Done moves + first 5 low-confidence rows. Note the total in the title (`*Tasks clean up* — 47 proposed, top 30 shown`).
-
-Capture the reply ts:
-
-```bash
-REPLY_TS=$(accountability/routines/slack-post.sh C0B4HG16QP3 "" <<EOF | awk -F= '{print $2}'
-<message body>
+REPLY_TS=$(accountability/routines/slack-post.sh C0ASK9520JG "" <<'EOF' | awk -F= '{print $2}'
+<digest>
 EOF
 )
 ```
 
-**Do not** call `slack-status.sh` — the listener trace covers status. Empty thread arg (`""`) = top-level post.
+## Step 6 — record the run
 
-## Step 7 — persist proposal state and update the run timestamp
-
-Write the proposal payload (rows + matched task slugs + the reply ts) to:
-
-```bash
-STATE_DIR="$PROJECT_DIR/accountability/state"
-PROPOSAL_FILE="$STATE_DIR/tasks-cleanup-proposal-$REPLY_TS.json"
-```
-
-This gives the resume-prompt path a way to know what was proposed without re-deriving from the thread text. Schema:
+Write the change list to `accountability/state/tasks-cleanup-<REPLY_TS>.json`:
 
 ```json
-{
-  "proposed_at": <unix-ts>,
-  "window_start": <unix-ts>,
-  "window_end": <unix-ts>,
-  "reply_ts": "<slack-ts>",
-  "new_tasks": [{"slug": "...", "title": "...", "priority": "P1", "assignees": ["riya"], "section": "sprint", "source": "standup|eod|user-testing|git", "source_link": "..."}],
-  "to_done": [{"slug": "...", "from": "In Progress", "source": "eod|git", "author_or_site": "riya", "evidence": "<bullet | commit subject>", "confidence": "high"}],
-  "to_inprogress_or_review": [{"slug": "...", "to": "In Progress|Review", "source": "eod|standup|git", "reviewer": "..."}],
-  "decisions": ["..."]
-}
+{"run_at": <unix>, "window_start": <unix>, "window_end": <unix>, "reply_ts": "<ts>",
+ "rows": [{"n": 1, "kind": "done|started|new|comment|human|shipped-no-item|decision",
+           "item_id": "item-…", "title": "…", "project": "RapidNative", "owner": "person-…",
+           "before": {"status": "doing"}, "after": {"status": "done"},
+           "evidence": "<url or quote>", "source": "standup|eod|pr|user-testing"}]}
 ```
 
-Update the run timestamp:
+`before` is what makes *undo n* possible; always fill it for status and owner changes.
 
 ```bash
+sqlite3 "$(db_path)" "INSERT OR REPLACE INTO tasks_cleanup_proposals (reply_ts, proposal_json, status) VALUES ('$REPLY_TS', readfile('$PROJECT_DIR/accountability/state/tasks-cleanup-$REPLY_TS.json'), 'applied');"
 echo "$NOW" > "$STATE_FILE"
+log_routine_end "$RUN_ID" 0 "done=<n>; started=<n>; new=<n>; comments=<n>; human=<n>"
 ```
 
-## Step 8 — exit; the listener handles approval
+## Corrections (listener-driven, in the digest thread)
 
-The thread reply will fire the listener and re-invoke claude with the resume prompt + thread context. At that point you (the approval-pass instance):
-
-1. Read the proposal JSON at `accountability/state/tasks-cleanup-proposal-<reply_ts>.json` to know what was proposed.
-2. Parse the approval reply for which items to apply (default: `go` / `approve all` = everything).
-3. Run `accountability/routines/sites-prepare.sh tasks` to get a worktree.
-4. Apply the approved changes:
-   - New tasks → append bullets to the right section in `planning/sprint.md` (or `planning/backlog.md`), scaffold task pages at `tasks/<slug>.md` with minimal frontmatter (title, slug, priority, status, assignees, created date, source = `slack:<channel>:<ts>`).
-   - To Done → cut bullet from current section, paste under `## Done`. Append activity line to the task page: `- <date> — moved to Done from EOD by @<author> (approved by <approver handle from the in-thread reply>)`.
-   - To In Progress / Review → cut + paste similarly; if Review, write `#review by [[@<handle>]]` from the approval reply.
-4b. Queue Slack notifications per `~/Documents/tasks/CLAUDE.md` ("Slack notifications (automated task events)"). Append a strict-format entry to `intake/unsent-notifications.md` for each event:
-   - **New task with an assignee** → `event: task-assigned`, `to: @<assignee>`.
-   - **Moved to Done** → `event: moved-to-done`, `to: @<original-assignee>` (skip if original assignee == approver — the "self" rule).
-   - **Moved to Review** → `event: moved-to-review`, `to: @<reviewer>`.
-   - Skip moved-to-In-Progress (not in the trigger list).
-   Always include the title in the `message:` text (the script appends only the slug as a deep-link label). Use IST `YYYY-MM-DD HH:MM` from `date "+%Y-%m-%d %H:%M"` under `TZ=Asia/Kolkata`.
-5. `cd ~/rapidclaw-site-worktrees/<thread_ts>/tasks/ && git add -A && git commit -m "<msg>" && cd ~/Documents/tasks && git pull --rebase && git merge --ff-only thread/<thread_ts> && git push`. The auto-sync cron drains `intake/unsent-notifications.md` once it's on `main`; or run `python3 bin/send-notifications.py` from `~/Documents/tasks` to drain immediately.
-6. Post a single follow-up notification to `C09DF90CQ8Z`:
-
-   ```
-   ✅ *Tasks repo synced* — <N> change(s) applied
-   > _approved in <thread permalink>_
-   > • Added: <count>
-   > • Moved to Done: <count>
-   > • Moved to In Progress / Review: <count>
-   ```
-
-7. Reply to the original `C0B4HG16QP3` thread with a one-line confirmation including the commit URL.
-
-## Voice notes
-
-Apply `profile.md` voice rules during drafting, not after. Defaults: concise, no em dashes (or with spaces), no hashtags the owner didn't ask for, no corporate buzz, no "let me know if I can help" filler.
+Handled by the `task-management` skill (*Corrections in a digest thread*): read the run record by `reply_ts`, apply the correction in tasker using the row's `before`, reply in the thread with what changed.
 
 ## Don't
 
-- Don't mutate the tasks repo until Sanket approves in-thread.
-- Don't post twice in one run — only the proposal (or silent exit).
-- Don't ping anyone other than the on-call super-admin chosen in Step 6 (Sanket by default; Suraj when Sanket is on leave per `is_on_leave`). The other super-admin is welcome to chime in but only tag one.
-- Don't auto-route low-confidence EOD matches as Done — flag them and let the human decide.
-- Don't update `tasks-cleanup-last-run.txt` if both channels returned zero new messages **and** the API call failed. Only advance on a successful empty read.
+- Don't post more than the one digest (plus the one-line failure note when tasker is down).
+- Don't mark anything `done` without evidence you can link.
+- Don't create items for finished work or for decisions.
+- Don't assign or ping former members; don't assign to people without a tasker id.
+- Don't write to the retired `sites/tasks` repo or keep tasks anywhere but tasker.
+
+Voice: `profile.md`. Concise, no em dashes (or with spaces), no filler.

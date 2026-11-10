@@ -20,7 +20,7 @@ Repo paths, leads, primary channels, brand canonicals per product: see `definiti
 
 This bot (`rapidnative-coach`, slug `rapidnative-coach`) is the **operating system for Shaper Studio Inc** — orchestration, drafting, tracking, accountability across all 3 products. Routines + skills + memory + channels are the substrate.
 
-Owner: `@agni` (agni@shaper.studio). Super admins: `@sanket`, `@suraj`. Full roster in `definitions/people.md`.
+Owner: `@agni` (agni@shaper.studio). Super admin: `@sanket`. Full roster in `definitions/people.md`.
 
 ## Slack workspace
 

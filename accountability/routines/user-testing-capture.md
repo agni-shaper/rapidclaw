@@ -4,7 +4,7 @@ You are running the daily user-testing capture for rapidnative-coach. Fires once
 
 Diff recent activity in **#user-testing** (channel `C09EU7C87BM`) against `accountability/user-testing/issues-log.md`, then post a *proposal* (not a commit) to **#rapidnative-coach** (channel `C0B4HG16QP3`) for the owner to confirm.
 
-You never write to the log or the tasks repo unattended. The owner replies "apply" / "go" and the listener spawns a fresh claude that applies the changes.
+You never write to the log or to tasker unattended. The owner replies "apply" / "go" and the listener spawns a fresh claude that applies the changes.
 
 ## Step 1 — read the log
 
@@ -54,11 +54,11 @@ After applying the proposed changes (hypothetically), any row that crosses the p
 - `testers hit ≥ 2` after this batch, **or**
 - new row created at `P0` or `P1`.
 
-For each flagged row, suggest the destination in `sites/tasks/`:
+For each flagged row, `find_nodes` in tasker first (`accountability/routines/tasker.sh find_nodes '{"query":"<2-3 words>"}'`). Then suggest:
 
-- bug-shaped (crash, broken behavior) → `/add-bug` → `intake/bugs.md`
-- qualitative quote / sentiment → `/add-feedback` → `intake/feedback.md`
-- direct task → `/new-task` then `planning/backlog.md` with `#user-testing #bug`
+- already in tasker → link the existing item (`https://tasks.rapidnative.com/items/<id>`), no new item
+- bug-shaped (crash, broken behavior) → new bug item per the `bug-tracking` skill (RapidNative Inbox)
+- UX / qualitative → new item in tasker track "User testing" (Growth → Community)
 
 ## Step 6 — post the proposal
 
@@ -75,8 +75,8 @@ Scanned <N> messages / <M> threads in <#C09EU7C87BM> since yesterday.
 2. NEW row: "stripe webhook 500 on retry" | 2026-05-26 | 1 (ZK) | P0 | raw | —
 
 *Promotion candidates*
-- Row #3 now at 4 testers — push to `sites/tasks/` as `/add-bug` (#user-testing #bug).
-- NEW row (stripe webhook) — P0 on first occurrence — push to `sites/tasks/` as `/add-bug` (#user-testing #bug #stripe).
+- Row #3 now at 4 testers: already tracked as <https://tasks.rapidnative.com/items/item-…|onboarding CTA invisible on dark>, comment the new sighting.
+- NEW row (stripe webhook): P0 on first occurrence, new bug item in RapidNative Inbox.
 
 *To apply:* reply `apply` (or `apply 1,2` for a subset, or `skip` to drop).
 EOF
@@ -96,9 +96,9 @@ That way the owner knows the routine ran and the channel is just quiet.
 The listener picks up the reply and spawns a fresh `claude -p`. That session reads the proposal in the thread, parses which items the owner wants applied (`apply`, `apply 1,3`, `skip`), then:
 
 1. Edits `accountability/user-testing/issues-log.md` — increment counts, add new rows.
-2. For each approved promotion: cd into `sites/tasks/` (run `accountability/routines/sites-prepare.sh tasks` first — per CLAUDE.md, required for any session-side edit to a symlinked site), run the appropriate intake command, capture the returned wikilink, paste it into the log row's `task` column, set `status: tasked`.
-3. Commit changes in both repos with a clear message. Open a PR in the tasks repo per the standard linked-projects workflow; the rapidnative-coach repo just commits to main locally.
-4. Reply in the same thread with: log diff + PR URL (if any).
+2. For each approved promotion: create the tasker item (or comment on the existing one) per the `task-management` skill, put its link `https://tasks.rapidnative.com/items/<id>` in the log row's `task` column, set `status: tasked`.
+3. Commit the log change on the rapidnative-coach repo (local main).
+4. Reply in the same thread with: log diff + the tasker links.
 
 ## Failure modes
 

@@ -32,7 +32,7 @@ The team ships things that don't always show up as commits in the owner's `~/pro
 
 1. **`<#C09DF90CQ8Z>` — the standup channel.** Pull the last 7 days of MoMs and standup transcripts. Use these for *intent* (what the team committed to this week) and for cross-checking against what actually landed.
 2. **`<#C0A8Q9HM5BN>` — the EOD channel.** Pull the last 7 days. EOD bullets with verbs like "shipped", "live", "merged", "deployed", "done", "fixed", "closed", "published" are confirmed-shipped work — especially valuable for teammates whose work doesn't live in the owner's local repos (e.g. `@rishav` on marketing, `@famitha` on listings, `@russel` on brand assets).
-3. **Tasks repo — `sites/tasks/planning/sprint.md` `## Done` section.** This is the canonical "what shipped this sprint" list, already vetted by the team. Use it as ground truth — if something's in Done, it shipped.
+3. **Tasker — what the coach marked done this week.** The `tasks-cleanup` run records (sqlite `tasks_cleanup_proposals`, last 7 days) list every item set to `done` with its evidence (merged PR or EOD quote). Re-check each with `accountability/routines/tasker.sh get_node` (someone may have reopened it); if it's still `done`, it shipped. Items people closed by hand in tasker don't appear there, so EOD + git remain the cross-check.
 
 ```bash
 source accountability/routines/_lib.sh
@@ -50,15 +50,14 @@ for CH in C09DF90CQ8Z C0A8Q9HM5BN; do
     > "/tmp/friday-$CH.json"
 done
 
-# Tasks repo Done section (current sprint)
-awk '/^## Done/{flag=1; next} /^## /{flag=0} flag' sites/tasks/planning/sprint.md \
-  | grep '^- \[\['  > /tmp/friday-tasks-done.txt
-# Also check previous sprints if one rolled over this week
-if [ -d sites/tasks/planning/previous-sprints ]; then
-  find sites/tasks/planning/previous-sprints -name 'sprint-*.md' -mtime -7 \
-    -exec awk '/^## Done/{flag=1; next} /^## /{flag=0} flag' {} \; \
-    | grep '^- \[\['  >> /tmp/friday-tasks-done.txt 2>/dev/null
-fi
+# Items the coach marked done in tasker this week (from the tasks-cleanup run records)
+sqlite3 -json "$(db_path)" "SELECT proposal_json FROM tasks_cleanup_proposals WHERE created_at >= datetime('now','-7 days') AND status='applied';" \
+  | python3 -c "import json,sys
+raw=sys.stdin.read().strip()
+for row in (json.loads(raw) if raw else []):
+    for r in json.loads(row['proposal_json']).get('rows',[]):
+        if r.get('kind')=='done': print(r.get('item_id'), '|', r.get('title'), '|', r.get('evidence'))" \
+  > /tmp/friday-tasks-done.txt
 ```
 
 When a Done bullet, an EOD bullet, and a commit all point at the same thing, that's the strongest signal — lead the wrap with it. When the team shipped something the owner had no commits for (e.g. an AppLighter ad rotation, a marketing post, a support resolution), surface it too — the wrap is the whole team's, not just the owner's.
@@ -82,7 +81,7 @@ Report bluntly: "0/N video floor", "1/N", "✓ floor hit". If under floor and th
 
 ## Build-in-public scan
 
-Cross-reference all four signals (git commits, standup MoMs, EOD bullets, tasks-repo Done) before picking:
+Cross-reference all four signals (git commits, standup MoMs, EOD bullets, tasker items marked done) before picking:
 
 - What's the most demoable / story-worthy thing the team shipped this week? (Not just the owner — Done items credited to teammates count too.)
 - Is there a one-liner punchline post hidden in a commit subject or an EOD bullet?
@@ -130,7 +129,7 @@ After the build-in-public message, run the GTM recap. This is a **separate Slack
 
 Backlog updated. Next Monday's pick fires 09:00.
 
-<@U09DC8L7PCZ> <@U09DC8MB4KB>
+<@U09DC8L7PCZ>
 ```
 
 If nothing shipped, say it plainly — no euphemism. The picks system only works if the recap is honest.

@@ -16,7 +16,7 @@ Cron-fired routines, 1:1 with `~/Library/LaunchAgents/com.agni.rapidnative-coach
 | `eod-streak-check` | 19:00 Mon–Fri | `#eod-updates` | ✅ **v2 in cron** — loads `eod-nudges` + `leave` |
 | `engagement` | 11:30 / 14:30 / 17:30 daily (3x) | `#rn-coach-social` | v1 (social-engagement skill not yet scaffolded) |
 | `user-testing-capture` | 10:00 daily | `#user-testing` + `#rapidnative-coach` | ✅ **v2 in cron** — loads `user-testing` |
-| `tasks-cleanup` | 12:15 Mon–Fri | `#rapidnative-coach` (approval flow) | ✅ **v2 in cron** — loads `task-management` + `bug-tracking` + `leave` |
+| `tasks-cleanup` | 12:15 Mon–Fri | `#tasks` (`*Tasks update*` digest) | ✅ **tasker since 2026-11-10** — applies evidence-backed changes in tasker directly, digest lists what needs a human. Loads `task-management` + `bug-tracking` + `leave`. Dry run: `TASKS_CLEANUP_DRY_RUN=1 accountability/routines/run.sh tasks-cleanup` |
 | `blog-internal` | 12:00 daily | `#marketing-automation` (via $SLACK_CONTENT_CHANNEL_ID) | v1 (thin wrapper around generate-blog.sh; no benefit from v2) |
 | `blog-external` | 11:00 daily | `#ai-blog` | v1 (same) |
 | `daily-tasks` | 06:00 Mon–Fri (skips holidays) | `#rn-coach-social` | ✅ live recon (X / LinkedIn / Reddit / Quora / HN via bot Chrome) → 30 tasks/member + Task-Assistance-Bot threads. Crew in `marketing/daily-tasks-crew.md`. Replaces marketing-recon + marketing-morning (retired 2026-11-05) |
