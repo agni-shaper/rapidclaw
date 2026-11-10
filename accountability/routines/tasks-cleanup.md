@@ -91,6 +91,8 @@ Make the writes with `$TK`: `create_item` (via stdin, `--project`), `update_node
 
 ## Step 5 — post the digest to #tasks
 
+**Stay silent when there's nothing to say.** If the change list has no rows of any kind (nothing applied, nothing for a human, nothing shipped without an item, no decisions), don't post. Record the run without a `reply_ts` (use `none-<unix-ts>` as the key) and advance the last-run time. A digest that says "nothing changed" is noise.
+
 One top-level message to `C0ASK9520JG`. Header exactly `*Tasks update*` (the channel persona routes thread replies on it). Slack mrkdwn; one line per row; item titles link to `https://tasks.rapidnative.com/items/<id>`; owners as `<@U…>` (that ping is how people hear about it in Slack; skip former members).
 
 ```
